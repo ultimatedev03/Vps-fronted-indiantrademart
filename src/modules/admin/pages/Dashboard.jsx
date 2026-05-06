@@ -50,20 +50,49 @@ const AdminDashboard = () => {
 
     const load = async () => {
       try {
-        const [overview, orders, performance, tickets, vendors] = await Promise.all([
+        const [overviewResult, ordersResult, performanceResult, ticketsResult, vendorsResult] = await Promise.allSettled([
           adminApi.getDashboardOverview(),
-          adminApi.getRecentOrders(),
+          adminApi.getRecentLeadPurchases(5),
           adminApi.getDataEntryPerformance(),
           adminApi.getRecentTickets(5),
           adminApi.getRecentVendors(5),
         ]);
 
         if (cancelled) return;
-        setStats(overview);
-        setRecentOrders(orders || []);
-        setDataEntryPerf(performance || []);
-        setRecentTickets(tickets || []);
-        setRecentVendors(vendors || []);
+
+        if (overviewResult.status === 'fulfilled') {
+          setStats(overviewResult.value || {});
+        } else {
+          console.warn('[AdminDashboard] Failed to load overview:', overviewResult.reason);
+        }
+
+        if (ordersResult.status === 'fulfilled') {
+          setRecentOrders(ordersResult.value || []);
+        } else {
+          console.warn('[AdminDashboard] Failed to load recent purchases:', ordersResult.reason);
+          setRecentOrders([]);
+        }
+
+        if (performanceResult.status === 'fulfilled') {
+          setDataEntryPerf(performanceResult.value || []);
+        } else {
+          console.warn('[AdminDashboard] Failed to load performance:', performanceResult.reason);
+          setDataEntryPerf([]);
+        }
+
+        if (ticketsResult.status === 'fulfilled') {
+          setRecentTickets(ticketsResult.value || []);
+        } else {
+          console.warn('[AdminDashboard] Failed to load recent tickets:', ticketsResult.reason);
+          setRecentTickets([]);
+        }
+
+        if (vendorsResult.status === 'fulfilled') {
+          setRecentVendors(vendorsResult.value || []);
+        } else {
+          console.warn('[AdminDashboard] Failed to load recent vendors:', vendorsResult.reason);
+          setRecentVendors([]);
+        }
       } catch (e) {
         console.error(e);
       } finally {

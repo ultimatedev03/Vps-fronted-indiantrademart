@@ -90,6 +90,9 @@ export const adminApi = {
     return [];
   },
 
+  // Backward-compatible alias used by older dashboard code.
+  getRecentOrders: async (limit = 10) => adminApi.getRecentLeadPurchases(limit),
+
   getDataEntryPerformance: async () => {
     const res = await fetchWithCsrf(apiUrl('/api/admin/dashboard/data-entry-performance'));
     if (res.ok) {
