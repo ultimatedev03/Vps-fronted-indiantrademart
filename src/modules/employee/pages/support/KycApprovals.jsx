@@ -167,46 +167,12 @@ const KycApprovals = () => {
         return acc;
       }, {});
     } catch (apiError) {
-      // Fallback for legacy environments where endpoint is not available.
-      let docsRows = [];
-      const { data: vendorDocs, error: docsError } = await supabase
-        .from('vendor_documents')
-        .select('vendor_id')
-        .in('vendor_id', Array.from(vendorIdSet));
-      if (!docsError && Array.isArray(vendorDocs)) {
-        docsRows = vendorDocs;
-      }
-
-      try {
-        const { data: legacyDocs, error: legacyDocsError } = await supabase
-          .from('kyc_documents')
-          .select('vendor_id')
-          .in('vendor_id', Array.from(vendorIdSet));
-        if (!legacyDocsError && Array.isArray(legacyDocs)) {
-          docsRows = [...docsRows, ...legacyDocs];
-        }
-      } catch {
-        // ignore optional table failures
-      }
-
-      const counts = docsRows.reduce((acc, row) => {
-        const key = String(row?.vendor_id || '').trim();
-        if (!key) return acc;
-        if (!vendorIdSet.has(key)) return acc;
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      }, {});
-
+      console.warn('[KycApprovals] Falling back to zero document counts:', apiError?.message || apiError);
+      const counts = {};
       vendorIdSet.forEach((id) => {
-        if (!Object.prototype.hasOwnProperty.call(counts, id)) {
-          counts[id] = 0;
-        }
+        counts[id] = 0;
       });
-
-      if (Object.keys(counts).length) {
-        return counts;
-      }
-      throw apiError;
+      return counts;
     }
   };
 
