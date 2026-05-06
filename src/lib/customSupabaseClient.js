@@ -18,6 +18,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const baseClient = createClient(supabaseUrl || '', supabaseAnonKey || '');
 
 let cachedUser = null;
+let cachedBackendAccessToken = '';
 let refreshPromise = null;
 let lastRefreshAt = 0;
 let refreshCooldownUntil = 0;
@@ -78,8 +79,13 @@ const emit = (event, session) => {
 
 const resetCachedAuth = () => {
   cachedUser = null;
+  cachedBackendAccessToken = '';
   lastRefreshAt = 0;
   refreshCooldownUntil = 0;
+};
+
+const setCachedBackendAccessToken = (value) => {
+  cachedBackendAccessToken = String(value || '').trim();
 };
 
 const broadcastAuthSync = (event) => {
@@ -142,13 +148,20 @@ const fetchJson = async (path, options = {}) => {
 const sanitizeAuthUser = (user) => {
   if (!user || typeof user !== 'object') return null;
   const next = { ...user };
-  // Backend JWT must never be exposed as Supabase session token.
-  // Otherwise Supabase DB queries receive invalid bearer auth and fail.
+  // Keep backend JWT separate from the Supabase session token so DB queries
+  // don't accidentally forward a non-Supabase bearer token.
   delete next.access_token;
   return next;
 };
 
-const buildSession = (user) => (user ? { user, access_token: null } : null);
+const buildSession = (user) =>
+  user
+    ? {
+        user,
+        access_token: null,
+        backend_access_token: cachedBackendAccessToken || null,
+      }
+    : null;
 
 const refreshSession = async (force = false) => {
   const now = Date.now();
@@ -172,6 +185,7 @@ const refreshSession = async (force = false) => {
     const hadUser = !!cachedUser;
     try {
       const data = await fetchJson('/api/auth/me');
+      setCachedBackendAccessToken(data?.user?.access_token);
       cachedUser = sanitizeAuthUser(data?.user || null);
       lastRefreshAt = Date.now();
       return buildSession(cachedUser);
@@ -181,6 +195,7 @@ const refreshSession = async (force = false) => {
       }
       if (!hadUser) {
         cachedUser = null;
+        setCachedBackendAccessToken('');
       }
       return buildSession(cachedUser);
     } finally {
@@ -292,6 +307,7 @@ const authShim = {
           ...(captchaActionValue ? { captcha_action: captchaActionValue } : {}),
         }),
       });
+      setCachedBackendAccessToken(data?.user?.access_token);
       const returnedUser = sanitizeAuthUser(data?.user || null);
       const returnedRole = normalizeRole(
         returnedUser?.role || returnedUser?.app_metadata?.role || returnedUser?.user_metadata?.role
@@ -339,6 +355,7 @@ const authShim = {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+      setCachedBackendAccessToken(data?.user?.access_token);
       cachedUser = sanitizeAuthUser(data?.user || null);
       lastRefreshAt = Date.now();
       refreshCooldownUntil = 0;

@@ -4,6 +4,26 @@ import { apiUrl } from '@/lib/apiBase';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+const getHeaderValue = (headers, key) => {
+  if (!headers || !key) return '';
+  const target = String(key).toLowerCase();
+  const match = Object.entries(headers).find(([headerKey]) => String(headerKey).toLowerCase() === target);
+  return match ? match[1] : '';
+};
+
+const hasHeader = (headers, key) => Boolean(getHeaderValue(headers, key));
+
+const getBackendAccessToken = async () => {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return String(session?.backend_access_token || '').trim();
+  } catch {
+    return '';
+  }
+};
+
 const getReadableCsrfToken = () => {
   if (typeof document === 'undefined') return '';
   const token = document.cookie
@@ -66,6 +86,13 @@ export async function fetchWithCsrf(url, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
+  if (!hasHeader(headers, 'Authorization')) {
+    const accessToken = await getBackendAccessToken();
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+  }
+
   if (!SAFE_METHODS.has(method) && !getReadableCsrfToken()) {
     await refreshAuthContext();
   }
@@ -95,6 +122,12 @@ export async function fetchWithCsrf(url, options = {}) {
     const refreshedCsrfToken = getReadableCsrfToken();
     if (refreshedCsrfToken) {
       retryHeaders['X-CSRF-Token'] = refreshedCsrfToken;
+    }
+    if (!hasHeader(retryHeaders, 'Authorization')) {
+      const refreshedAccessToken = await getBackendAccessToken();
+      if (refreshedAccessToken) {
+        retryHeaders.Authorization = `Bearer ${refreshedAccessToken}`;
+      }
     }
 
     response = await executeRequest(retryHeaders);
