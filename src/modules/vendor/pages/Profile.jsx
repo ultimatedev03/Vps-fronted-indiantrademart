@@ -1626,7 +1626,7 @@ const DocumentsSection = ({ documents, onRefresh, kycStatus }) => {
       </div>
 
       <p className="mt-3 text-xs text-slate-500">
-        KYC upload rules: only JPG/PNG, minimum 100KB, maximum 2MB, and exactly 4 required document slots.
+        KYC upload rules: only JPG/PNG, minimum 100KB, maximum 5MB, and exactly 4 required document slots.
       </p>
 
       {normalizedKycStatus === 'REJECTED' && (

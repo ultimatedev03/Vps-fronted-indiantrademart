@@ -3,9 +3,24 @@ import { setDefaultResultOrder } from 'dns';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import WebSocket from 'ws';
 
-const FRONTEND_DIR = process.env.FRONTEND_DIR || 'frontend';
-dotenv.config({ path: path.join(process.cwd(), FRONTEND_DIR, '.env.local') });
+const resolveFrontendDir = () => {
+  const override = String(process.env.FRONTEND_DIR || '').trim();
+  const candidates = [
+    override ? path.resolve(process.cwd(), override) : null,
+    process.cwd(),
+    path.join(process.cwd(), 'frontend'),
+  ].filter(Boolean);
+
+  return (
+    candidates.find((candidate) => fs.existsSync(path.join(candidate, 'src')) && fs.existsSync(path.join(candidate, 'public'))) ||
+    process.cwd()
+  );
+};
+
+const FRONTEND_DIR = resolveFrontendDir();
+dotenv.config({ path: path.join(FRONTEND_DIR, '.env.local') });
 dotenv.config({ path: '.env.local' });
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
@@ -17,7 +32,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   process.exit(1);
 }
 
-const distDir = path.join(process.cwd(), FRONTEND_DIR, 'dist');
+const distDir = path.join(FRONTEND_DIR, 'dist');
 const templatePath = path.join(distDir, 'index.html');
 
 if (!fs.existsSync(templatePath)) {
@@ -87,6 +102,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: false,
     autoRefreshToken: false,
     detectSessionInUrl: false,
+  },
+  realtime: {
+    transport: WebSocket,
   },
 });
 

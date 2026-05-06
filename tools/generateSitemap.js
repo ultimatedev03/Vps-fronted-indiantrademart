@@ -3,15 +3,29 @@ import { setDefaultResultOrder } from 'dns';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import WebSocket from 'ws';
 
-// Load environment variables from frontend/.env.local first, then root as fallback
-const FRONTEND_DIR = process.env.FRONTEND_DIR || 'frontend';
-dotenv.config({ path: path.join(process.cwd(), FRONTEND_DIR, '.env.local') });
+const resolveFrontendDir = () => {
+  const override = String(process.env.FRONTEND_DIR || '').trim();
+  const candidates = [
+    override ? path.resolve(process.cwd(), override) : null,
+    process.cwd(),
+    path.join(process.cwd(), 'frontend'),
+  ].filter(Boolean);
+
+  return (
+    candidates.find((candidate) => fs.existsSync(path.join(candidate, 'src')) && fs.existsSync(path.join(candidate, 'public'))) ||
+    process.cwd()
+  );
+};
+
+const FRONTEND_DIR = resolveFrontendDir();
+dotenv.config({ path: path.join(FRONTEND_DIR, '.env.local') });
 dotenv.config({ path: '.env.local' });
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
-const BASE_URL = 'https://indiantrademart.com';
+const BASE_URL = String(process.env.VITE_SITE_URL || 'https://indiantrademart.com').trim().replace(/\/+$/, '');
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error('Missing Supabase credentials in environment variables');
@@ -78,6 +92,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: false,
     autoRefreshToken: false,
     detectSessionInUrl: false,
+  },
+  realtime: {
+    transport: WebSocket,
   },
 });
 
@@ -290,8 +307,7 @@ const generateCategoriesSitemap = async () => {
 };
 
 const writeSitemapFile = (filename, content) => {
-  const FRONTEND_DIR = process.env.FRONTEND_DIR || 'frontend';
-  const publicDir = path.join(process.cwd(), FRONTEND_DIR, 'public');
+  const publicDir = path.join(FRONTEND_DIR, 'public');
   if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
 
   const filePath = path.join(publicDir, filename);

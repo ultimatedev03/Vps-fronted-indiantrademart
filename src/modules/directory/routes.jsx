@@ -72,6 +72,7 @@ export const DirectoryRoutes = () => {
 
         {/* Home */}
         <Route index element={<Home />} />
+        <Route path="lander" element={<Navigate to="/" replace />} />
 
         {/* Directory Base */}
         <Route path="directory" element={<Directory />} />
@@ -150,6 +151,7 @@ export const DirectoryRoutes = () => {
 
         {/* Alias */}
         <Route path="search" element={<Navigate to="/directory" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
 
       </Route>
     </Routes>

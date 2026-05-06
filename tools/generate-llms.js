@@ -1,6 +1,20 @@
 import fs from 'fs';
 import path from 'path';
 
+function resolveFrontendDir() {
+  const override = String(process.env.FRONTEND_DIR || '').trim();
+  const candidates = [
+    override ? path.resolve(process.cwd(), override) : null,
+    process.cwd(),
+    path.join(process.cwd(), 'frontend'),
+  ].filter(Boolean);
+
+  return (
+    candidates.find((candidate) => fs.existsSync(path.join(candidate, 'src')) && fs.existsSync(path.join(candidate, 'public'))) ||
+    process.cwd()
+  );
+}
+
 function walkFiles(rootDir, allowedExtensions = new Set()) {
   const results = [];
 
@@ -117,9 +131,9 @@ function generateLlmsTxt(pages, routes) {
 }
 
 function main() {
-  const FRONTEND_DIR = process.env.FRONTEND_DIR || 'frontend';
-  const pagesDir = path.join(process.cwd(), FRONTEND_DIR, 'src', 'pages');
-  const appJsxPath = path.join(process.cwd(), FRONTEND_DIR, 'src', 'App.jsx');
+  const frontendDir = resolveFrontendDir();
+  const pagesDir = path.join(frontendDir, 'src', 'pages');
+  const appJsxPath = path.join(frontendDir, 'src', 'App.jsx');
 
   console.log('🤖 Generating llms.txt...');
 
@@ -136,7 +150,7 @@ function main() {
   const llmsContent = generateLlmsTxt(pages, routes);
 
   // Write to public directory
-  const publicDir = path.join(process.cwd(), FRONTEND_DIR, 'public');
+  const publicDir = path.join(frontendDir, 'public');
   if (!fs.existsSync(publicDir)) {
     fs.mkdirSync(publicDir, { recursive: true });
   }

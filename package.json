@@ -5,7 +5,7 @@
   "description": "Frontend (Vite SPA) after FE/BE separation.",
   "scripts": {
     "dev": "vite --config vite.config.js --host :: --port 3000",
-    "build": "set FRONTEND_DIR=. && node ./tools/generateSitemap.js && node ./tools/generate-llms.js && vite build --config vite.config.js && node ./tools/prerender-seo.js",
+    "build": "node ./tools/generateSitemap.js && node ./tools/generate-llms.js && vite build --config vite.config.js && node ./tools/prerender-seo.js",
     "preview": "vite preview --config vite.config.js --host :: --port 3000"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "@supabase/supabase-js": "2.30.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "deep-chat-react": "^2.4.1",
     "framer-motion": "^11.15.0",
     "html2canvas": "^1.4.1",
@@ -41,9 +42,9 @@
     "recharts": "^2.10.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "ws": "^8.20.0"
   },
-  
   "devDependencies": {
     "@babel/generator": "^7.26.3",
     "@babel/parser": "^7.26.3",

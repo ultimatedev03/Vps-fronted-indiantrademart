@@ -34,6 +34,13 @@ const getCurrentVendorProfile = async ({ suppressAuthErrors = false } = {}) => {
   }
 };
 
+const hasMeaningfulVendorValue = (...values) =>
+  values.some((value) => {
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'number') return Number.isFinite(value);
+    return String(value).trim() !== '';
+  });
+
 // Helper to get current vendor ID based on auth user
 const getVendorId = async () => {
   const backendVendor = await getCurrentVendorProfile({ suppressAuthErrors: true });
@@ -349,28 +356,92 @@ const enrichProductsWithCategoryNames = async (rows = []) => {
 
 // Calculate profile completion percentage based on filled fields
 const calculateProfileCompletion = (vendorData) => {
-  const fieldsToCheck = [
-    'company_name',
-    'owner_name',
-    'phone',
-    'email',
-    'address',
-    'gst_number',
-    'state',
-    'city',
-    'website_url',
-    'profile_image',
-    'primary_business_type',
-    'year_of_establishment'
+  const fieldGroups = [
+    ['company_name', 'companyName'],
+    ['owner_name', 'ownerName', 'name'],
+    ['phone'],
+    ['email'],
+    ['address', 'registered_address', 'registeredAddress'],
+    ['gst_number', 'gstNumber'],
+    ['state', 'state_id', 'stateId'],
+    ['city', 'city_id', 'cityId'],
+    ['website_url', 'websiteUrl'],
+    ['profile_image', 'profileImage', 'avatar_url', 'avatarUrl'],
+    ['primary_business_type', 'primaryBusinessType'],
+    ['year_of_establishment', 'yearOfEstablishment']
   ];
 
-  const filledFields = fieldsToCheck.filter(field =>
-    vendorData[field] &&
-    vendorData[field].toString().trim() !== '' &&
-    vendorData[field] !== null
+  const filledFields = fieldGroups.filter((group) =>
+    hasMeaningfulVendorValue(...group.map((field) => vendorData?.[field]))
   ).length;
 
-  return Math.round((filledFields / fieldsToCheck.length) * 100);
+  return Math.round((filledFields / fieldGroups.length) * 100);
+};
+
+const buildVendorProfileSnapshot = (vendor = null, user = null) => {
+  if (!vendor && !user) return null;
+
+  const account = normalizeVendorAccountStatus(vendor);
+  const derivedProfileCompletion = vendor ? calculateProfileCompletion(vendor) : 0;
+  const storedProfileCompletion = Number(vendor?.profile_completion);
+  const profileCompletion = Number.isFinite(storedProfileCompletion)
+    ? Math.max(storedProfileCompletion, derivedProfileCompletion)
+    : derivedProfileCompletion;
+
+  if (!vendor) {
+    return {
+      user_id: user?.id || null,
+      email: user?.email || null,
+      phone: user?.phone || null,
+      role: 'VENDOR',
+      vendorId: null,
+      profileCompletion: 0,
+      kycStatus: 'PENDING',
+      accountStatus: account.accountStatus,
+      isSuspended: account.isSuspended,
+      suspensionMessage: account.suspensionMessage,
+      suspensionAt: account.suspensionAt,
+      terminatedAt: account.terminatedAt,
+    };
+  }
+
+  return {
+    ...vendor,
+    companyName: vendor.company_name,
+    ownerName: vendor.owner_name,
+    gstNumber: vendor.gst_number,
+    panNumber: vendor.pan_number,
+    aadharNumber: vendor.aadhar_number,
+    websiteUrl: vendor.website_url,
+    primaryBusinessType: vendor.primary_business_type,
+    annualTurnover: vendor.annual_turnover,
+    registeredAddress: vendor.registered_address,
+    stateId: vendor.state_id,
+    cityId: vendor.city_id,
+    vendorId: vendor.vendor_id || vendor.id || null,
+    profileImage: vendor.profile_image || vendor.avatar_url || null,
+    kycStatus: vendor.kyc_status || 'PENDING',
+    kycDocs: vendor.kyc_docs,
+    profileCompletion,
+    isVerified: vendor.is_verified,
+    isActive: vendor.is_active,
+    verifiedAt: vendor.verified_at,
+    createdAt: vendor.created_at,
+    updatedAt: vendor.updated_at,
+    secondaryEmail: vendor.secondary_email,
+    secondaryPhone: vendor.secondary_phone,
+    landlineNumber: vendor.landline_number,
+    cinNumber: vendor.cin_number,
+    llpinNumber: vendor.llpin_number,
+    iecCode: vendor.iec_code,
+    yearOfEstablishment: vendor.year_of_establishment,
+    ownerDesignation: vendor.owner_designation,
+    accountStatus: account.accountStatus,
+    isSuspended: account.isSuspended,
+    suspensionMessage: account.suspensionMessage,
+    suspensionAt: account.suspensionAt,
+    terminatedAt: account.terminatedAt,
+  };
 };
 
 // ✅ NEW: Normalize account status fields safely (works even if columns don't exist)
@@ -1142,56 +1213,13 @@ export const vendorApi = {
           .catch(() => {});
       }
 
-      const account = normalizeVendorAccountStatus(vendor);
-
-      const transformedVendor = vendor ? {
-        ...vendor,
-
-        // camel aliases (optional)
-        companyName: vendor.company_name,
-        ownerName: vendor.owner_name,
-        gstNumber: vendor.gst_number,
-        panNumber: vendor.pan_number,
-        aadharNumber: vendor.aadhar_number,
-        websiteUrl: vendor.website_url,
-        primaryBusinessType: vendor.primary_business_type,
-        annualTurnover: vendor.annual_turnover,
-        registeredAddress: vendor.registered_address,
-        stateId: vendor.state_id,
-        cityId: vendor.city_id,
-        vendorId: vendor.vendor_id || null,
-        profileImage: vendor.profile_image,
-        kycStatus: vendor.kyc_status,
-        kycDocs: vendor.kyc_docs,
-        profileCompletion: vendor.profile_completion,
-        isVerified: vendor.is_verified,
-        isActive: vendor.is_active,
-        verifiedAt: vendor.verified_at,
-        createdAt: vendor.created_at,
-        updatedAt: vendor.updated_at,
-
-        secondaryEmail: vendor.secondary_email,
-        secondaryPhone: vendor.secondary_phone,
-        landlineNumber: vendor.landline_number,
-        cinNumber: vendor.cin_number,
-        llpinNumber: vendor.llpin_number,
-        iecCode: vendor.iec_code,
-        yearOfEstablishment: vendor.year_of_establishment,
-        ownerDesignation: vendor.owner_designation,
-
-        // ✅ NEW: account status aliases (safe even if columns missing)
-        accountStatus: account.accountStatus,
-        isSuspended: account.isSuspended,
-        suspensionMessage: account.suspensionMessage,
-        suspendedAt: account.suspensionAt,
-        terminatedAt: account.terminatedAt,
-      } : null;
+      const transformedVendor = buildVendorProfileSnapshot(vendor, user);
 
       // ✅ Return safe auth + vendor data
       return {
-        user_id: vendor?.user_id || user?.id || null,
-        email: vendor?.email || user?.email || null,
-        phone: vendor?.phone || user?.phone || null,
+        user_id: vendor?.user_id || transformedVendor?.user_id || user?.id || null,
+        email: vendor?.email || transformedVendor?.email || user?.email || null,
+        phone: vendor?.phone || transformedVendor?.phone || user?.phone || null,
         role: 'VENDOR',
         ...transformedVendor
       };
@@ -1273,7 +1301,7 @@ export const vendorApi = {
       if (isKycDocument) {
         validateImageFile(file, {
           minBytes: 100 * 1024,
-          maxBytes: 2 * 1024 * 1024,
+          maxBytes: 5 * 1024 * 1024,
           label: 'KYC image',
         });
       } else if (isProductImage) {
@@ -1534,6 +1562,10 @@ export const vendorApi = {
   // --- VENDOR PROFILE API ---
   getVendorProfile: async (userId) => {
     if (!userId) return null;
+    const backendVendor = await getCurrentVendorProfile({ suppressAuthErrors: true });
+    if (backendVendor?.id && String(backendVendor.user_id || '').trim() === String(userId || '').trim()) {
+      return buildVendorProfileSnapshot(backendVendor, null);
+    }
     const { data, error } = await supabase
       .from('vendors')
       .select('*')
@@ -1541,7 +1573,7 @@ export const vendorApi = {
       .maybeSingle();
 
     if (error) throw error;
-    return data;
+    return buildVendorProfileSnapshot(data || null, null);
   },
 
   updateVendorProfile: async (userId, updates) => {
@@ -1597,13 +1629,13 @@ export const vendorApi = {
       }
 
       const minSize = 100 * 1024;
-      const maxSize = 2 * 1024 * 1024;
+      const maxSize = 5 * 1024 * 1024;
       const fileSize = Number(file.size || 0);
       if (fileSize < minSize) {
         throw new Error('Image too small (minimum 100KB)');
       }
       if (fileSize > maxSize) {
-        throw new Error('Image too large (maximum 2MB)');
+        throw new Error('Image too large (maximum 5MB)');
       }
 
       const ext = String(file.name || '').toLowerCase().split('.').pop();
@@ -2503,9 +2535,14 @@ export const vendorApi = {
           profileCompletion: 0, kycStatus: 'PENDING', trustScore: 0, rating: 0,
         };
       } catch {
+        const me = await vendorApi.auth.me().catch(() => null);
         return {
           totalProducts: 0, totalLeads: 0, totalMessages: 0,
-          profileCompletion: 0, kycStatus: 'PENDING', trustScore: 0, rating: 0,
+          profileCompletion: Number(me?.profileCompletion || me?.profile_completion || 0),
+          kycStatus: me?.kycStatus || me?.kyc_status || 'PENDING',
+          trustScore: 0,
+          rating: 0,
+          vendorId: me?.vendorId || me?.vendor_id || me?.id || null,
         };
       }
     }
@@ -3465,23 +3502,22 @@ export const vendorApi = {
   // --- KYC ---
   kyc: {
     getStatus: async () => {
-      const vendorId = await getVendorId();
-      const { data, error } = await supabase
-        .from('vendors')
-        .select('kyc_status, kyc_docs')
-        .eq('id', vendorId)
-        .single();
-      if (error) throw error;
+      const [vendor, uploadedDocs] = await Promise.all([
+        getCurrentVendorProfile({ suppressAuthErrors: true }),
+        vendorApi.documents.list(),
+      ]);
 
-      const docs = data?.kyc_docs || {};
+      const docs = Array.isArray(uploadedDocs) ? uploadedDocs : [];
+      const hasDocType = (type) =>
+        docs.some((doc) => String(doc?.document_type || '').trim().toUpperCase() === type);
 
       return {
-        status: data?.kyc_status || 'PENDING',
+        status: vendor?.kyc_status || 'PENDING',
         documents: {
-          pan: docs.pan || false,
-          gst: docs.gst || false,
-          businessProof: docs.businessProof || false,
-          bankProof: docs.bankProof || false
+          pan: hasDocType('PAN'),
+          gst: hasDocType('GST'),
+          businessProof: hasDocType('AADHAR'),
+          bankProof: hasDocType('BANK')
         }
       };
     },
