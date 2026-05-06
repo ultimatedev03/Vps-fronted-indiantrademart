@@ -1,0 +1,36 @@
+# Indian Trade Mart - Website Guide for AI
+
+This file provides information about the Indian Trade Mart website structure and content for AI crawlers.
+
+## Website Overview
+
+Indian Trade Mart is a B2B marketplace platform connecting buyers and suppliers across India.
+
+## Main Sections
+
+### Key Pages
+
+
+### Application Routes
+
+- /management
+- /admin/register/superadmin
+- /superadmin/login
+- /admin/register/superadmin/dashboard
+- /superadmin/dashboard
+- /migration-tools
+- /unauthorized
+- /vendor/*
+- /buyer/*
+- /admin/*
+- /employee/*
+- /finance-portal/*
+- /career/*
+- /hr/*
+- /*
+
+## Important Notes
+
+- Directory pages follow the pattern: /directory/{service}-in-{city}-{state}
+- Vendor profiles: /directory/vendor/{vendorSlug}
+- Product pages: /product/{productSlug}
