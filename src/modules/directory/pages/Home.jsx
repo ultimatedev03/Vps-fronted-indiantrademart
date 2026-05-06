@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import HeroSection from '@/modules/directory/components/HeroSection';
+import { toAbsoluteSiteUrl } from '@/lib/siteUrl';
 
 const HomeDeferredSections = lazy(() => import('./HomeDeferredSections'));
 
@@ -31,15 +32,21 @@ const PRECONNECT_ORIGINS = [
   'https://eimager.com',
 ].filter(Boolean);
 
+const SITE_URL = toAbsoluteSiteUrl('/');
+const ORGANIZATION_ID = `${SITE_URL}#organization`;
+const WEBSITE_ID = `${SITE_URL}#website`;
+const OG_IMAGE_URL = toAbsoluteSiteUrl('/favicon-512x512.png');
+const SEARCH_TARGET_URL = toAbsoluteSiteUrl('/directory/search/{search_term_string}');
+
 const STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
     {
       '@type': 'Organization',
-      '@id': 'https://indiantrademart.com/#organization',
+      '@id': ORGANIZATION_ID,
       name: 'Indian Trade Mart',
-      url: 'https://indiantrademart.com/',
-      logo: 'https://indiantrademart.com/favicon-512x512.png',
+      url: SITE_URL,
+      logo: OG_IMAGE_URL,
       description: HOME_SEO.description,
       sameAs: [
         'https://www.facebook.com/IndianTradeMart/',
@@ -60,14 +67,14 @@ const STRUCTURED_DATA = {
     },
     {
       '@type': 'WebSite',
-      '@id': 'https://indiantrademart.com/#website',
-      url: 'https://indiantrademart.com/',
+      '@id': WEBSITE_ID,
+      url: SITE_URL,
       name: 'Indian Trade Mart',
       description: HOME_SEO.description,
-      publisher: { '@id': 'https://indiantrademart.com/#organization' },
+      publisher: { '@id': ORGANIZATION_ID },
       potentialAction: {
         '@type': 'SearchAction',
-        target: 'https://indiantrademart.com/directory/search/{search_term_string}',
+        target: SEARCH_TARGET_URL,
         'query-input': 'required name=search_term_string',
       },
     },
@@ -123,10 +130,10 @@ const Home = () => {
         <meta property="og:title" content={HOME_SEO.title} />
         <meta property="og:description" content={HOME_SEO.description} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://indiantrademart.com/" />
-        <meta property="og:image" content="https://indiantrademart.com/favicon-512x512.png" />
+        <meta property="og:url" content={SITE_URL} />
+        <meta property="og:image" content={OG_IMAGE_URL} />
         <meta name="twitter:card" content="summary_large_image" />
-        <link rel="canonical" href="https://indiantrademart.com/" />
+        <link rel="canonical" href={SITE_URL} />
         {PRECONNECT_ORIGINS.map((origin) => (
           <link
             key={`preconnect-${origin}`}

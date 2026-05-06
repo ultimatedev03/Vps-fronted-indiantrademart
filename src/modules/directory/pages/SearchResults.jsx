@@ -11,6 +11,7 @@ import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBa
 import { urlParser } from '@/shared/utils/urlParser';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { toAbsoluteSiteUrl } from '@/lib/siteUrl';
 import { locationService } from '@/shared/services/locationService';
 import { toast } from '@/components/ui/use-toast';
 
@@ -854,7 +855,7 @@ const SearchResults = () => {
         ? `/directory/${parsedParams.serviceSlug}-in-${parsedParams.stateSlug}`
         : `/directory/${parsedParams.serviceSlug}`;
 
-  const canonicalUrl = `https://www.indiantrademart.com${canonicalPath}`;
+  const canonicalUrl = toAbsoluteSiteUrl(canonicalPath);
 
   return (
     <>
