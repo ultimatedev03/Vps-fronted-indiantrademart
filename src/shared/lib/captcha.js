@@ -35,14 +35,15 @@ export const isCaptchaConfigured = () => Boolean(TURNSTILE_SITE_KEY);
 
 export const isCaptchaDevBypass = () => import.meta.env.DEV && !TURNSTILE_SITE_KEY;
 
-export const isCaptchaExplicitlyDisabled = () => readCaptchaEnabledOverride() === false;
+export const isCaptchaExplicitlyDisabled = () =>
+  import.meta.env.DEV && readCaptchaEnabledOverride() === false;
 
 export const isCaptchaBypassed = () =>
   isCaptchaExplicitlyDisabled() || isCaptchaDevBypass();
 
 export const getCaptchaBypassMessage = () => {
   if (isCaptchaExplicitlyDisabled()) {
-    return 'Captcha is disabled because `VITE_CAPTCHA_ENABLED=false`.';
+    return 'Captcha is disabled for local development because `VITE_CAPTCHA_ENABLED=false`.';
   }
 
   if (isCaptchaDevBypass()) {
