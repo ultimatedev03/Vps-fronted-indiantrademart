@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,10 +49,6 @@ const Register = () => {
   const [step, setStep] = useState(1);
   const requestOtpCaptcha = useCaptchaGate();
   const resendOtpCaptcha = useCaptchaGate();
-  const requestOtpCaptchaWidgetRef = useRef(null);
-  const resendOtpCaptchaWidgetRef = useRef(null);
-  const requestOtpCaptchaWaiterRef = useRef(null);
-  const resendOtpCaptchaWaiterRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(OTP_TIMER_SECONDS);
   const [otp, setOtp] = useState('');
@@ -88,57 +84,6 @@ const Register = () => {
   };
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const executeCaptcha = useCallback((captchaGate, widgetRef, waiterRef) => {
-    const existingToken = String(captchaGate.captchaToken || '').trim();
-    if (existingToken) return Promise.resolve(existingToken);
-
-    const widget = widgetRef.current;
-    if (!widget?.execute) {
-      return Promise.reject(new Error('Captcha is still loading. Please wait a moment and try again.'));
-    }
-
-    return new Promise((resolve, reject) => {
-      const timeoutId = window.setTimeout(() => {
-        waiterRef.current = null;
-        reject(new Error('Captcha verification timed out. Please try again.'));
-      }, 20000);
-
-      waiterRef.current = {
-        resolve: (token) => {
-          window.clearTimeout(timeoutId);
-          waiterRef.current = null;
-          resolve(token);
-        },
-      };
-
-      Promise.resolve(widget.execute()).then((started) => {
-        if (!started) {
-          window.clearTimeout(timeoutId);
-          waiterRef.current = null;
-          reject(new Error('Captcha could not start. Please reload CAPTCHA and try again.'));
-        }
-      }).catch((error) => {
-        window.clearTimeout(timeoutId);
-        waiterRef.current = null;
-        reject(error instanceof Error ? error : new Error('Captcha could not start. Please try again.'));
-      });
-    });
-  }, []);
-
-  const handleRequestOtpCaptchaToken = useCallback((token) => {
-    requestOtpCaptcha.setCaptchaToken(token);
-    if (token && requestOtpCaptchaWaiterRef.current) {
-      requestOtpCaptchaWaiterRef.current.resolve(token);
-    }
-  }, [requestOtpCaptcha]);
-
-  const handleResendOtpCaptchaToken = useCallback((token) => {
-    resendOtpCaptcha.setCaptchaToken(token);
-    if (token && resendOtpCaptchaWaiterRef.current) {
-      resendOtpCaptchaWaiterRef.current.resolve(token);
-    }
-  }, [resendOtpCaptcha]);
 
   const handleStateChange = (id, item) => {
     setFormData((prev) => ({
@@ -188,16 +133,20 @@ const Register = () => {
     if (loading) return;
     if (!validateStep1()) return;
 
+    const captchaError = requestOtpCaptcha.getCaptchaError();
+    if (captchaError) {
+      toast({
+        title: requestOtpCaptcha.getCaptchaErrorTitle(),
+        description: captchaError,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const captchaToken = await executeCaptcha(
-        requestOtpCaptcha,
-        requestOtpCaptchaWidgetRef,
-        requestOtpCaptchaWaiterRef
-      );
-
       const otpResp = await otpService.requestOtp(formData.email, {
-        captcha_token: captchaToken,
+        captcha_token: requestOtpCaptcha.captchaToken,
         captcha_action: 'otp_request',
       });
 
@@ -303,16 +252,20 @@ const Register = () => {
   const handleResendOtp = async () => {
     if (loading) return;
 
+    const captchaError = resendOtpCaptcha.getCaptchaError();
+    if (captchaError) {
+      toast({
+        title: resendOtpCaptcha.getCaptchaErrorTitle(),
+        description: captchaError,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const captchaToken = await executeCaptcha(
-        resendOtpCaptcha,
-        resendOtpCaptchaWidgetRef,
-        resendOtpCaptchaWaiterRef
-      );
-
       const otpResp = await otpService.resendOtp(formData.email, {
-        captcha_token: captchaToken,
+        captcha_token: resendOtpCaptcha.captchaToken,
         captcha_action: 'otp_resend',
       });
       const expiresIn = Number(otpResp?.expiresIn);
@@ -394,21 +347,16 @@ const Register = () => {
                 </div>
               </div>
 
+              <TurnstileField
+                action="otp_request"
+                onStatusChange={requestOtpCaptcha.setCaptchaStatus}
+                resetKey={requestOtpCaptcha.captchaResetKey}
+                onTokenChange={requestOtpCaptcha.setCaptchaToken}
+              />
+
               <Button type="submit" className="w-full flex justify-center py-3 px-4 bg-[#00A699] hover:bg-[#008c81]" disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Sign Up & Verify'} <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-
-              <TurnstileField
-                action="otp_request"
-                appearance="execute"
-                execution="execute"
-                onStatusChange={requestOtpCaptcha.setCaptchaStatus}
-                onWidgetReady={(widget) => {
-                  requestOtpCaptchaWidgetRef.current = widget;
-                }}
-                resetKey={requestOtpCaptcha.captchaResetKey}
-                onTokenChange={handleRequestOtpCaptchaToken}
-              />
             </form>
           )}
 
@@ -449,14 +397,9 @@ const Register = () => {
 
               <TurnstileField
                 action="otp_resend"
-                appearance="execute"
-                execution="execute"
                 onStatusChange={resendOtpCaptcha.setCaptchaStatus}
-                onWidgetReady={(widget) => {
-                  resendOtpCaptchaWidgetRef.current = widget;
-                }}
                 resetKey={resendOtpCaptcha.captchaResetKey}
-                onTokenChange={handleResendOtpCaptchaToken}
+                onTokenChange={resendOtpCaptcha.setCaptchaToken}
               />
 
               <div className="pt-4 flex flex-col gap-3">
