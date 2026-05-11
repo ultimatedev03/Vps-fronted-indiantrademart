@@ -186,25 +186,12 @@ const VendorLogin = () => {
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Sign In
             </Button>
 
-            <div className="flex flex-col items-center space-y-3">
-              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-col items-center space-y-3">
-                  <TurnstileField
-                    action="auth_login"
-                    className="mx-auto w-full max-w-[320px]"
-                    onStatusChange={loginCaptcha.setCaptchaStatus}
-                    resetKey={loginCaptcha.captchaResetKey}
-                    onTokenChange={loginCaptcha.setCaptchaToken}
-                  />
-
-                  <p className="text-center text-xs text-gray-500">
-                    {loginCaptcha.captchaToken
-                      ? 'Security verification complete. You can sign in now.'
-                      : loginCaptcha.getCaptchaError() || 'Complete the security check before signing in.'}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <TurnstileField
+              action="auth_login"
+              onStatusChange={loginCaptcha.setCaptchaStatus}
+              resetKey={loginCaptcha.captchaResetKey}
+              onTokenChange={loginCaptcha.setCaptchaToken}
+            />
           </form>
         </CardContent>
         <CardFooter className="flex justify-center border-t p-4 bg-gray-50 rounded-b-lg">

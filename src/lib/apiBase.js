@@ -1,6 +1,8 @@
 export const getApiBase = () => {
   const raw = (import.meta.env.VITE_API_URL || "").trim();
-  if (!raw) return "";
+  if (!raw) {
+    return import.meta.env.PROD ? "https://api.indiantrademart.com" : "";
+  }
 
   const rawLower = raw.toLowerCase();
   const pointsToLocal =

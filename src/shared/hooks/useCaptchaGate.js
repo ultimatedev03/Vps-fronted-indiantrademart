@@ -1,17 +1,18 @@
 import { useCallback, useState } from 'react';
 import {
+  CAPTCHA_BYPASS_TOKEN,
   getCaptchaValidationError,
   getCaptchaValidationTitle,
   getInitialCaptchaStatus,
 } from '@/shared/lib/captcha';
 
 export const useCaptchaGate = () => {
-  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaToken, setCaptchaToken] = useState(CAPTCHA_BYPASS_TOKEN);
   const [captchaStatus, setCaptchaStatus] = useState(() => getInitialCaptchaStatus());
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   const resetCaptcha = useCallback(() => {
-    setCaptchaToken('');
+    setCaptchaToken(CAPTCHA_BYPASS_TOKEN);
     setCaptchaStatus(getInitialCaptchaStatus());
     setCaptchaResetKey((prev) => prev + 1);
   }, []);

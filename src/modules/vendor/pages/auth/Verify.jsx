@@ -316,7 +316,7 @@ const Verify = () => {
                 <span>
                   {initialSent
                     ? `Time remaining: ${formatTime(timer)}`
-                    : 'Complete the CAPTCHA to send OTP'}
+                    : 'Send OTP to continue'}
                 </span>
 
                 {initialSent && timer === 0 ? (
