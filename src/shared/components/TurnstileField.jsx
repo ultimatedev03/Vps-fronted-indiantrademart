@@ -104,16 +104,16 @@ const loadTurnstileScript = () => {
 
 const TurnstileField = ({
   action = 'submit',
-  appearance = 'always',
+  appearance = 'interaction-only',
   className,
   execution = 'render',
   onTokenChange,
   onStatusChange,
   onWidgetReady,
-  refreshExpired = 'auto',
-  refreshTimeout = 'auto',
+  refreshExpired = 'manual',
+  refreshTimeout = 'manual',
   resetKey = 0,
-  retry = 'auto',
+  retry = 'never',
 }) => {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
