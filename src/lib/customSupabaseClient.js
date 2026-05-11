@@ -103,10 +103,18 @@ const broadcastAuthSync = (event) => {
 const fetchJson = async (path, options = {}) => {
   const method = String(options.method || 'GET').toUpperCase();
   const headers = {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
     ...options.headers,
   };
+
+  if (
+    options.body !== undefined &&
+    options.body !== null &&
+    !headers['Content-Type'] &&
+    !headers['content-type']
+  ) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const csrf = getCsrfToken();

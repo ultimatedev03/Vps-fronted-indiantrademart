@@ -1332,7 +1332,6 @@ export const vendorApi = {
           credentials: 'include',
           headers: {
             Accept: 'application/json',
-            'Cache-Control': 'no-cache',
           },
         }).catch(() => null);
       };

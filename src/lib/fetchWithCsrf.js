@@ -54,7 +54,6 @@ const refreshAuthContext = async () => {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
-        'Cache-Control': 'no-cache',
       },
     });
   } catch {
