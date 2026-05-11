@@ -3,16 +3,14 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
-
-const isLocalHost = () => {
-  const h = window.location.hostname;
-  return h === 'localhost' || h === '127.0.0.1';
-};
+import { apiUrl } from '@/lib/apiBase';
 
 const getAdminBase = () => {
   const override = import.meta.env.VITE_ADMIN_API_BASE;
-  if (override && String(override).trim()) return String(override).trim();
-  return isLocalHost() ? '/api/admin' : '/.netlify/functions/admin';
+  if (override && String(override).trim() && !/\.netlify\/functions\/admin/i.test(String(override))) {
+    return String(override).trim();
+  }
+  return apiUrl('/api/admin');
 };
 
 const fmt = (d) => {

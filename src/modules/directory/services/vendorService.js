@@ -14,38 +14,23 @@ const isMissingColumnError = (err) => {
 
 const FEATURED_VENDOR_COLUMNS = [
   'id',
-  'slug',
+  'vendor_id',
   'company_name',
   'owner_name',
-  'profile_image',
   'city',
   'state',
-  'city_id',
-  'state_id',
-  'primary_business_type',
-  'secondary_business',
-  'description',
   'kyc_status',
-  'is_verified',
-  'verification_badge',
   'is_active',
   'created_at',
 ].join(', ');
 
 const FEATURED_VENDOR_FALLBACK_COLUMNS = [
   'id',
-  'slug',
   'company_name',
   'owner_name',
-  'profile_image',
   'city',
   'state',
-  'city_id',
-  'state_id',
-  'primary_business_type',
-  'description',
   'kyc_status',
-  'is_verified',
   'is_active',
   'created_at',
 ].join(', ');
@@ -70,7 +55,7 @@ const mapVendorRow = (v) => {
   const stateName = v?.state_ref?.name || v.state || '';
 
   const kyc = String(v.kyc_status || '').toUpperCase();
-  const verified = Boolean(v.is_verified) || kyc === 'APPROVED';
+  const verified = Boolean(v.is_verified || v.verification_badge) || ['APPROVED', 'VERIFIED'].includes(kyc);
 
   return {
     ...v,
@@ -138,7 +123,7 @@ const fetchVendorRows = async ({ onlyActive, from = 0, to = null, limit = null }
 
 const isVerifiedVendor = (v) => {
   const kyc = String(v?.kyc_status || '').toUpperCase();
-  return Boolean(v?.is_verified) || kyc === 'APPROVED';
+  return Boolean(v?.is_verified || v?.verification_badge) || ['APPROVED', 'VERIFIED'].includes(kyc);
 };
 
 const sortFeaturedVendors = (rows = []) => {
@@ -164,7 +149,7 @@ export const vendorService = {
    * Returns vendors from DB but also adds UI-friendly fields:
    * - name (company_name fallback)
    * - image (profile_image fallback)
-   * - verified (from is_verified / verification_badge / kyc_status)
+   * - verified (from optional verification flags / kyc_status)
    *
    * NOTE: We keep the original DB columns intact by spreading the row.
    */
@@ -244,17 +229,14 @@ export const vendorService = {
     try {
       // Start building the query on 'vendors' table
       let dbQuery = supabase
-        .from('vendors')
-        .select(`
+      .from('vendors')
+      .select(`
           *,
           products (*),
           city:city_id (slug, name),
           state:state_id (slug, name)
         `)
-        .eq('is_active', true)
-        // NOTE: Your schema has kyc_status like APPROVED/PENDING etc (no VERIFIED).
-        // So we treat vendor as "verified" if any of these match.
-        .or('is_verified.eq.true,verification_badge.eq.true,kyc_status.ilike.APPROVED');
+        .eq('is_active', true);
 
       // 1. Filter by Location (State)
       if (stateSlug) {
@@ -358,8 +340,6 @@ export const vendorService = {
         `
       )
       .eq('is_active', true)
-      .order('is_verified', { ascending: false })
-      .order('verification_badge', { ascending: false })
       .order('created_at', { ascending: false })
       .range(from, to);
 

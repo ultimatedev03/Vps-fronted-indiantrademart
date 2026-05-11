@@ -31,18 +31,15 @@ import { Plus, Search, Trash2, Loader2, KeyRound, Eye, EyeOff } from "lucide-rea
 import { filterRecordsBySearch } from "@/modules/admin/lib/search";
 import { Label } from "@/components/ui/label";
 import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
+import { apiUrl } from "@/lib/apiBase";
 import { PASSWORD_POLICY_MESSAGE, validateStrongPassword } from "@/lib/passwordPolicy";
-
-// ✅ Local vs Netlify API base (same pattern as Vendors.jsx)
-const isLocalHost = () => {
-  const h = window.location.hostname;
-  return h === "localhost" || h === "127.0.0.1";
-};
 
 const getAdminBase = () => {
   const override = import.meta.env.VITE_ADMIN_API_BASE;
-  if (override && String(override).trim()) return String(override).trim();
-  return isLocalHost() ? "/api/admin" : "/.netlify/functions/admin";
+  if (override && String(override).trim() && !/\.netlify\/functions\/admin/i.test(String(override))) {
+    return String(override).trim();
+  }
+  return apiUrl("/api/admin");
 };
 
 async function safeReadJson(res) {

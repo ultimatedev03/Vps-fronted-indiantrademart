@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
+import { apiUrl } from '@/lib/apiBase';
 import { Search, CheckCircle, XCircle, Eye, FileText, Loader2, ShieldAlert, Building2, Mail, Phone, Filter, Download } from 'lucide-react';
 import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -99,23 +100,20 @@ async function downloadViaFetch(url, filename = 'document') {
   }
 }
 
-// ✅ Netlify vs Local API base
-const isLocalHost = () => {
-  const h = window.location.hostname;
-  return h === 'localhost' || h === '127.0.0.1';
-};
-
-// ✅ safest: allow override by env, else auto
 const getKycBase = () => {
   const override = import.meta.env.VITE_KYC_API_BASE;
-  if (override && String(override).trim()) return String(override).trim();
-  return isLocalHost() ? '/api/kyc' : '/.netlify/functions/kyc';
+  if (override && String(override).trim() && !/\.netlify\/functions\/kyc/i.test(String(override))) {
+    return String(override).trim();
+  }
+  return apiUrl('/api/kyc');
 };
 
 const getAdminBase = () => {
   const override = import.meta.env.VITE_ADMIN_API_BASE;
-  if (override && String(override).trim()) return String(override).trim();
-  return isLocalHost() ? '/api/admin' : '/.netlify/functions/admin';
+  if (override && String(override).trim() && !/\.netlify\/functions\/admin/i.test(String(override))) {
+    return String(override).trim();
+  }
+  return apiUrl('/api/admin');
 };
 
 // ✅ Prevent "Unexpected token <" by validating response content-type

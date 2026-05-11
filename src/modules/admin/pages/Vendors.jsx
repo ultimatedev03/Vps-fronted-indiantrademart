@@ -46,16 +46,15 @@ import {
   Check,
 } from "lucide-react";
 import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
+import { apiUrl } from "@/lib/apiBase";
 import { useSubdomain } from "@/contexts/SubdomainContext";
 
-const isLocalHost = () => {
-  const h = window.location.hostname;
-  return h === "localhost" || h === "127.0.0.1";
-};
 const getAdminBase = () => {
   const override = import.meta.env.VITE_ADMIN_API_BASE;
-  if (override && String(override).trim()) return String(override).trim();
-  return isLocalHost() ? "/api/admin" : "/.netlify/functions/admin";
+  if (override && String(override).trim() && !/\.netlify\/functions\/admin/i.test(String(override))) {
+    return String(override).trim();
+  }
+  return apiUrl("/api/admin");
 };
 async function safeReadJson(res) {
   const ct = res.headers.get("content-type") || "";

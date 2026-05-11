@@ -25,6 +25,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Eye, Edit, Loader2, Search, Ban, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/customSupabaseClient";
 import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
+import { apiUrl } from "@/lib/apiBase";
 import { filterRecordsBySearch } from "@/modules/admin/lib/search";
 
 /* ================= VALIDATION HELPERS ================= */
@@ -36,11 +37,6 @@ const gstRegex = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/;
 const pincodeRegex = /^\d{6}$/;
 
 /* ================= ADMIN API BASE ================= */
-const isLocalHost = () => {
-  const h = window.location.hostname;
-  return h === "localhost" || h === "127.0.0.1";
-};
-
 const normalizeBaseUrl = (base) => String(base || "").trim().replace(/\/+$/, "");
 
 const isLocalAddress = (host) =>
@@ -64,9 +60,9 @@ const resolveAdminBaseFromApiBase = (apiBase) => {
   const base = normalizeBaseUrl(apiBase);
   if (!base) return "";
 
-  if (/(^|\/)\.netlify\/functions\/admin$/i.test(base)) return base;
+  if (/(^|\/)\.netlify\/functions\/admin$/i.test(base)) return apiUrl("/api/admin");
   if (/\/api\/admin$/i.test(base)) return base;
-  if (/(^|\/)\.netlify\/functions$/i.test(base)) return `${base}/admin`;
+  if (/(^|\/)\.netlify\/functions$/i.test(base)) return apiUrl("/api/admin");
   if (/\/api$/i.test(base)) return `${base}/admin`;
 
   return `${base}/api/admin`;
@@ -74,10 +70,12 @@ const resolveAdminBaseFromApiBase = (apiBase) => {
 
 const getAdminBase = () => {
   const override = import.meta.env.VITE_ADMIN_API_BASE;
-  if (override && String(override).trim()) return normalizeBaseUrl(override);
+  if (override && String(override).trim() && !/\.netlify\/functions\/admin/i.test(String(override))) {
+    return normalizeBaseUrl(override);
+  }
   const apiBase = getConfiguredApiBase();
   if (apiBase) return resolveAdminBaseFromApiBase(apiBase);
-  return normalizeBaseUrl(isLocalHost() ? "/api/admin" : "/.netlify/functions/admin");
+  return normalizeBaseUrl(apiUrl("/api/admin"));
 };
 
 /* ================= STATUS HELPERS ================= */
