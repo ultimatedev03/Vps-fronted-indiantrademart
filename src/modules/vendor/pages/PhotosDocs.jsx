@@ -56,7 +56,7 @@ const uploadGeneralDocument = async (file) => {
 };
 
 const KYC_DOCS = [
-  { key: 'gst', apiType: 'GST', label: 'GST' },
+  { key: 'gst', apiType: 'GST', label: 'GST (Optional)' },
   { key: 'pan', apiType: 'PAN', label: 'PAN' },
   { key: 'aadhar', apiType: 'AADHAR', label: 'Aadhar' },
   { key: 'bank_statement', apiType: 'BANK', label: 'Bank Statement' },

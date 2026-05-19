@@ -1528,15 +1528,16 @@ const DocumentsSection = ({ documents, onRefresh, kycStatus }) => {
   };
 
   const docTypes = [
-    { id: 'GST', label: 'GST Certificate' },
+    { id: 'GST', label: 'GST Certificate', optional: true },
     { id: 'PAN', label: 'PAN Card' },
     { id: 'AADHAR', label: 'Aadhar Card' },
     { id: 'BANK', label: 'Bank Passbook/Cheque Copy' },
   ];
-  const uploadedRequiredCount = docTypes.filter((type) =>
+  const requiredDocTypes = docTypes.filter((type) => !type.optional);
+  const uploadedRequiredCount = requiredDocTypes.filter((type) =>
     documents.some((doc) => String(doc?.document_type || '').toUpperCase() === type.id)
   ).length;
-  const canSubmitKyc = uploadedRequiredCount === docTypes.length;
+  const canSubmitKyc = uploadedRequiredCount === requiredDocTypes.length;
 
   return (
     <div>
@@ -1557,7 +1558,9 @@ const DocumentsSection = ({ documents, onRefresh, kycStatus }) => {
                   {doc ? <Check className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                 </div>
                 <div>
-                  <p className="font-semibold text-sm text-slate-700">{type.label}</p>
+                  <p className="font-semibold text-sm text-slate-700">
+                    {type.label}{type.optional ? ' (Optional)' : ''}
+                  </p>
                   <p className="text-[10px] text-slate-400">
                     {doc
                       ? `Uploaded ${new Date(doc.uploaded_at).toLocaleDateString()} ${new Date(doc.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
@@ -1626,12 +1629,12 @@ const DocumentsSection = ({ documents, onRefresh, kycStatus }) => {
       </div>
 
       <p className="mt-3 text-xs text-slate-500">
-        KYC upload rules: only JPG/PNG, minimum 100KB, maximum 5MB, and exactly 4 required document slots.
+        KYC upload rules: only JPG/PNG, minimum 100KB, maximum 5MB. PAN, Aadhar, and bank proof are required; GST is optional.
       </p>
 
       {normalizedKycStatus === 'REJECTED' && (
         <p className="mt-2 text-xs text-amber-700">
-          Your KYC was rejected. Replace the required documents and submit again.
+          Your KYC was rejected. Replace the required documents and submit again. GST can be skipped if you do not have it.
         </p>
       )}
 

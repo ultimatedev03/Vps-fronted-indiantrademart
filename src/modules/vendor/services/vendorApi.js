@@ -1094,9 +1094,11 @@ export const vendorApi = {
         { excludeId: existing?.id || null }
       );
 
+    const normalizedGstNumber = String(gstNumber || '').trim().toUpperCase() || null;
+
     const vendorData = {
       company_name: companyName,
-      gst_number: gstNumber,
+      gst_number: normalizedGstNumber,
       address: address,
       registered_address: address,
       owner_name: ownerName,
@@ -1107,7 +1109,7 @@ export const vendorApi = {
       state: stateName,
       city: cityName,
       kyc_status: 'PENDING',
-      profile_completion: calculateProfileCompletion({ company_name: companyName, gst_number: gstNumber, address, owner_name: ownerName, email, phone, state: stateName, city: cityName }),
+      profile_completion: calculateProfileCompletion({ company_name: companyName, gst_number: normalizedGstNumber, address, owner_name: ownerName, email, phone, state: stateName, city: cityName }),
       updated_at: new Date().toISOString(),
       vendor_id: vendorId,
       slug: vendorSlug,
