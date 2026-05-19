@@ -154,17 +154,17 @@ const VendorRegister = () => {
   const handleStep1 = (e) => {
     e.preventDefault();
 
-    if (!formData.companyName || !formData.gstNumber) {
+    if (!formData.companyName) {
       toast({
         title: 'Missing Fields',
-        description: 'Company Name and GST Number are required',
+        description: 'Company Name is required',
         variant: 'destructive',
       });
       return;
     }
 
     const gst = (formData.gstNumber || '').toUpperCase().trim();
-    if (!/^[0-9A-Z]{15}$/.test(gst)) {
+    if (gst && !/^[0-9A-Z]{15}$/.test(gst)) {
       toast({
         title: 'Invalid GST',
         description: 'GST number must be exactly 15 characters (0-9, A-Z).',
@@ -420,13 +420,15 @@ const VendorRegister = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>GST Number *</Label>
+                <Label>GST Number (Optional)</Label>
                 <Input
                   value={formData.gstNumber}
-                  onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() })}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    gstNumber: e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 15)
+                  })}
                   placeholder="22AAAAA0000A1Z5"
                   maxLength={15}
-                  required
                 />
               </div>
 

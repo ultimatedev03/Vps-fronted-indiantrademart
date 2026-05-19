@@ -362,7 +362,6 @@ const calculateProfileCompletion = (vendorData) => {
     ['phone'],
     ['email'],
     ['address', 'registered_address', 'registeredAddress'],
-    ['gst_number', 'gstNumber'],
     ['state', 'state_id', 'stateId'],
     ['city', 'city_id', 'cityId'],
     ['website_url', 'websiteUrl'],
