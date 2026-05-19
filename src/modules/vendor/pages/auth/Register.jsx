@@ -420,7 +420,7 @@ const VendorRegister = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>GST Number (Optional)</Label>
+                <Label>GST Number</Label>
                 <Input
                   value={formData.gstNumber}
                   onChange={(e) => setFormData({
