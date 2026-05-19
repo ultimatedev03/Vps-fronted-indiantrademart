@@ -58,6 +58,7 @@ const Register = () => {
     email: '',
     phone: '',
     company_name: '',
+    gst_number: '',
     address: '',
     state_id: '',
     city_id: '',
@@ -84,6 +85,13 @@ const Register = () => {
   };
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleGstChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      gst_number: e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 15),
+    }));
+  };
 
   const handleStateChange = (id, item) => {
     setFormData((prev) => ({
@@ -119,6 +127,15 @@ const Register = () => {
     }
     if (formData.phone.length !== 10 || isNaN(formData.phone)) {
       toast({ title: 'Invalid Phone Number', description: 'Must be 10 digits', variant: 'destructive' });
+      return false;
+    }
+    const gst = String(formData.gst_number || '').trim().toUpperCase();
+    if (gst && !/^[0-9A-Z]{15}$/.test(gst)) {
+      toast({
+        title: 'Invalid GST Number',
+        description: 'GST number must be exactly 15 characters.',
+        variant: 'destructive',
+      });
       return false;
     }
     if (!formData.full_name || !formData.state_id || !formData.city_id) {
@@ -193,6 +210,7 @@ const Register = () => {
           role: 'BUYER',
           phone: formData.phone,
           company_name: formData.company_name,
+          gst_number: formData.gst_number || null,
           state_id: formData.state_id,
           city_id: formData.city_id,
           state: formData.state_name,
@@ -319,6 +337,19 @@ const Register = () => {
                 <div>
                   <Label htmlFor="company_name">Company (Optional)</Label>
                   <Input id="company_name" name="company_name" className="mt-1" placeholder="Your Company" value={formData.company_name} onChange={handleChange} />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label htmlFor="gst_number">GST Number (Optional)</Label>
+                  <Input
+                    id="gst_number"
+                    name="gst_number"
+                    className="mt-1"
+                    placeholder="22AAAAA0000A1Z5"
+                    maxLength={15}
+                    value={formData.gst_number}
+                    onChange={handleGstChange}
+                  />
                 </div>
 
                 <div className="sm:col-span-2">
