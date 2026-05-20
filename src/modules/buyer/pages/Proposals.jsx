@@ -251,9 +251,6 @@ const Proposals = () => {
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#003D82]">My Enquiries & Proposals</h2>
-          <p className="text-gray-600">
-            ✅ Enquiry/Lead sent (aapne) + ✅ Request/Proposal sent (aapne) + ✅ Quotation received (vendor se)
-          </p>
         </div>
 
         <div className="flex items-center gap-2 max-w-sm">

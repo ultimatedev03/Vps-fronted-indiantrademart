@@ -82,7 +82,7 @@ const BuyerSuspensionGuard = () => {
     refreshBuyer({ force: true, silent: true });
     const timer = setInterval(() => {
       refreshBuyer({ force: true, silent: true });
-    }, 4000);
+    }, 30000);
 
     return () => clearInterval(timer);
   }, [isAuthenticated, path, refreshBuyer]);

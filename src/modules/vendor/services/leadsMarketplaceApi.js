@@ -107,63 +107,19 @@ export const leadsMarketplaceApi = {
   
   // Get vendor's preferences
   getPreferences: async () => {
-    const vendor = await vendorApi.auth.me();
-    if (!vendor?.id) throw new Error('Vendor not found');
-    
-    const { data, error } = await supabase
-      .from('vendor_preferences')
-      .select('*')
-      .eq('vendor_id', vendor.id)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') throw error;
-    return data || null;
+    return vendorApi.preferences.get();
   },
 
   // Save/update vendor preferences
   savePreferences: async (preferences) => {
-    const vendor = await vendorApi.auth.me();
-    if (!vendor?.id) throw new Error('Vendor not found');
-
-    const { data: existing } = await supabase
-      .from('vendor_preferences')
-      .select('id')
-      .eq('vendor_id', vendor.id)
-      .maybeSingle();
-
-    const payloadData = {
-      vendor_id: vendor.id,
+    return vendorApi.preferences.update({
       preferred_micro_categories: preferences.preferred_micro_categories || [],
       preferred_states: preferences.preferred_states || [],
       preferred_cities: preferences.preferred_cities || [],
       min_budget: preferences.min_budget || 0,
       max_budget: preferences.max_budget || 999999,
-      auto_lead_filter: preferences.auto_lead_filter !== false,
-      updated_at: new Date().toISOString()
-    };
-
-    let result;
-    if (existing) {
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update(payloadData)
-        .eq('vendor_id', vendor.id)
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    } else {
-      payloadData.created_at = new Date().toISOString();
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .insert([payloadData])
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    }
-
-    return result;
+      auto_lead_filter: preferences.auto_lead_filter !== false
+    });
   },
 
   // ============ LEAD DISCOVERY & FILTERING ============

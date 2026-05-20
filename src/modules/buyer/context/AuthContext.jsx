@@ -198,7 +198,13 @@ export const BuyerAuthProvider = ({ children }) => {
 
   const inFlightRef = useRef(false);
   const lastKeyRef = useRef("");
+  const lastFetchAtRef = useRef(0);
+  const buyerRef = useRef(null);
   const onlinePresenceChannelRef = useRef(null);
+
+  useEffect(() => {
+    buyerRef.current = buyer;
+  }, [buyer]);
 
   /**
    * ✅ refreshBuyer supports silent mode:
@@ -213,14 +219,20 @@ export const BuyerAuthProvider = ({ children }) => {
 
       if (!userId && !email) {
         lastKeyRef.current = "";
+        lastFetchAtRef.current = 0;
         setBuyer(null);
         setBuyerLoading(false);
         return;
       }
 
       // already fresh, avoid extra queries
-      if (!force && lastKeyRef.current === key && buyer) {
+      if (!force && lastKeyRef.current === key && buyerRef.current) {
         if (!silent) setBuyerLoading(false);
+        return;
+      }
+
+      const now = Date.now();
+      if (silent && lastKeyRef.current === key && now - lastFetchAtRef.current < 30000) {
         return;
       }
 
@@ -233,14 +245,9 @@ export const BuyerAuthProvider = ({ children }) => {
       try {
         const buyerRow = await fetchBuyerRow({ userId, email });
 
-        // debug
-        // eslint-disable-next-line no-console
-        console.log("[BuyerAuth] refresh key:", key, "silent:", silent);
-        // eslint-disable-next-line no-console
-        console.log("[BuyerAuth] buyerRow:", buyerRow);
-
         setBuyer(buyerRow);
         lastKeyRef.current = key;
+        lastFetchAtRef.current = Date.now();
       } catch (e) {
         console.error("[BuyerAuth] refreshBuyer error:", e);
       } finally {
@@ -248,7 +255,7 @@ export const BuyerAuthProvider = ({ children }) => {
         if (!silent) setBuyerLoading(false);
       }
     },
-    [user?.id, user?.email, buyer]
+    [user?.id, user?.email]
   );
 
   // ✅ Initial load / user identity change (show loader once)
@@ -274,9 +281,8 @@ export const BuyerAuthProvider = ({ children }) => {
         },
         (payload) => {
           if (payload?.new) {
-            // eslint-disable-next-line no-console
-            console.log("[BuyerAuth] realtime payload:", payload);
             setBuyer(payload.new);
+            lastFetchAtRef.current = Date.now();
           } else {
             refreshBuyer({ force: true, silent: true });
           }
@@ -289,14 +295,14 @@ export const BuyerAuthProvider = ({ children }) => {
     };
   }, [user?.id, refreshBuyer]);
 
-  // ✅ SILENT POLLING fallback (NO blink) so terminate/activate reflects quickly
+  // Low-frequency fallback for missed realtime events. Status changes should
+  // arrive through Supabase realtime; polling every few seconds does not scale.
   useEffect(() => {
     if (!user?.id) return;
 
     const interval = setInterval(() => {
-      // silent refresh so UI doesn't blink
       refreshBuyer({ force: true, silent: true });
-    }, 8000); // 8 sec (you can set 5000-10000)
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [user?.id, refreshBuyer]);

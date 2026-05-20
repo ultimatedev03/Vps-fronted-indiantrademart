@@ -2992,14 +2992,9 @@ export const vendorApi = {
   // --- PREFERENCES API ---
   preferences: {
     get: async () => {
-      const vendorId = await getVendorId();
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .select('*')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-      if (error) throw error;
-      return data || {
+      const response = await fetchVendorJson('/api/vendors/me/preferences');
+      const vendorId = response?.preferences?.vendor_id || (await getVendorId());
+      return response?.preferences || {
         vendor_id: vendorId,
         preferred_micro_categories: [],
         preferred_states: [],
@@ -3011,241 +3006,72 @@ export const vendorApi = {
     },
 
     create: async (preferencesData) => {
-      const vendorId = await getVendorId();
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .insert([{
-          vendor_id: vendorId,
-          ...preferencesData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      const response = await fetchVendorJson('/api/vendors/me/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(preferencesData || {}),
+      });
+      return response?.preferences;
     },
 
     update: async (preferencesData) => {
-      const vendorId = await getVendorId();
-      const { data: existing } = await supabase
-        .from('vendor_preferences')
-        .select('id')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-
-      if (existing?.id) {
-        // Update existing
-        const { data, error } = await supabase
-          .from('vendor_preferences')
-          .update({
-            ...preferencesData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('vendor_id', vendorId)
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
-      } else {
-        // Insert new
-        const { data, error } = await supabase
-          .from('vendor_preferences')
-          .insert([{
-            vendor_id: vendorId,
-            ...preferencesData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }])
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
-      }
+      const response = await fetchVendorJson('/api/vendors/me/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(preferencesData || {}),
+      });
+      return response?.preferences;
     },
 
     updateBudgetRange: async (minBudget, maxBudget) => {
-      const vendorId = await getVendorId();
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          min_budget: minBudget,
-          max_budget: maxBudget,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ min_budget: minBudget, max_budget: maxBudget });
     },
 
     addCategory: async (microCategoryId) => {
-      const vendorId = await getVendorId();
-      const { data: prefs, error: getErr } = await supabase
-        .from('vendor_preferences')
-        .select('preferred_micro_categories')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-      if (getErr) throw getErr;
-
+      const prefs = await vendorApi.preferences.get();
       const categories = prefs?.preferred_micro_categories || [];
       if (!categories.includes(microCategoryId)) {
         categories.push(microCategoryId);
       }
-
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          preferred_micro_categories: categories,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ preferred_micro_categories: categories });
     },
 
     removeCategory: async (microCategoryId) => {
-      const vendorId = await getVendorId();
-      const { data: prefs, error: getErr } = await supabase
-        .from('vendor_preferences')
-        .select('preferred_micro_categories')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-      if (getErr) throw getErr;
-
+      const prefs = await vendorApi.preferences.get();
       const categories = (prefs?.preferred_micro_categories || []).filter(id => id !== microCategoryId);
-
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          preferred_micro_categories: categories,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ preferred_micro_categories: categories });
     },
 
     addState: async (stateId) => {
-      const vendorId = await getVendorId();
-      const { data: prefs, error: getErr } = await supabase
-        .from('vendor_preferences')
-        .select('preferred_states')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-      if (getErr) throw getErr;
-
+      const prefs = await vendorApi.preferences.get();
       const states = prefs?.preferred_states || [];
       if (!states.includes(stateId)) {
         states.push(stateId);
       }
-
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          preferred_states: states,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ preferred_states: states });
     },
 
     removeState: async (stateId) => {
-      const vendorId = await getVendorId();
-      const { data: prefs, error: getErr } = await supabase
-        .from('vendor_preferences')
-        .select('preferred_states')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-      if (getErr) throw getErr;
-
+      const prefs = await vendorApi.preferences.get();
       const states = (prefs?.preferred_states || []).filter(id => id !== stateId);
-
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          preferred_states: states,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ preferred_states: states });
     },
 
     addCity: async (cityId) => {
-      const vendorId = await getVendorId();
-      const { data: prefs, error: getErr } = await supabase
-        .from('vendor_preferences')
-        .select('preferred_cities')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-      if (getErr) throw getErr;
-
+      const prefs = await vendorApi.preferences.get();
       const cities = prefs?.preferred_cities || [];
       if (!cities.includes(cityId)) {
         cities.push(cityId);
       }
-
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          preferred_cities: cities,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ preferred_cities: cities });
     },
 
     removeCity: async (cityId) => {
-      const vendorId = await getVendorId();
-      const { data: prefs, error: getErr } = await supabase
-        .from('vendor_preferences')
-        .select('preferred_cities')
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-      if (getErr) throw getErr;
-
+      const prefs = await vendorApi.preferences.get();
       const cities = (prefs?.preferred_cities || []).filter(id => id !== cityId);
-
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          preferred_cities: cities,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ preferred_cities: cities });
     },
 
     toggleAutoFilter: async (enabled) => {
-      const vendorId = await getVendorId();
-      const { data, error } = await supabase
-        .from('vendor_preferences')
-        .update({
-          auto_lead_filter: enabled,
-          updated_at: new Date().toISOString()
-        })
-        .eq('vendor_id', vendorId)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return vendorApi.preferences.update({ auto_lead_filter: enabled });
     },
 
     getStats: async () => {

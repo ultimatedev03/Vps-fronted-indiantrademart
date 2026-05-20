@@ -3,6 +3,13 @@ import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const PROFILE_CACHE_MS = 30000;
+let cachedProfile = {
+  key: '',
+  value: null,
+  expiresAt: 0,
+  promise: null,
+};
 
 export const isAlreadyRegisteredError = (error) => {
   const msg = String(error?.message || error || '').toLowerCase();
@@ -75,10 +82,39 @@ const fetchBuyerFromSupabase = async (user) => {
 
 export const resolveBuyerProfile = async ({ required = false } = {}) => {
   const user = await getAuthUserOrThrow();
+  const cacheKey = `${user?.id || ''}|${normalizeEmail(user?.email)}`;
+  const now = Date.now();
 
-  let buyer = await fetchBuyerFromApi();
-  if (!buyer) buyer = await fetchBuyerFromAuthMe();
-  if (!buyer) buyer = await fetchBuyerFromSupabase(user);
+  if (cachedProfile.key === cacheKey && cachedProfile.expiresAt > now) {
+    if (cachedProfile.value || !required) return cachedProfile.value;
+  }
+
+  if (cachedProfile.key === cacheKey && cachedProfile.promise) {
+    const pending = await cachedProfile.promise;
+    if (pending || !required) return pending;
+  }
+
+  const load = (async () => {
+    let buyer = await fetchBuyerFromApi();
+    if (!buyer) buyer = await fetchBuyerFromAuthMe();
+    if (!buyer) buyer = await fetchBuyerFromSupabase(user);
+    return buyer || null;
+  })();
+
+  cachedProfile = {
+    key: cacheKey,
+    value: cachedProfile.key === cacheKey ? cachedProfile.value : null,
+    expiresAt: 0,
+    promise: load,
+  };
+
+  const buyer = await load;
+  cachedProfile = {
+    key: cacheKey,
+    value: buyer,
+    expiresAt: Date.now() + PROFILE_CACHE_MS,
+    promise: null,
+  };
 
   if (!buyer && required) {
     throw new Error('Buyer profile not found');

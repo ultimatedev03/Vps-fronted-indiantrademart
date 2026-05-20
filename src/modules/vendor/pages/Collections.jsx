@@ -32,15 +32,19 @@ const Collections = () => {
   const [groupMode, setGroupMode] = useState('sub'); // custom | head | sub | micro | category
 
   // ---------------- helpers ----------------
+  const fetchVendorJson = async (path, options = {}) => {
+    const response = await fetchWithCsrf(apiUrl(path), options);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Request failed');
+    }
+    return payload;
+  };
+
   const fetchVendorId = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: vendor } = await supabase
-        .from('vendors')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const data = await fetchVendorJson('/api/vendors/me');
+      const vendor = data?.vendor;
       if (vendor?.id) setVendorId(vendor.id);
     } catch (e) {
       console.error('Vendor fetch failed', e);
@@ -50,14 +54,11 @@ const Collections = () => {
   const loadProducts = async (vid) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, category, category_path, category_other, extra_micro_categories, is_service, metadata, status, head_category_id, sub_category_id, micro_category_id')
-        .eq('vendor_id', vid)
-        .neq('status', 'ARCHIVED')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      const rows = data || [];
+      const [productsResponse, collectionsResponse] = await Promise.all([
+        fetchVendorJson('/api/vendors/me/products'),
+        fetchVendorJson('/api/vendors/me/collections').catch(() => ({ groups: [] })),
+      ]);
+      const rows = productsResponse?.products || [];
 
       const extraMicroIds = new Set();
       rows.forEach((p) => {
@@ -171,8 +172,8 @@ const Collections = () => {
 
       setProducts(mapped);
       // preload existing custom groups from metadata
-      const groups = new Set();
-      (data || []).forEach((p) => {
+      const groups = new Set(Array.isArray(collectionsResponse?.groups) ? collectionsResponse.groups : []);
+      rows.forEach((p) => {
         const g = p?.metadata?.custom_group;
         if (g) groups.add(g);
       });
@@ -250,7 +251,12 @@ const Collections = () => {
       if (!response.ok || !data?.success) {
         throw new Error(data?.error || 'Failed to notify data-entry');
       }
-      setCustomGroups((prev) => Array.from(new Set([...prev, newGroupName.trim()])));
+      const updatedGroups = Array.from(new Set([...customGroups, newGroupName.trim()]));
+      await fetchVendorJson('/api/vendors/me/collections', {
+        method: 'PUT',
+        body: JSON.stringify({ groups: updatedGroups }),
+      });
+      setCustomGroups(updatedGroups);
       toast({ title: 'Custom group created', description: 'We also notified data-entry to add this category.' });
       setNewGroupName('');
       setNewGroupNote('');
@@ -272,11 +278,15 @@ const Collections = () => {
       const product = products.find((p) => p.id === productForGroup);
       const currentMeta = product?.metadata || {};
       const updatedMeta = { ...currentMeta, custom_group: selectedGroup };
-      const { error } = await supabase
-        .from('products')
-        .update({ metadata: updatedMeta })
-        .eq('id', productForGroup);
-      if (error) throw error;
+      await fetchVendorJson(`/api/vendors/me/products/${productForGroup}/metadata`, {
+        method: 'PATCH',
+        body: JSON.stringify({ metadata: updatedMeta }),
+      });
+      const assignments = { [productForGroup]: selectedGroup };
+      await fetchVendorJson('/api/vendors/me/collections', {
+        method: 'PUT',
+        body: JSON.stringify({ groups: customGroups, assignments }),
+      }).catch(() => null);
       setProducts((prev) =>
         prev.map((p) =>
           p.id === productForGroup ? { ...p, metadata: updatedMeta } : p
