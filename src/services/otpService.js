@@ -19,6 +19,24 @@ const parseJsonSafe = async (response) => {
   }
 };
 
+const normalizeOtpErrorMessage = (message) => {
+  const text = String(message || '').trim();
+  const lower = text.toLowerCase();
+
+  if (
+    lower.includes('email service is not configured') ||
+    lower.includes('resend is not configured')
+  ) {
+    return 'Email OTP service is temporarily unavailable. Please try again in a few minutes.';
+  }
+
+  if (lower.includes('email service authentication failed')) {
+    return 'Email OTP service needs admin attention. Please try again shortly.';
+  }
+
+  return text;
+};
+
 const postOtp = async (action, payload, fallbackMessage) => {
   const response = await fetchWithCsrf(apiUrl(`${OTP_API_BASE}/${action}`), {
     method: 'POST',
@@ -27,7 +45,7 @@ const postOtp = async (action, payload, fallbackMessage) => {
 
   const data = await parseJsonSafe(response);
   if (!response.ok) {
-    const error = new Error(data?.error || fallbackMessage);
+    const error = new Error(normalizeOtpErrorMessage(data?.error || fallbackMessage));
     error.status = response.status;
     throw error;
   }
