@@ -13,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
-import { supabase } from '@/lib/customSupabaseClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { Copy, ExternalLink } from 'lucide-react';
 
@@ -210,69 +209,48 @@ const VendorOnboarding = () => {
 
     try {
       const password = sanitized.tempPassword || generateTempPassword();
-
-      // Create auth user but preserve employee session.
-      const registerResponse = await fetchWithCsrf(apiUrl('/api/auth/register'), {
-        method: 'POST',
-        body: JSON.stringify({
-          email: sanitized.email,
-          password,
-          full_name: sanitized.ownerName,
-          role: 'VENDOR',
-          phone: sanitized.phone,
-          no_session: true,
-        }),
-      });
-
-      let registerBody = null;
-      try {
-        registerBody = await registerResponse.json();
-      } catch (_) {
-        registerBody = null;
-      }
-
-      if (!registerResponse.ok || registerBody?.success === false) {
-        throw new Error(registerBody?.error || `User registration failed (${registerResponse.status})`);
-      }
-
-      const userId = registerBody?.user?.id;
-      if (!userId) throw new Error('User registration did not return user id');
-
-      const {
-        data: { user: currentEmployeeUser },
-      } = await supabase.auth.getUser();
-      const actorUserId = String(currentEmployeeUser?.id || '').trim() || null;
-
       const stateName = states.find((s) => s.id === sanitized.stateId)?.name;
       const cityName = cities.find((c) => c.id === sanitized.cityId)?.name;
 
-      await vendorApi.registerVendor({
-        userId,
-        companyName: sanitized.companyName,
-        ownerName: sanitized.ownerName,
-        email: sanitized.email,
-        phone: sanitized.phone,
-        address: sanitized.address,
-        gstNumber: sanitized.gstNumber,
-        stateId: sanitized.stateId,
-        cityId: sanitized.cityId,
-        stateName,
-        cityName,
-        assignedTo: actorUserId,
-        createdByUserId: actorUserId,
+      const response = await fetchWithCsrf(apiUrl('/api/data-entry/vendors'), {
+        method: 'POST',
+        body: JSON.stringify({
+          companyName: sanitized.companyName,
+          ownerName: sanitized.ownerName,
+          email: sanitized.email,
+          phone: sanitized.phone,
+          address: sanitized.address,
+          gstNumber: sanitized.gstNumber,
+          stateId: sanitized.stateId,
+          cityId: sanitized.cityId,
+          stateName,
+          cityName,
+          tempPassword: password,
+        }),
       });
 
-      const vendor = await vendorApi.getVendorByUserId(userId);
+      let body = null;
+      try {
+        body = await response.json();
+      } catch (_) {
+        body = null;
+      }
+
+      if (!response.ok || body?.success === false) {
+        throw new Error(body?.error || `Vendor onboarding failed (${response.status})`);
+      }
+
+      const vendor = body?.vendor || {};
 
       setCreatedVendor({
         vendorId: vendor?.vendor_id || 'N/A',
         email: sanitized.email,
-        password,
+        password: vendor?.password || password,
       });
 
       toast({
         title: 'Vendor created',
-        description: `Vendor ID: ${vendor?.vendor_id || 'N/A'}`
+        description: `Vendor ID: ${vendor?.vendor_id || 'N/A'}. Welcome and login emails were sent.`
       });
 
       setFormData(EMPTY_FORM);
