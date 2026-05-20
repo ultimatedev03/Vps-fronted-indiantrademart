@@ -23,8 +23,14 @@ const FRONTEND_DIR = resolveFrontendDir();
 dotenv.config({ path: path.join(FRONTEND_DIR, '.env.local') });
 dotenv.config({ path: '.env.local' });
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL =
+  process.env.VITE_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  process.env.UPABASE_URL;
+const SUPABASE_ANON_KEY =
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_ANON_KEY;
 const BASE_URL = String(process.env.VITE_SITE_URL || 'https://indiantrademart.com').trim().replace(/\/+$/, '');
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
