@@ -1,7 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { usePageStatusContext } from '@/contexts/PageStatusContext';
-import { supabase } from '@/lib/customSupabaseClient';
+import { apiUrl } from '@/lib/apiBase';
 import { AlertTriangle, Loader2 } from 'lucide-react';
+
+const DEBUG = Boolean(import.meta?.env?.VITE_DEBUG_PAGE_STATUS === 'true');
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
 /**
  * Component that wraps page content and shows offline message if page is blanked
@@ -22,16 +25,24 @@ const PageStatusWrapper = ({ pageRoute, children }) => {
   useEffect(() => {
     const checkDirectly = async () => {
       try {
-        const { data, error } = await supabase
-          .from('page_status')
-          .select('*')
-          .eq('page_route', pageRoute)
-          .maybeSingle();
-
-        if (error) {
-          console.error('[PageStatusWrapper] Direct check error:', error);
+        if (isOffline()) {
           setLocalStatus(null);
-        } else if (data) {
+          setIsLoading(false);
+          return;
+        }
+
+        const res = await fetch(apiUrl(`/api/public/page-status?route=${encodeURIComponent(pageRoute)}`), {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        const payload = await res.json().catch(() => null);
+
+        if (!res.ok || payload?.success === false) {
+          if (DEBUG) console.warn('[PageStatusWrapper] Direct check error:', payload || res.status);
+          setLocalStatus(null);
+        } else if (Array.isArray(payload?.statuses) && payload.statuses[0]) {
+          const data = payload.statuses[0];
           setLocalStatus({
             is_blanked: data.is_blanked === true,
             error_message: data.error_message || ''
@@ -41,7 +52,7 @@ const PageStatusWrapper = ({ pageRoute, children }) => {
         }
         setIsLoading(false);
       } catch (err) {
-        console.error('[PageStatusWrapper] Direct check exception:', err);
+        if (DEBUG) console.warn('[PageStatusWrapper] Direct check exception:', err);
         setIsLoading(false);
       }
     };

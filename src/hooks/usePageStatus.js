@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { apiUrl } from '@/lib/apiBase';
+
+const DEBUG = Boolean(import.meta?.env?.VITE_DEBUG_PAGE_STATUS === 'true');
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
 /**
  * Hook to check if a page is offline (blanked)
@@ -13,25 +17,33 @@ export const usePageStatus = (pageRoute) => {
   useEffect(() => {
     const checkPageStatus = async () => {
       try {
-        console.log('[PageStatus] Checking page status for:', pageRoute);
-        
-        // Always fetch fresh from database
-        const { data, error } = await supabase
-          .from('page_status')
-          .select('*')
-          .eq('page_route', pageRoute)
-          .maybeSingle();
-
-        if (error) {
-          console.error('[PageStatus] Query error:', error);
+        if (isOffline()) {
           setIsOffline(false);
           setErrorMessage('');
           setIsLoading(false);
           return;
         }
 
+        if (DEBUG) console.log('[PageStatus] Checking page status for:', pageRoute);
+
+        const res = await fetch(apiUrl(`/api/public/page-status?route=${encodeURIComponent(pageRoute)}`), {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        const payload = await res.json().catch(() => null);
+
+        if (!res.ok || payload?.success === false) {
+          if (DEBUG) console.warn('[PageStatus] Query error:', payload || res.status);
+          setIsOffline(false);
+          setErrorMessage('');
+          setIsLoading(false);
+          return;
+        }
+
+        const data = Array.isArray(payload?.statuses) ? payload.statuses[0] : null;
         if (data) {
-          console.log('[PageStatus] Found page status:', { 
+          if (DEBUG) console.log('[PageStatus] Found page status:', {
             route: pageRoute, 
             is_blanked: data.is_blanked, 
             error_message: data.error_message 
@@ -39,14 +51,14 @@ export const usePageStatus = (pageRoute) => {
           setIsOffline(data.is_blanked === true);
           setErrorMessage(data.error_message || '');
         } else {
-          console.log('[PageStatus] No status record found for route:', pageRoute, '- page is ONLINE');
+          if (DEBUG) console.log('[PageStatus] No status record found for route:', pageRoute, '- page is ONLINE');
           setIsOffline(false);
           setErrorMessage('');
         }
 
         setIsLoading(false);
       } catch (err) {
-        console.error('[PageStatus] Unexpected error:', err);
+        if (DEBUG) console.warn('[PageStatus] Unexpected error:', err);
         setIsOffline(false);
         setIsLoading(false);
       }
@@ -66,10 +78,10 @@ export const usePageStatus = (pageRoute) => {
           filter: `page_route=eq.${pageRoute}`
         },
         (payload) => {
-          console.log('[PageStatus] Realtime update received:', payload);
+          if (DEBUG) console.log('[PageStatus] Realtime update received:', payload);
           if (payload.new) {
             const isBlanked = payload.new.is_blanked === true;
-            console.log('[PageStatus] Realtime update - setting offline to:', isBlanked);
+            if (DEBUG) console.log('[PageStatus] Realtime update - setting offline to:', isBlanked);
             setIsOffline(isBlanked);
             setErrorMessage(payload.new.error_message || '');
           }

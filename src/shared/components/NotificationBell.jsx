@@ -14,6 +14,17 @@ import { useSubdomain } from '@/contexts/SubdomainContext';
 
 const BUYER_NOTIF_PREFIX = 'buyer_notif:';
 const FALLBACK_POLL_INTERVAL_MS = 30000;
+const isBrowserOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+const isTransientFetchError = (error) => {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('network') ||
+    message.includes('internet') ||
+    message.includes('timeout') ||
+    message.includes('name_not_resolved')
+  );
+};
 const APP_ROUTE_PREFIX = {
   vendor: '/vendor',
   buyer: '/buyer',
@@ -635,6 +646,10 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
   const fetchNotifications = async (ids) => {
     try {
+      if (isBrowserOffline()) {
+        return;
+      }
+
       const targetUserIds = collectUserIds(ids);
       if (!targetUserIds.length) {
         setNotifications([]);
@@ -647,7 +662,9 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
       setNotifications(scoped);
       setUnreadCount(scoped.filter((n) => !n.is_read).length || 0);
     } catch (error) {
-      console.error("Fetch notifications error:", error);
+      if (import.meta.env.DEV && !isTransientFetchError(error)) {
+        console.error("Fetch notifications error:", error);
+      }
     }
   };
 

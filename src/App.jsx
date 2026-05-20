@@ -12,6 +12,7 @@ import { SubdomainProvider, useSubdomain } from '@/contexts/SubdomainContext';
 import { PageStatusProvider } from '@/contexts/PageStatusContext';
 import { locationService } from '@/shared/services/locationService';
 import { supabase } from '@/lib/customSupabaseClient';
+import { apiUrl } from '@/lib/apiBase';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import DeferredAIChatWidget from '@/shared/components/DeferredAIChatWidget';
 import ScrollToTopButton from '@/shared/components/ScrollToTopButton';
@@ -32,7 +33,36 @@ const SuperAdminDashboard = lazy(() => import('@/modules/admin/pages/superadmin/
 const SuperAdminProtectedRoute = lazy(() => import('@/modules/admin/routes/SuperAdminProtectedRoute'));
 const MigrationTools = lazy(() => import('@/shared/pages/MigrationTools'));
 const Unauthorized = lazy(() => import('@/shared/pages/Unauthorized'));
-const MAINTENANCE_KEY = 'maintenance_mode';
+
+const DEFAULT_PUBLIC_CONFIG = {
+  maintenance_mode: false,
+  maintenance_message: '',
+  public_notice_enabled: false,
+  public_notice_message: '',
+  public_notice_variant: 'info',
+};
+
+const fetchPublicConfig = async () => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return DEFAULT_PUBLIC_CONFIG;
+  }
+
+  const res = await fetch(apiUrl('/api/public/system-config'), {
+    method: 'GET',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  const payload = await res.json().catch(() => null);
+
+  if (!res.ok || payload?.success === false) {
+    throw new Error(payload?.error || `Public config request failed (${res.status})`);
+  }
+
+  return {
+    ...DEFAULT_PUBLIC_CONFIG,
+    ...(payload?.config || {}),
+  };
+};
 
 /** ✅ Full-screen overlay (blur + message) */
 const SuspendedOverlay = ({ message, onSupport, onLogout }) => {
@@ -162,13 +192,7 @@ const MaintenanceGate = ({ children }) => {
   useEffect(() => {
     const run = async () => {
       try {
-        const { data, error } = await supabase
-          .from('system_config')
-          .select('maintenance_mode, maintenance_message')
-          .eq('config_key', MAINTENANCE_KEY)
-          .maybeSingle();
-
-        if (error) throw error;
+        const data = await fetchPublicConfig();
 
         setIsMaintenance(data?.maintenance_mode === true);
         setMessage(data?.maintenance_message || '');
@@ -222,12 +246,7 @@ const PublicNoticeGate = ({ children }) => {
   useEffect(() => {
     const run = async () => {
       try {
-        const { data, error } = await supabase
-          .from('system_config')
-          .select('maintenance_mode, public_notice_enabled, public_notice_message, public_notice_variant')
-          .eq('config_key', MAINTENANCE_KEY)
-          .maybeSingle();
-        if (error) throw error;
+        const data = await fetchPublicConfig();
 
         setNotice({
           maintenance: data?.maintenance_mode === true,

@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { apiUrl } from '@/lib/apiBase';
 
 const PageStatusContext = createContext(null);
+
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
 export const PageStatusProvider = ({ children }) => {
   const [pageStatuses, setPageStatuses] = useState({});
@@ -16,19 +19,28 @@ export const PageStatusProvider = ({ children }) => {
   useEffect(() => {
     const fetchAllPageStatuses = async () => {
       try {
+        if (isOffline()) {
+          setIsLoading(false);
+          return;
+        }
+
         if (DEBUG) console.log('[PageStatusContext] Fetching all page statuses...');
 
-        const { data, error } = await supabase
-          .from('page_status')
-          .select('*');
+        const res = await fetch(apiUrl('/api/public/page-status'), {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        const payload = await res.json().catch(() => null);
 
-        if (error) {
-          console.error('[PageStatusContext] Error fetching statuses:', error);
+        if (!res.ok || payload?.success === false) {
+          if (DEBUG) console.warn('[PageStatusContext] Error fetching statuses:', payload || res.status);
           setIsLoading(false);
           return;
         }
 
         const statusMap = {};
+        const data = Array.isArray(payload?.statuses) ? payload.statuses : [];
         if (data) {
           data.forEach(page => {
             statusMap[page.page_route] = {
@@ -43,7 +55,7 @@ export const PageStatusProvider = ({ children }) => {
         if (DEBUG) console.log('[PageStatusContext] All page statuses loaded:', statusMap);
         setIsLoading(false);
       } catch (err) {
-        console.error('[PageStatusContext] Exception:', err);
+        if (DEBUG) console.warn('[PageStatusContext] Exception:', err);
         setIsLoading(false);
       }
     };

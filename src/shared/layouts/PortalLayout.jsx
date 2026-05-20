@@ -15,6 +15,7 @@ import { Loader2 } from 'lucide-react';
 import NotificationBell from '@/shared/components/NotificationBell';
 import { getPublicSiteUrl } from '@/shared/lib/publicSite';
 import { useSubdomain } from '@/contexts/SubdomainContext';
+import { apiUrl } from '@/lib/apiBase';
 
 const parseSidebarPath = (path = '') => {
   const [pathnamePart, hashPart] = String(path || '').split('#');
@@ -94,16 +95,25 @@ const PortalLayout = ({ role }) => {
   useEffect(() => {
     const checkPageStatus = async () => {
       try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          setPageStatus({ isBlocked: false, message: '' });
+          return;
+        }
+
         let routeToCheck = location.pathname;
         if (role === 'VENDOR' && location.pathname.startsWith('/vendor')) {
           routeToCheck = '/vendor/dashboard';
         }
 
-        const { data } = await supabase
-          .from('page_status')
-          .select('*')
-          .eq('page_route', routeToCheck)
-          .maybeSingle();
+        const res = await fetch(apiUrl(`/api/public/page-status?route=${encodeURIComponent(routeToCheck)}`), {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        const payload = await res.json().catch(() => null);
+        const data = res.ok && payload?.success !== false && Array.isArray(payload?.statuses)
+          ? payload.statuses[0]
+          : null;
 
         if (data && data.is_blanked) {
           setPageStatus({ isBlocked: true, message: data.error_message });
