@@ -1,11 +1,29 @@
 import { apiUrl } from '@/lib/apiBase';
 
+const readJson = async (res) => {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(text || `Request failed (${res.status})`);
+  }
+};
+
+const fetchCategoryJson = async (path) => {
+  const res = await fetch(apiUrl(path), { headers: { Accept: 'application/json' } });
+  const json = await readJson(res);
+  if (!res.ok || json?.success === false) {
+    throw new Error(json?.error || json?.message || `Request failed (${res.status})`);
+  }
+  return json;
+};
+
 export const categoryApi = {
   // ✅ Fetch top-level categories (Head Categories)
   getTopLevelCategories: async () => {
     try {
-      const res = await fetch(apiUrl('/api/dir/categories/top-level'));
-      const json = await res.json();
+      const json = await fetchCategoryJson('/api/dir/categories/top-level');
       return json?.categories || [];
     } catch (err) {
       console.error('Unexpected error fetching top level categories:', err);
@@ -25,8 +43,7 @@ export const categoryApi = {
   getHomeShowcaseCategories: async (options = {}) => {
     try {
       const params = new URLSearchParams(options);
-      const res = await fetch(apiUrl('/api/dir/categories/home-showcase') + '?' + params.toString());
-      const json = await res.json();
+      const json = await fetchCategoryJson('/api/dir/categories/home-showcase' + '?' + params.toString());
       return json?.categories || [];
     } catch (err) {
       console.error('Unexpected error fetching showcase categories:', err);
@@ -36,8 +53,7 @@ export const categoryApi = {
 
   getActiveHeadCategoryCount: async () => {
     try {
-      const res = await fetch(apiUrl('/api/dir/categories/head-count'));
-      const json = await res.json();
+      const json = await fetchCategoryJson('/api/dir/categories/head-count');
       return json?.count || 0;
     } catch (err) {
       console.error('Unexpected error counting head categories:', err);
@@ -49,8 +65,7 @@ export const categoryApi = {
   getCategoryChildren: async (parentId, parentType = 'HEAD') => {
     try {
       const params = new URLSearchParams({ parentId, parentType });
-      const res = await fetch(apiUrl('/api/dir/categories/children') + '?' + params.toString());
-      const json = await res.json();
+      const json = await fetchCategoryJson('/api/dir/categories/children' + '?' + params.toString());
       return json?.children || [];
     } catch (err) {
       console.error('Unexpected error fetching children:', err);
@@ -61,8 +76,7 @@ export const categoryApi = {
   // ✅ slug resolver
   getCategoryBySlug: async (slug) => {
     try {
-      const res = await fetch(apiUrl('/api/dir/category/universal/' + slug));
-      const json = await res.json();
+      const json = await fetchCategoryJson('/api/dir/category/universal/' + slug);
       return json?.category || null;
     } catch (err) {
       console.error('Unexpected error fetching category by slug:', err);
@@ -83,7 +97,7 @@ export const categoryApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(jsonData)
     });
-    const json = await res.json();
+    const json = await readJson(res);
     if (!res.ok) throw new Error(json.error);
     return json.data;
   }

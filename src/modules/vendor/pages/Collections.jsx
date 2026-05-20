@@ -34,7 +34,15 @@ const Collections = () => {
   // ---------------- helpers ----------------
   const fetchVendorJson = async (path, options = {}) => {
     const response = await fetchWithCsrf(apiUrl(path), options);
-    const payload = await response.json().catch(() => ({}));
+    const text = await response.text().catch(() => '');
+    let payload = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = { error: text };
+      }
+    }
     if (!response.ok || payload?.success === false) {
       throw new Error(payload?.error || payload?.message || 'Request failed');
     }
