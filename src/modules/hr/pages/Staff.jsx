@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Modal from '@/shared/components/Modal';
@@ -81,7 +81,7 @@ const HrStaff = () => {
   useEffect(() => {
     void fetchStaff();
 
-    const channel = supabase
+    const channel = dbClient
       .channel('hr-staff-directory')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
         void fetchStaff({ silent: true });
@@ -89,7 +89,7 @@ const HrStaff = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
     };
   }, [fetchStaff]);
 

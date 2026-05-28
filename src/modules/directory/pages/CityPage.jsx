@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, MapPin, ArrowLeft, ShieldCheck } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Button } from '@/components/ui/button';
 import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBar';
 import { vendorService } from '@/modules/directory/services/vendorService';
@@ -24,7 +24,7 @@ const CityPage = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const { data: cityData, error: cityErr } = await supabase
+        const { data: cityData, error: cityErr } = await dbClient
           .from('cities')
           .select('id, name, slug, supplier_count, state_id')
           .eq('slug', normalizedCitySlug)
@@ -39,7 +39,7 @@ const CityPage = () => {
         setCity(cityData);
 
         if (cityData.state_id) {
-          const { data: stateData } = await supabase
+          const { data: stateData } = await dbClient
             .from('states')
             .select('id, name, slug')
             .eq('id', cityData.state_id)
@@ -149,7 +149,7 @@ const CityPage = () => {
       <div className="min-h-screen bg-slate-50">
         {/* Header */}
         <div className="bg-white border-b">
-          <div className="container mx-auto px-4 py-6">
+          <div className="w-[92vw] mx-auto py-6">
             <div className="flex items-center gap-3">
               <Button
                 type="button"
@@ -179,7 +179,7 @@ const CityPage = () => {
               </div>
             </div>
 
-            <div className="mt-6 max-w-4xl">
+            <div className="mt-6 w-[60vw]">
               {/* Pre-fill location so user can search any service inside this city */}
               <DirectorySearchBar
                 enableSuggestions
@@ -195,7 +195,7 @@ const CityPage = () => {
         </div>
 
         {/* Body */}
-        <div className="container mx-auto px-4 py-10">
+        <div className="w-[92vw] mx-auto py-10">
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-slate-900 mb-4">
               Suppliers in {city.name}

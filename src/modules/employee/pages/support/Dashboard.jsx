@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -92,9 +92,9 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Dashboard error:', error);
 
-      // Fallback to Supabase direct (still real DB)
+      // Fallback to MySQL direct (still real DB)
       try {
-        const { data: allTickets, error: sbError } = await supabase
+        const { data: allTickets, error: sbError } = await dbClient
           .from('support_tickets')
           .select('*')
           .order('created_at', { ascending: false })

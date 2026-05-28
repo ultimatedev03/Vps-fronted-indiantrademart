@@ -17,8 +17,8 @@ const BuyerHome = () => {
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-[#00A699] to-[#00645B] text-white py-20 lg:py-32">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
+        <div className="w-[92vw] mx-auto">
+          <div className="w-[52vw] mx-auto text-center">
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -57,7 +57,7 @@ const BuyerHome = () => {
 
       {/* How it Works */}
       <section className="py-20 bg-neutral-50">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-neutral-800 mb-4">How Sourcing Works</h2>
           </div>
@@ -93,7 +93,7 @@ const BuyerHome = () => {
 
       {/* Benefits */}
       <section className="py-20">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
              <div>
                <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=1000" alt="Buyer Benefits" className="rounded-2xl shadow-xl" />
@@ -139,9 +139,9 @@ const BuyerHome = () => {
 
       {/* CTA */}
       <section className="py-20 bg-[#003D82]">
-        <div className="container mx-auto px-4 text-center text-white">
+        <div className="w-[92vw] mx-auto text-center text-white">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Start Sourcing Smarter</h2>
-          <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">Join thousands of buyers who save time and money on IndianTradeMart.</p>
+          <p className="text-xl mb-8 w-[44vw] mx-auto opacity-90">Join thousands of buyers who save time and money on IndianTradeMart.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/buyer/register">
               <Button size="lg" className="bg-white text-[#003D82] hover:bg-neutral-100 font-bold h-14 px-8">

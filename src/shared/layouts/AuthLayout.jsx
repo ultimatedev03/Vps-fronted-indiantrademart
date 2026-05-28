@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 const AuthLayout = () => {
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+      <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center">
         <Link to="/">
           <img
             src="/itm-logo.png"
@@ -23,7 +23,7 @@ const AuthLayout = () => {
         </motion.h2>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-8 sm:mx-auto w-[92vw] sm:w-[28vw]">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

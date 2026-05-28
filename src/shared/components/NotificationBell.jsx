@@ -4,7 +4,7 @@ import { Bell, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { cn } from '@/lib/utils';
@@ -214,7 +214,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
       if (safeUserId) {
         try {
-          const { data: byId } = await supabase
+          const { data: byId } = await dbClient
             .from('users')
             .select('id')
             .eq('id', safeUserId)
@@ -229,7 +229,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
       if (safeEmail) {
         try {
-          const { data: byEmailRows } = await supabase
+          const { data: byEmailRows } = await dbClient
             .from('users')
             .select('id')
             .ilike('email', safeEmail)
@@ -252,7 +252,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
       if (safeUserId) {
         try {
-          const { data: byUserRows } = await supabase
+          const { data: byUserRows } = await dbClient
             .from('buyers')
             .select('id')
             .or(`user_id.eq.${safeUserId},id.eq.${safeUserId}`)
@@ -268,7 +268,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
       if (safeEmail) {
         try {
-          const { data: byEmailRows } = await supabase
+          const { data: byEmailRows } = await dbClient
             .from('buyers')
             .select('id')
             .ilike('email', safeEmail)
@@ -346,7 +346,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
       const safePropId = String(userIdProp || '').trim();
       const safePropEmail = String(userEmailProp || '').trim().toLowerCase();
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await dbClient.auth.getUser();
         const authUserId = String(user?.id || '').trim();
         const authUserEmail = String(user?.email || '').trim().toLowerCase();
         if (safePropId || safePropEmail) {
@@ -386,7 +386,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
     load();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = dbClient.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
       await hydrateIdentity(session?.user || null);
     });
@@ -409,7 +409,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
     // Real-time subscription
     const channels = targetUserIds.map((targetUserId) => (
-      supabase
+      dbClient
         .channel(`notifications-realtime:${targetUserId}`)
         .on(
           'postgres_changes',
@@ -437,7 +437,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
 
     let buyerChannel = null;
     if (String(userRole || '').toUpperCase() === 'BUYER' && buyerId) {
-      buyerChannel = supabase
+      buyerChannel = dbClient
         .channel(`buyer-notifications-realtime:${buyerId}`)
         .on(
           'postgres_changes',
@@ -477,8 +477,8 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      channels.forEach((channel) => supabase.removeChannel(channel));
-      if (buyerChannel) supabase.removeChannel(buyerChannel);
+      channels.forEach((channel) => dbClient.removeChannel(channel));
+      if (buyerChannel) dbClient.removeChannel(buyerChannel);
       if (pollingRef.current) clearInterval(pollingRef.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -556,7 +556,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
     const { buyerIds, normalIds } = splitNotificationIds(ids);
 
     if (normalIds.length > 0) {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .update({ is_read: true })
         .in('id', normalIds);
@@ -564,7 +564,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
     }
 
     if (buyerIds.length > 0) {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('buyer_notifications')
         .update({ is_read: true })
         .in('id', buyerIds);
@@ -576,7 +576,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
     const { buyerIds, normalIds } = splitNotificationIds(ids);
 
     if (normalIds.length > 0) {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .delete()
         .in('id', normalIds);
@@ -584,7 +584,7 @@ const NotificationBell = ({ userId: userIdProp = null, userEmail: userEmailProp 
     }
 
     if (buyerIds.length > 0) {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('buyer_notifications')
         .delete()
         .in('id', buyerIds);

@@ -319,7 +319,7 @@ const CreateProposal = () => {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-3">
+    <div className="mx-auto w-full min-w-0 space-y-3">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" />

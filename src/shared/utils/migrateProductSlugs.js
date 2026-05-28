@@ -3,11 +3,11 @@
  * Run this in browser console or as part of app initialization
  */
 
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { generateUniqueSlug, mergeProductSlugAliases } from '@/shared/utils/slugUtils';
 
 const getProductsBatch = async (from, to) => {
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('products')
     .select('id, name, slug, metadata')
     .order('id', { ascending: true })
@@ -32,7 +32,7 @@ export const migrateProductSlugs = async () => {
   try {
     console.log('🔄 Starting product slug normalization...');
 
-    const { data: products, error: fetchError } = await supabase
+    const { data: products, error: fetchError } = await dbClient
       .from('products')
       .select('id, name, slug, metadata');
 
@@ -52,7 +52,7 @@ export const migrateProductSlugs = async () => {
           continue;
         }
 
-        const { error: updateError } = await supabase
+        const { error: updateError } = await dbClient
           .from('products')
           .update(updatePayload)
           .eq('id', product.id);
@@ -108,7 +108,7 @@ export const migrateProductSlugsBatch = async (batchSize = 50) => {
             continue;
           }
 
-          const { error: updateError } = await supabase
+          const { error: updateError } = await dbClient
             .from('products')
             .update(updatePayload)
             .eq('id', product.id);

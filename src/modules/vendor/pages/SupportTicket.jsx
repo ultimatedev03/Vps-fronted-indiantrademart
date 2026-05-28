@@ -116,7 +116,7 @@ const SupportTicket = () => {
   const isClosed = String(ticket.status || '').toUpperCase() === 'CLOSED';
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto w-full min-w-0 space-y-6">
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={() => navigate(supportPath)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to tickets
@@ -160,7 +160,7 @@ const SupportTicket = () => {
               const isVendor = String(msg.sender_type || '').toUpperCase() === 'VENDOR';
               return (
                 <div key={msg.id} className={`flex ${isVendor ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
+                  <div className={`w-[80vw] rounded-xl px-3 py-2 text-sm ${
                     isVendor ? 'bg-[#003D82] text-white' : 'bg-white border border-neutral-200 text-neutral-800'
                   }`}>
                     <div className="text-[10px] opacity-70 mb-1">

@@ -102,13 +102,13 @@ const Categories = () => {
 
       <div className="min-h-screen bg-gray-50">
         <div className="py-12 bg-gray-50">
-          <div className="container mx-auto px-4">
+          <div className="w-[92vw] mx-auto">
             {/* Header */}
             <div className="mb-12">
               <h1 className="text-4xl font-bold text-gray-900 mb-4">
                 All Categories
               </h1>
-              <p className="text-gray-600 text-lg max-w-2xl">
+              <p className="text-gray-600 text-lg w-[44vw]">
                 Browse all product categories from top manufacturers and verified suppliers.
               </p>
             </div>

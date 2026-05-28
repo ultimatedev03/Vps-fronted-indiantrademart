@@ -7,7 +7,7 @@
 // Dev: Vite proxy forwards /api -> local backend.
 // Prod: Netlify redirects /api/* -> /.netlify/functions/*.
 
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
@@ -96,7 +96,7 @@ export const quotationApi = {
     const vendor = await vendorApi.auth.me();
     if (!vendor?.id) throw new Error('Vendor not found');
 
-    let q = supabase
+    let q = dbClient
       .from('proposals')
       .select('*')
       .eq('vendor_id', vendor.id)
@@ -117,7 +117,7 @@ export const quotationApi = {
 
     if (!buyerIds.length) return rows;
 
-    const { data: buyers, error: buyerError } = await supabase
+    const { data: buyers, error: buyerError } = await dbClient
       .from('buyers')
       .select('id, full_name, company_name, email, phone, mobile')
       .in('id', buyerIds);
@@ -172,7 +172,7 @@ export const quotationApi = {
 
     // If email provided, attempt to resolve buyers.id
     if (looksLikeEmail) {
-      const { data: buyer, error: bErr } = await supabase
+      const { data: buyer, error: bErr } = await dbClient
         .from('buyers')
         .select('id')
         .eq('email', email)
@@ -186,7 +186,7 @@ export const quotationApi = {
 
     // 1) Registered flow: by buyer_id
     if (buyerId) {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('proposals')
         .select(
           `
@@ -208,7 +208,7 @@ export const quotationApi = {
 
     // 2) Email flow (covers unregistered and also acts as fallback)
     if (email) {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('proposals')
         .select(
           `
@@ -241,7 +241,7 @@ export const quotationApi = {
     if (!proposalId) throw new Error('proposalId is required');
     if (!status) throw new Error('status is required');
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('proposals')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', proposalId)

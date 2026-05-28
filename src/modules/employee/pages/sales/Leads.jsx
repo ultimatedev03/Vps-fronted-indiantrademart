@@ -273,7 +273,7 @@ const Leads = () => {
       </Card>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[44vw]">
           <DialogHeader>
             <DialogTitle>Lead Details</DialogTitle>
           </DialogHeader>

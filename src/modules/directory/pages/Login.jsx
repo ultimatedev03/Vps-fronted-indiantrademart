@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Loader2, ShoppingBag, Store, Eye, EyeOff, RefreshCw, Briefcase, Globe } from 'lucide-react';
 import Logo from '@/shared/components/Logo';
 import { toast } from '@/components/ui/use-toast';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/AppAuthContext';
+import { dbClient } from '@/lib/dbClient';
 import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
 import {
@@ -115,7 +115,7 @@ const Login = () => {
       const roleHint = activeTab === 'buyer' ? 'BUYER' : 'VENDOR';
 
       if (roleHint === 'BUYER') {
-        const { data: vendorByEmail, error: vendorLookupError } = await supabase
+        const { data: vendorByEmail, error: vendorLookupError } = await dbClient
           .from('vendors')
           .select('id')
           .ilike('email', normalizedEmail)
@@ -155,7 +155,7 @@ const Login = () => {
   const handleResetData = async () => {
     setResetting(true);
     try {
-      const { error } = await supabase.functions.invoke('reseed-users');
+      const { error } = await dbClient.functions.invoke('reseed-users');
       if (error) throw error;
       toast({ title: "Success", description: "Database reset to original 7 demo users." });
       setShowResetDialog(false);
@@ -179,7 +179,7 @@ const Login = () => {
             <Logo to="/" className="h-8 brightness-0 invert" showTagline={true} variant="light" />
          </div>
 
-         <div className="relative z-10 max-w-xl">
+         <div className="relative z-10 w-[36vw]">
             <h1 className="text-5xl font-bold leading-tight mb-6">
                The Gateway to <br/> 
                <span className="text-blue-400">Global Trade</span>
@@ -211,7 +211,7 @@ const Login = () => {
 
       {/* Right Side - Login Form */}
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-white">
-         <div className="mx-auto w-full max-w-sm lg:w-96">
+         <div className="mx-auto w-[92vw] lg:w-[25vw]">
             <div className="mb-10">
                <h2 className="text-3xl font-bold text-slate-900">Welcome Back</h2>
                <p className="mt-2 text-sm text-slate-600">Please sign in to your account to continue</p>

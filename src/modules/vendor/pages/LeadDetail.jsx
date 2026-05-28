@@ -560,7 +560,7 @@ const LeadDetail = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto w-full min-w-0 space-y-6">
       <Button
         variant="ghost"
         onClick={() => navigate(leadsPath)}

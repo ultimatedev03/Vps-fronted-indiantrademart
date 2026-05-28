@@ -10,7 +10,7 @@ import NearbyLocationNav from '@/modules/directory/components/NearbyLocationNav'
 import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBar';
 import { urlParser } from '@/shared/utils/urlParser';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { toAbsoluteSiteUrl } from '@/lib/siteUrl';
 import { locationService } from '@/shared/services/locationService';
 import { toast } from '@/components/ui/use-toast';
@@ -87,9 +87,9 @@ const resolveCategoryContext = async (slug) => {
   if (!s) return { type: 'text' };
 
   const [microRes, subRes, headRes] = await Promise.all([
-    supabase.from('micro_categories').select('id, sub_category_id').eq('slug', s).maybeSingle(),
-    supabase.from('sub_categories').select('id, head_category_id').eq('slug', s).maybeSingle(),
-    supabase.from('head_categories').select('id').eq('slug', s).maybeSingle(),
+    dbClient.from('micro_categories').select('id, sub_category_id').eq('slug', s).maybeSingle(),
+    dbClient.from('sub_categories').select('id, head_category_id').eq('slug', s).maybeSingle(),
+    dbClient.from('head_categories').select('id').eq('slug', s).maybeSingle(),
   ]);
 
   if (microRes?.data?.id) {
@@ -164,7 +164,7 @@ const applyLocationFilters = (query, stateId, cityId) => {
 };
 
 const buildKeywordProductQuery = ({ selectString, stateId, cityId }) => {
-  let query = supabase
+  let query = dbClient
     .from('products')
     .select(selectString)
     .eq('status', 'ACTIVE')
@@ -290,7 +290,7 @@ const runCategoryContextQuery = async ({ ctx, selectString, stateId, cityId }) =
     return [];
   }
 
-  let query = supabase
+  let query = dbClient
     .from('products')
     .select(selectString)
     .eq('status', 'ACTIVE')
@@ -446,7 +446,7 @@ const SearchResults = () => {
     };
 
     const fetchFromTable = async (table, tok) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from(table)
         .select('id, name, slug')
         .or(`slug.ilike.%${tok}%,name.ilike.%${tok}%`)
@@ -456,7 +456,7 @@ const SearchResults = () => {
     };
 
     const fetchFromProducts = async (tok) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .select('id, name, category, category_slug')
         .eq('status', 'ACTIVE')
@@ -608,7 +608,7 @@ const SearchResults = () => {
     if (ids.length === 0) return new Map();
 
     const trySubsTable = async (tableName) => {
-      const { data, error } = await supabase.from(tableName).select('vendor_id, plan_id').in('vendor_id', ids);
+      const { data, error } = await dbClient.from(tableName).select('vendor_id, plan_id').in('vendor_id', ids);
       if (error) return { data: null, error };
       return { data: data || [], error: null };
     };
@@ -624,7 +624,7 @@ const SearchResults = () => {
     const planIds = Array.from(new Set((subs || []).map((s) => s.plan_id).filter(Boolean)));
     if (planIds.length === 0) return new Map();
 
-    const { data: plans, error: plansErr } = await supabase.from('vendor_plans').select('id, name').in('id', planIds);
+    const { data: plans, error: plansErr } = await dbClient.from('vendor_plans').select('id, name').in('id', planIds);
     if (plansErr || !Array.isArray(plans)) return new Map();
 
     const planIdToName = new Map((plans || []).map((p) => [p.id, p.name]));
@@ -870,10 +870,10 @@ const SearchResults = () => {
 
       <div className="min-h-screen bg-neutral-50 pb-16">
         <div className="sticky top-16 z-10 border-b bg-white/95 shadow-sm backdrop-blur">
-          <div className="container mx-auto px-4 py-1.5 md:py-2">
+          <div className="w-[92vw] mx-auto py-1.5 md:py-2">
             <PillBreadcrumbs className="mb-1.5" overrideParams={parsedParams} />
 
-            <div className="mb-1.5 max-w-4xl">
+            <div className="mb-1.5 w-[60vw]">
               <DirectorySearchBar
                 compact
                 enableSuggestions
@@ -913,7 +913,7 @@ const SearchResults = () => {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-4">
+        <div className="w-[92vw] mx-auto py-4">
           <div className="flex flex-col lg:flex-row gap-6">
             <aside className="w-full lg:w-64 flex-shrink-0 hidden lg:block">
               <SearchFilters filters={filters} setFilters={setFilters} priceBounds={priceBounds} />

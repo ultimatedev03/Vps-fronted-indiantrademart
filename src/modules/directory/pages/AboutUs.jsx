@@ -94,17 +94,17 @@ const AboutUs = () => {
       </Helmet>
 
       <section className="bg-slate-950 text-white">
-        <div className="container mx-auto px-4 py-16 lg:py-20">
+        <div className="w-[92vw] mx-auto py-16 lg:py-20">
           <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
             <div className="space-y-6">
               <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-200">
                 About Indian Trade Mart
               </span>
               <div className="space-y-4">
-                <h1 className="max-w-4xl text-4xl font-black tracking-tight sm:text-5xl">
+                <h1 className="w-[60vw] text-4xl font-black tracking-tight sm:text-5xl">
                   Building a clearer B2B marketplace for Indian buyers and suppliers.
                 </h1>
-                <p className="max-w-3xl text-lg leading-8 text-slate-300">
+                <p className="w-[52vw] text-lg leading-8 text-slate-300">
                   Indian Trade Mart helps businesses discover products, suppliers, and service providers through a more
                   structured marketplace experience focused on trust, discoverability, and practical business outcomes.
                 </p>
@@ -123,8 +123,8 @@ const AboutUs = () => {
         </div>
       </section>
 
-      <section className="container mx-auto px-4 py-16">
-        <div className="mb-8 max-w-3xl">
+      <section className="w-[92vw] mx-auto py-16">
+        <div className="mb-8 w-[52vw]">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">Our Mission</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Make business discovery more useful, not more crowded.</h2>
           <p className="mt-4 text-base leading-7 text-slate-600">
@@ -146,7 +146,7 @@ const AboutUs = () => {
         </div>
       </section>
 
-      <section className="container mx-auto px-4 pb-16">
+      <section className="w-[92vw] mx-auto pb-16">
         <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
           <article className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
@@ -177,8 +177,8 @@ const AboutUs = () => {
         </div>
       </section>
 
-      <section className="container mx-auto px-4 pb-16">
-        <div className="mb-8 max-w-3xl">
+      <section className="w-[92vw] mx-auto pb-16">
+        <div className="mb-8 w-[52vw]">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">Who We Serve</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Built for marketplace participants across the trade cycle.</h2>
         </div>
@@ -196,9 +196,9 @@ const AboutUs = () => {
         </div>
       </section>
 
-      <section className="container mx-auto px-4 pb-20">
+      <section className="w-[92vw] mx-auto pb-20">
         <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm lg:flex lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
+          <div className="w-[44vw]">
             <h2 className="text-3xl font-bold tracking-tight text-slate-950">Want to learn more or work with us?</h2>
             <p className="mt-3 text-sm leading-7 text-slate-600">
               Explore the marketplace, browse supplier listings, or reach out to the team if you want to know more

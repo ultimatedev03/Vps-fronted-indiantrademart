@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/AppAuthContext';
+import { dbClient } from '@/lib/dbClient';
 import Logo from '@/shared/components/Logo';
 import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
@@ -61,7 +61,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { data: vendorByEmail, error: vendorLookupError } = await supabase
+      const { data: vendorByEmail, error: vendorLookupError } = await dbClient
         .from('vendors')
         .select('id')
         .ilike('email', normalizedEmail)
@@ -97,7 +97,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+      <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center">
         <div className="flex justify-center mb-6">
           <Logo />
         </div>
@@ -109,7 +109,7 @@ const Login = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-8 sm:mx-auto w-[92vw] sm:w-[28vw]">
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 sm:rounded-xl sm:px-10 border border-slate-100">
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>

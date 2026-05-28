@@ -71,7 +71,7 @@ const VendorListing = () => {
     const fetchVendors = async () => {
       setLoading(true);
       try {
-        // NOTE: If Supabase RLS policy filters is_active=true, then inactive vendors won't come at all.
+        // NOTE: If MySQL RLS policy filters is_active=true, then inactive vendors won't come at all.
         const data = await vendorService.getFeaturedVendors({
           onlyActive: true,
           exhaustive: true,
@@ -289,7 +289,7 @@ const VendorListing = () => {
   const citySelectDisabled = !selectedStateId || citiesLoading;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="w-[92vw] mx-auto py-8">
       <div className="mb-6">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>

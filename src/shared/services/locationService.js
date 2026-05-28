@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
 const statesCache = { data: null, expiresAt: 0 };
@@ -30,7 +30,7 @@ export const locationService = {
       return statesCache.data;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('states')
       .select('*')
       .eq('is_active', true)
@@ -45,7 +45,7 @@ export const locationService = {
       return data;
     }
 
-    const { data: fallback, error: fallbackError } = await supabase
+    const { data: fallback, error: fallbackError } = await dbClient
       .from('states')
       .select('*')
       .order('name');
@@ -68,7 +68,7 @@ export const locationService = {
       return cached.data || [];
     }
     
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('cities')
       .select('*')
       .eq('state_id', stateId)
@@ -84,7 +84,7 @@ export const locationService = {
       return data;
     }
 
-    const { data: fallback, error: fallbackError } = await supabase
+    const { data: fallback, error: fallbackError } = await dbClient
       .from('cities')
       .select('*')
       .eq('state_id', stateId)
@@ -161,7 +161,7 @@ export const locationService = {
 
     if (normalizedCitySlug && !city) {
       try {
-        const { data: cityFallback } = await supabase
+        const { data: cityFallback } = await dbClient
           .from('cities')
           .select('*')
           .eq('slug', normalizedCitySlug)
@@ -174,7 +174,7 @@ export const locationService = {
 
     if (!state && city?.state_id) {
       try {
-        const { data: stateFallback } = await supabase
+        const { data: stateFallback } = await dbClient
           .from('states')
           .select('*')
           .eq('id', city.state_id)

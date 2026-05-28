@@ -23,7 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import Logo from "@/shared/components/Logo";
 import NotificationBell from "@/shared/components/NotificationBell";
-import { supabase } from "@/lib/customSupabaseClient";
+import { dbClient } from "@/lib/dbClient";
 import { urlParser } from "@/shared/utils/urlParser";
 import { useGlobalInputSanitizer } from "@/shared/hooks/useGlobalInputSanitizer";
 
@@ -47,14 +47,14 @@ const resolveLocationSlugs = async (locText) => {
 
   // 1) Try CITY by slug
   try {
-    const { data: cityBySlug } = await supabase
+    const { data: cityBySlug } = await dbClient
       .from("cities")
       .select("slug, state_id, name")
       .eq("slug", locSlug)
       .maybeSingle();
 
     if (cityBySlug?.slug && cityBySlug?.state_id) {
-      const { data: st } = await supabase
+      const { data: st } = await dbClient
         .from("states")
         .select("slug, name")
         .eq("id", cityBySlug.state_id)
@@ -68,7 +68,7 @@ const resolveLocationSlugs = async (locText) => {
 
   // 2) Try STATE by slug
   try {
-    const { data: stateBySlug } = await supabase
+    const { data: stateBySlug } = await dbClient
       .from("states")
       .select("slug, name")
       .eq("slug", locSlug)
@@ -83,7 +83,7 @@ const resolveLocationSlugs = async (locText) => {
 
   // 3) Fallback: name partial match (city first)
   try {
-    const { data: cities } = await supabase
+    const { data: cities } = await dbClient
       .from("cities")
       .select("slug, state_id, name")
       .ilike("name", `%${clean}%`)
@@ -91,7 +91,7 @@ const resolveLocationSlugs = async (locText) => {
 
     const city = cities?.[0];
     if (city?.slug && city?.state_id) {
-      const { data: st } = await supabase
+      const { data: st } = await dbClient
         .from("states")
         .select("slug, name")
         .eq("id", city.state_id)
@@ -104,7 +104,7 @@ const resolveLocationSlugs = async (locText) => {
   }
 
   try {
-    const { data: states } = await supabase
+    const { data: states } = await dbClient
       .from("states")
       .select("slug, name")
       .ilike("name", `%${clean}%`)
@@ -598,8 +598,8 @@ const BuyerLayout = () => {
             )}
           </header>
 
-          <main className="flex-1 p-3 md:px-5 md:py-4 overflow-y-auto overflow-x-hidden">
-            <div className="max-w-6xl mx-auto">
+          <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 md:px-5 md:py-4">
+            <div className="mx-auto w-full min-w-0">
               <Outlet />
             </div>
           </main>

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, ArrowRight, CheckCircle2, Mail, ArrowLeft, ShieldCheck, User } from 'lucide-react';
 import Logo from '@/shared/components/Logo';
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { StateDropdown, CityDropdown } from '@/shared/components/LocationSelectors';
 import { otpService } from '@/services/otpService';
 import { isAlreadyRegisteredError } from '@/modules/buyer/services/buyerSession';
@@ -24,7 +24,7 @@ const StepIndicator = ({ step }) => {
   ];
 
   return (
-    <div className="flex justify-between mb-8 relative max-w-[200px] mx-auto">
+    <div className="flex justify-between mb-8 relative w-[12vw] mx-auto">
       <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -z-10 -translate-y-1/2" />
       {steps.map((s) => (
         <div key={s.num} className="flex flex-col items-center bg-gray-50 px-2">
@@ -230,14 +230,14 @@ const Register = () => {
       }
 
       const authUserFromRegister = authData?.user || authData?.session?.user || null;
-      const { data: userRes, error: userErr } = await supabase.auth.getUser();
+      const { data: userRes, error: userErr } = await dbClient.auth.getUser();
       if (userErr) throw userErr;
 
       const userId = authUserFromRegister?.id || userRes?.user?.id;
       if (!userId) throw new Error('Registration completed but user session could not be confirmed.');
 
       try {
-        await supabase.from('notifications').insert([
+        await dbClient.from('notifications').insert([
           {
             user_id: userId,
             type: 'WELCOME',
@@ -301,7 +301,7 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+      <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center">
         <div className="flex justify-center mb-6">
           <Logo />
         </div>
@@ -314,7 +314,7 @@ const Register = () => {
         {step < 3 && <StepIndicator step={step} />}
       </div>
 
-      <div className="mt-2 sm:mx-auto sm:w-full sm:max-w-lg">
+      <div className="mt-2 sm:mx-auto w-[92vw] sm:w-[36vw]">
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100">
           {step === 1 && (
             <form className="space-y-6" onSubmit={handleStep1Submit}>
@@ -450,7 +450,7 @@ const Register = () => {
                 <CheckCircle2 className="w-16 h-16 text-green-600" />
               </div>
               <h3 className="text-xl font-bold text-gray-900">Success!</h3>
-              <p className="text-center text-gray-500 max-w-xs">
+              <p className="text-center text-gray-500 w-[20vw]">
                 Your buyer account has been created successfully. Redirecting to dashboard...
               </p>
               <Button onClick={() => navigate('/buyer/dashboard')} className="mt-4 bg-[#00A699]">

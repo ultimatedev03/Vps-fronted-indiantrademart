@@ -49,7 +49,7 @@ const SuperAdminLogin = () => {
       {/* Matrix-like background effect */}
       <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop')] opacity-10 bg-cover bg-center pointer-events-none"></div>
       
-      <div className="w-full max-w-md bg-neutral-900 border border-red-900/30 p-6 md:p-8 rounded-2xl shadow-2xl relative z-10 mx-auto">
+      <div className="w-[92vw] sm:w-[28vw] bg-neutral-900 border border-red-900/30 p-6 md:p-8 rounded-2xl shadow-2xl relative z-10 mx-auto">
         <div className="flex flex-col items-center mb-8">
           <div className="h-16 w-16 md:h-20 md:w-20 bg-red-950 rounded-full flex items-center justify-center border-4 border-red-900 mb-4 animate-pulse">
             <ShieldAlert className="h-8 w-8 md:h-10 md:w-10 text-red-500" />

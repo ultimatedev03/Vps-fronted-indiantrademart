@@ -70,7 +70,7 @@ const BuyerQuotations = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-[500px]">
+        <TabsList className="grid w-full grid-cols-3 w-[32vw]">
           <TabsTrigger value="all">All ({quotations.length})</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="accepted">Accepted</TabsTrigger>

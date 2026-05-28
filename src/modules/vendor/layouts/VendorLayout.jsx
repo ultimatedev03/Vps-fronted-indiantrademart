@@ -93,7 +93,7 @@ const VendorLayout = () => {
       return (
         <div className="min-h-screen bg-gray-50">
           <div className="w-full border-b bg-white">
-            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="w-[78vw] mx-auto px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Ban className="h-4 w-4 text-red-600" />
                 <span className="font-semibold">Account Suspended</span>
@@ -116,7 +116,7 @@ const VendorLayout = () => {
             </div>
           </div>
 
-          <main className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+          <main className="w-[78vw] mx-auto p-4 sm:p-6 lg:p-8">
             <Outlet />
           </main>
         </div>
@@ -125,7 +125,7 @@ const VendorLayout = () => {
 
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-full">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-[28vw] text-center w-full">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Ban className="h-8 w-8 text-red-600" />
           </div>
@@ -168,7 +168,7 @@ const VendorLayout = () => {
   if (user && isVerified === false) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-full">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-[28vw] text-center w-full">
           <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="h-8 w-8 text-yellow-600" />
           </div>

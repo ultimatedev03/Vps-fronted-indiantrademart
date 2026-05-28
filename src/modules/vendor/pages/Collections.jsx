@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { Card } from '@/components/ui/card';
@@ -90,13 +90,13 @@ const Collections = () => {
 
       const [headRes, subRes, microRes] = await Promise.all([
         headIds.length
-          ? supabase.from('head_categories').select('id, name').in('id', headIds)
+          ? dbClient.from('head_categories').select('id, name').in('id', headIds)
           : Promise.resolve({ data: [] }),
         subIds.length
-          ? supabase.from('sub_categories').select('id, name, head_categories(id, name)').in('id', subIds)
+          ? dbClient.from('sub_categories').select('id, name, head_categories(id, name)').in('id', subIds)
           : Promise.resolve({ data: [] }),
         microIds.length
-          ? supabase
+          ? dbClient
             .from('micro_categories')
             .select('id, name, sub_categories(id, name, head_categories(id, name))')
             .in('id', microIds)

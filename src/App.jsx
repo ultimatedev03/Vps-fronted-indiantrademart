@@ -2,7 +2,7 @@ import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/contexts/SupabaseAuthContext';
+import { AuthProvider } from '@/contexts/AppAuthContext';
 import { InternalAuthProvider } from '@/modules/admin/context/InternalAuthContext';
 import { SuperAdminProvider } from '@/modules/admin/context/SuperAdminContext';
 import { AuthProvider as VendorAuthProvider } from '@/modules/vendor/context/AuthContext';
@@ -11,7 +11,7 @@ import { EmployeeAuthProvider } from '@/modules/employee/context/EmployeeAuthCon
 import { SubdomainProvider, useSubdomain } from '@/contexts/SubdomainContext';
 import { PageStatusProvider } from '@/contexts/PageStatusContext';
 import { locationService } from '@/shared/services/locationService';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import DeferredAIChatWidget from '@/shared/components/DeferredAIChatWidget';
@@ -73,7 +73,7 @@ const SuspendedOverlay = ({ message, onSupport, onLogout }) => {
 
       {/* Foreground card */}
       <div className="relative min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-lg border p-6 text-center">
+        <div className="w-[92vw] sm:w-[28vw] bg-white rounded-xl shadow-lg border p-6 text-center">
           <h1 className="text-2xl font-bold text-red-600">Account Suspended</h1>
           <p className="text-gray-600 mt-2">
             {message || 'Your account is suspended/terminated. Please contact support to resolve this.'}
@@ -167,7 +167,7 @@ const VendorSuspensionGate = ({ children }) => {
         onLogout={async () => {
           try {
             if (logout) await logout();
-            else await supabase.auth.signOut();
+            else await dbClient.auth.signOut();
           } catch (e) {
             if (import.meta.env.DEV) {
               console.error('Logout failed:', e);

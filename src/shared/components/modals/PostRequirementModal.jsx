@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { StateDropdown, CityDropdown } from '@/shared/components/LocationSelectors';
 import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
 
@@ -55,11 +55,11 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
     let cancelled = false;
     const loadBuyerProfile = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await dbClient.auth.getUser();
         if (!user || cancelled) return;
 
         let buyerProfile = null;
-        const { data: buyerByUserId } = await supabase
+        const { data: buyerByUserId } = await dbClient
           .from('buyers')
           .select('full_name, company_name, email, phone, whatsapp')
           .eq('user_id', user.id)
@@ -67,7 +67,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
         buyerProfile = buyerByUserId || null;
 
         if (!buyerProfile && user.email) {
-          const { data: buyerByEmail } = await supabase
+          const { data: buyerByEmail } = await dbClient
             .from('buyers')
             .select('full_name, company_name, email, phone, whatsapp')
             .ilike('email', String(user.email).trim())
@@ -111,7 +111,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
     const timer = setTimeout(async () => {
       try {
         const [microRes, subRes] = await Promise.all([
-          supabase
+          dbClient
             .from('micro_categories')
             .select(`
               id, name, slug,
@@ -122,7 +122,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
             `)
             .ilike('name', `%${q}%`)
             .limit(8),
-          supabase
+          dbClient
             .from('sub_categories')
             .select(`
               id, name, slug,
@@ -396,7 +396,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-[44vw] w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex items-center justify-between shrink-0">
           <div>

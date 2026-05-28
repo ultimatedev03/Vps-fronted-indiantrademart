@@ -1,9 +1,10 @@
 
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { resolveBuyerProfile } from '@/modules/buyer/services/buyerSession';
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
+import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
 
 export const buyerProfileApi = {
   getProfile: async () => {
@@ -24,26 +25,22 @@ export const buyerProfileApi = {
 
   uploadAvatar: async (file) => {
     if (!file) throw new Error('No file selected');
-    validateImageFile(file, {
+    const uploadFile = await optimizeMediaFile(file, 'avatar');
+    validateImageFile(uploadFile, {
       minBytes: MIN_IMAGE_UPLOAD_BYTES,
       maxBytes: 5 * 1024 * 1024,
       label: 'Image',
     });
 
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
+    const dataUrl = await fileToDataUrl(uploadFile);
 
     const res = await fetchWithCsrf(apiUrl('/api/auth/buyer/profile/avatar'), {
       method: 'POST',
       body: JSON.stringify({
-        file_name: file.name,
-        content_type: file.type,
+        file_name: uploadFile.name,
+        content_type: uploadFile.type,
         data_url: dataUrl,
-        size: file.size,
+        size: uploadFile.size,
       }),
     });
 
@@ -56,7 +53,7 @@ export const buyerProfileApi = {
   },
 
   changePassword: async (newPassword) => {
-    const { error } = await supabase.auth.updateUser({
+    const { error } = await dbClient.auth.updateUser({
       password: newPassword
     });
 

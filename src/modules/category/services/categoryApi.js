@@ -1,5 +1,5 @@
 // File: src/modules/category/services/categoryApi.js
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 // Helper to generate slug
 const generateSlug = (text) => {
@@ -17,7 +17,7 @@ export const categoryApi = {
   // --- HEAD CATEGORIES API ---
   headCategories: {
     list: async (includeInactive = false) => {
-      let query = supabase
+      let query = dbClient
         .from('head_categories')
         .select('*');
 
@@ -29,7 +29,7 @@ export const categoryApi = {
     },
 
     get: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .select('*')
         .eq('id', id)
@@ -39,7 +39,7 @@ export const categoryApi = {
     },
 
     getBySlug: async (slug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .select('*')
         .eq('slug', slug)
@@ -49,7 +49,7 @@ export const categoryApi = {
     },
 
     create: async (name, slug, metadata = {}) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .insert([{
           name,
@@ -67,7 +67,7 @@ export const categoryApi = {
     },
 
     update: async (id, updates) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .update({
           ...updates,
@@ -81,12 +81,12 @@ export const categoryApi = {
     },
 
     delete: async (id) => {
-      const { error } = await supabase.from('head_categories').delete().eq('id', id);
+      const { error } = await dbClient.from('head_categories').delete().eq('id', id);
       if (error) throw error;
     },
 
     toggle: async (id, isActive) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -100,7 +100,7 @@ export const categoryApi = {
   // --- SUB CATEGORIES API ---
   subCategories: {
     list: async (headCategoryId, includeInactive = false) => {
-      let query = supabase
+      let query = dbClient
         .from('sub_categories')
         .select('*')
         .eq('head_category_id', headCategoryId);
@@ -113,7 +113,7 @@ export const categoryApi = {
     },
 
     listAll: async (includeInactive = false) => {
-      let query = supabase
+      let query = dbClient
         .from('sub_categories')
         .select('*, head_category:head_categories(id, name, slug)');
 
@@ -125,7 +125,7 @@ export const categoryApi = {
     },
 
     get: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('sub_categories')
         .select('*, head_category:head_categories(*)')
         .eq('id', id)
@@ -135,7 +135,7 @@ export const categoryApi = {
     },
 
     getBySlug: async (slug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('sub_categories')
         .select('*, head_category:head_categories(*)')
         .eq('slug', slug)
@@ -145,7 +145,7 @@ export const categoryApi = {
     },
 
     create: async (headCategoryId, name, slug, metadata = {}) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('sub_categories')
         .insert([{
           head_category_id: headCategoryId,
@@ -164,7 +164,7 @@ export const categoryApi = {
     },
 
     update: async (id, updates) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('sub_categories')
         .update({
           ...updates,
@@ -178,12 +178,12 @@ export const categoryApi = {
     },
 
     delete: async (id) => {
-      const { error } = await supabase.from('sub_categories').delete().eq('id', id);
+      const { error } = await dbClient.from('sub_categories').delete().eq('id', id);
       if (error) throw error;
     },
 
     toggle: async (id, isActive) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('sub_categories')
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -197,7 +197,7 @@ export const categoryApi = {
   // --- MICRO CATEGORIES API ---
   microCategories: {
     list: async (subCategoryId, includeInactive = false) => {
-      let query = supabase
+      let query = dbClient
         .from('micro_categories')
         .select('*')
         .eq('sub_category_id', subCategoryId);
@@ -210,7 +210,7 @@ export const categoryApi = {
     },
 
     listAll: async (includeInactive = false) => {
-      let query = supabase
+      let query = dbClient
         .from('micro_categories')
         .select(`
           *,
@@ -225,7 +225,7 @@ export const categoryApi = {
     },
 
     get: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('micro_categories')
         .select(`
           *,
@@ -238,7 +238,7 @@ export const categoryApi = {
     },
 
     getBySlug: async (slug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('micro_categories')
         .select(`
           *,
@@ -251,7 +251,7 @@ export const categoryApi = {
     },
 
     create: async (subCategoryId, name, slug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('micro_categories')
         .insert([{
           sub_category_id: subCategoryId,
@@ -268,7 +268,7 @@ export const categoryApi = {
     },
 
     update: async (id, updates) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('micro_categories')
         .update({
           ...updates,
@@ -282,12 +282,12 @@ export const categoryApi = {
     },
 
     delete: async (id) => {
-      const { error } = await supabase.from('micro_categories').delete().eq('id', id);
+      const { error } = await dbClient.from('micro_categories').delete().eq('id', id);
       if (error) throw error;
     },
 
     toggle: async (id, isActive) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('micro_categories')
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -301,7 +301,7 @@ export const categoryApi = {
   // --- CATEGORY HIERARCHY API ---
   hierarchy: {
     getFullHierarchy: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .select(`
           *,
@@ -317,7 +317,7 @@ export const categoryApi = {
     },
 
     getHeadWithSubAndMicro: async (headSlug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .select(`
           *,
@@ -334,7 +334,7 @@ export const categoryApi = {
     },
 
     getSubWithMicro: async (subSlug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('sub_categories')
         .select(`
           *,
@@ -351,19 +351,19 @@ export const categoryApi = {
     searchCategories: async (query) => {
       if (!query || query.length < 2) return [];
 
-      const { data: headResults } = await supabase
+      const { data: headResults } = await dbClient
         .from('head_categories')
         .select('id, name, slug, is_active')
         .ilike('name', `%${query}%`)
         .eq('is_active', true);
 
-      const { data: subResults } = await supabase
+      const { data: subResults } = await dbClient
         .from('sub_categories')
         .select('id, name, slug, is_active')
         .ilike('name', `%${query}%`)
         .eq('is_active', true);
 
-      const { data: microResults } = await supabase
+      const { data: microResults } = await dbClient
         .from('micro_categories')
         .select('id, name, slug, is_active')
         .ilike('name', `%${query}%`)

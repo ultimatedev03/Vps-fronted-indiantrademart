@@ -172,7 +172,7 @@ const Login = ({ forcedPortalKey = '' }) => {
         <div className="absolute top-[60%] -left-[10%] w-[600px] h-[600px] rounded-full bg-purple-600/10 blur-3xl"></div>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center relative z-10 mb-8">
+      <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center relative z-10 mb-8">
         <Logo
           className="mx-auto h-16 brightness-0 invert"
           showTagline={false}
@@ -187,7 +187,7 @@ const Login = ({ forcedPortalKey = '' }) => {
         </p>
       </div>
 
-      <div className="mt-2 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+      <div className="mt-2 sm:mx-auto w-[92vw] sm:w-[28vw] relative z-10">
         <Card className="border-slate-800 bg-slate-950/50 backdrop-blur-xl shadow-2xl text-slate-200">
           <CardHeader>
             <CardTitle className="text-xl text-center">{portalConfig.cardTitle}</CardTitle>

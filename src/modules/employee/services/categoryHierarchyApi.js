@@ -1,7 +1,7 @@
 /**
  * categoryHierarchyApi.js — Category hierarchy service (backend-first)
  *
- * MIGRATION: All direct Supabase calls removed.
+ * MIGRATION: All direct MySQL calls removed.
  * Routes through /api/data-entry/categories/* on the Express backend.
  */
 

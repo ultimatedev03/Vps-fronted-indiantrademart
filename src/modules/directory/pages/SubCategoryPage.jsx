@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { ChevronRight, Home, Loader2 } from 'lucide-react';
 
@@ -61,7 +61,7 @@ const SubCategoryPage = () => {
           if (!alive) return;
           setHeadCategory(head);
 
-          const { data: subRows, error: subErr } = await supabase
+          const { data: subRows, error: subErr } = await dbClient
             .from('sub_categories')
             .select('id, name, slug, image_url, description')
             .eq('head_category_id', head.id)
@@ -75,7 +75,7 @@ const SubCategoryPage = () => {
         }
 
         // 2) Try SUB category slug -> redirect
-        const { data: subMatch, error: subMatchErr } = await supabase
+        const { data: subMatch, error: subMatchErr } = await dbClient
           .from('sub_categories')
           .select('slug, head_categories(slug)')
           .eq('slug', headSlug)
@@ -91,7 +91,7 @@ const SubCategoryPage = () => {
         }
 
         // 3) Try MICRO category slug -> redirect
-        const { data: microMatch, error: microMatchErr } = await supabase
+        const { data: microMatch, error: microMatchErr } = await dbClient
           .from('micro_categories')
           .select('slug, sub_categories(slug, head_categories(slug))')
           .eq('slug', headSlug)
@@ -135,7 +135,7 @@ const SubCategoryPage = () => {
       </Helmet>
 
       <div className="bg-white border-b py-4">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <nav className="flex text-sm text-gray-500 mb-4 items-center">
             <Link to="/directory" className="hover:text-blue-700 flex items-center">
               <Home className="w-3 h-3 mr-1" /> Directory
@@ -147,7 +147,7 @@ const SubCategoryPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-[92vw] mx-auto py-8">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-slate-600">
             <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading...

@@ -105,7 +105,7 @@ const MigrationTools = () => {
       {activeTab === 'vendorIds' && <MigrationVendorIds />}
       
       {(activeTab === 'slugs' || activeTab === 'vendorSlugs') && (
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="w-[44vw] mx-auto space-y-6">
         <h1 className="text-3xl font-bold text-gray-900">Migration Tools</h1>
         
         {/* Tab Navigation */}

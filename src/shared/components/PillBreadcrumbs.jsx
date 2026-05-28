@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const PillBreadcrumbs = ({ className, overrideParams }) => {
   const location = useLocation();
@@ -51,7 +51,7 @@ const PillBreadcrumbs = ({ className, overrideParams }) => {
 
       try {
         // 1) MICRO
-        const { data: microData } = await supabase
+        const { data: microData } = await dbClient
           .from('micro_categories')
           .select(
             `
@@ -83,7 +83,7 @@ const PillBreadcrumbs = ({ className, overrideParams }) => {
         }
 
         // 2) SUB
-        const { data: subData } = await supabase
+        const { data: subData } = await dbClient
           .from('sub_categories')
           .select(
             `
@@ -109,7 +109,7 @@ const PillBreadcrumbs = ({ className, overrideParams }) => {
         }
 
         // 3) HEAD
-        const { data: headData } = await supabase
+        const { data: headData } = await dbClient
           .from('head_categories')
           .select('id, name, slug')
           .eq('slug', serviceSlug)
@@ -174,7 +174,7 @@ const PillBreadcrumbs = ({ className, overrideParams }) => {
   const pillBase = 'inline-flex items-center rounded-full border transition-colors leading-none';
   const pillSize = 'px-3 py-1 text-xs';
   const pillGap = 'gap-1.5';
-  const labelClass = 'capitalize truncate max-w-[140px] sm:max-w-[180px] md:max-w-[220px]';
+  const labelClass = 'capitalize truncate w-[8vw] sm:w-[11vw] md:w-[13vw]';
 
   return (
     <nav className={cn('w-full overflow-x-auto pb-1 scrollbar-hide', className)} aria-label="Breadcrumb">

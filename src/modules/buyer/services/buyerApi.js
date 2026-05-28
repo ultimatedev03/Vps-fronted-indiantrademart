@@ -1,8 +1,9 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { resolveBuyerId, resolveBuyerProfile, getAuthUserOrThrow } from '@/modules/buyer/services/buyerSession';
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
+import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
 
 // Helper to get current buyer ID from auth user
 const getBuyerId = async () => {
@@ -89,7 +90,7 @@ const insertSingleWithFallback = async ({ table, payload, select = '*', dropKeyS
 
   while (attempts.length > 0) {
     const candidate = attempts.shift();
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from(table)
       .insert([candidate])
       .select(select)
@@ -210,7 +211,7 @@ export const buyerApi = {
   // --- AUTH & PROFILE ---
   auth: {
     me: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) return null;
 
       const buyer = await resolveBuyerProfile({ required: false });
@@ -219,7 +220,7 @@ export const buyerApi = {
     },
 
     logout: async () => {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await dbClient.auth.signOut();
       if (error) throw error;
     }
   },
@@ -257,7 +258,8 @@ export const buyerApi = {
   },
 
   uploadAvatar: async (file) => {
-    validateImageFile(file, {
+    const uploadFile = await optimizeMediaFile(file, 'avatar');
+    validateImageFile(uploadFile, {
       minBytes: MIN_IMAGE_UPLOAD_BYTES,
       maxBytes: 5 * 1024 * 1024,
       label: 'Profile image',
@@ -265,18 +267,13 @@ export const buyerApi = {
       mimeMessage: 'Unsupported image type. Use JPG/PNG/WebP/GIF.',
     });
 
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
+    const dataUrl = await fileToDataUrl(uploadFile);
 
     const res = await fetchWithCsrf(apiUrl('/api/auth/buyer/profile/avatar'), {
       method: 'POST',
       body: JSON.stringify({
-        file_name: file.name || 'avatar',
-        content_type: file.type || '',
+        file_name: uploadFile.name || 'avatar',
+        content_type: uploadFile.type || '',
         data_url: dataUrl,
       }),
     });
@@ -314,7 +311,7 @@ export const buyerApi = {
 
       if (!authUser?.id) return 0;
       try {
-        const { count, error } = await supabase
+        const { count, error } = await dbClient
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', authUser.id)
@@ -328,7 +325,7 @@ export const buyerApi = {
     })();
 
     const [proposalsRes, ticketsRes, favoritesRes, unreadMessagesRes] = await Promise.allSettled([
-      supabase
+      dbClient
         .from('proposals')
         .select('*', { count: 'exact', head: true })
         .eq('buyer_id', buyerId)
@@ -448,7 +445,7 @@ export const buyerApi = {
     );
 
     if (!resolvedVendorId && resolvedVendorEmail) {
-      const { data: vendorByEmail, error: vendorLookupError } = await supabase
+      const { data: vendorByEmail, error: vendorLookupError } = await dbClient
         .from('vendors')
         .select('id, email')
         .eq('email', String(resolvedVendorEmail).toLowerCase())
@@ -742,7 +739,7 @@ export const buyerApi = {
     // Fallback client-side notification only when backend lead API wasn't used.
     if (payload.vendor_id && !createdThroughVendorLeadApi) {
       try {
-        const { data: vendorProfile } = await supabase
+        const { data: vendorProfile } = await dbClient
           .from('vendors')
           .select('user_id, email')
           .eq('id', payload.vendor_id)
@@ -750,7 +747,7 @@ export const buyerApi = {
 
         let vendorUserId = vendorProfile?.user_id || null;
         if (!vendorUserId && vendorProfile?.email) {
-          const { data: userRow } = await supabase
+          const { data: userRow } = await dbClient
             .from('users')
             .select('id')
             .eq('email', String(vendorProfile.email).toLowerCase().trim())
@@ -772,14 +769,14 @@ export const buyerApi = {
             created_at: createdAt,
           };
 
-          let { error: notifError } = await supabase
+          let { error: notifError } = await dbClient
             .from('notifications')
             .insert([notificationPayload]);
 
           if (notifError && String(notifError?.message || '').toLowerCase().includes('reference_id')) {
             const fallbackPayload = { ...notificationPayload };
             delete fallbackPayload.reference_id;
-            ({ error: notifError } = await supabase.from('notifications').insert([fallbackPayload]));
+            ({ error: notifError } = await dbClient.from('notifications').insert([fallbackPayload]));
           }
 
           if (notifError) throw notifError;
@@ -821,17 +818,17 @@ export const buyerApi = {
       });
     };
 
-    const fetchSupabaseRows = async (column, value) => {
+    const fetchMySQLRows = async (column, value) => {
       if (!value) return;
       try {
-        let { data, error } = await supabase
+        let { data, error } = await dbClient
           .from('proposals')
           .select('*, vendors(user_id, company_name, owner_name, profile_image, email, phone, is_verified, verification_badge, kyc_status, is_active)')
           .eq(column, value)
           .order('created_at', { ascending: false });
 
         if (error) {
-          const fallback = await supabase
+          const fallback = await dbClient
             .from('proposals')
             .select('*')
             .eq(column, value)
@@ -850,8 +847,8 @@ export const buyerApi = {
       }
     };
 
-    await fetchSupabaseRows('buyer_id', buyerId);
-    await fetchSupabaseRows('buyer_email', email);
+    await fetchMySQLRows('buyer_id', buyerId);
+    await fetchMySQLRows('buyer_email', email);
 
     // Backend merge for received quotations (bypasses restrictive RLS on proposals table).
     try {
@@ -879,7 +876,7 @@ export const buyerApi = {
     );
 
     if (missingVendorIds.length) {
-      const { data: vendors, error: vendorErr } = await supabase
+      const { data: vendors, error: vendorErr } = await dbClient
         .from('vendors')
         .select('id, user_id, company_name, owner_name, profile_image, email, phone, is_verified, verification_badge, kyc_status, is_active')
         .in('id', missingVendorIds);
@@ -930,14 +927,14 @@ export const buyerApi = {
 
     if (buyerId) {
       try {
-        let { data, error } = await supabase
+        let { data, error } = await dbClient
           .from('leads')
           .select('*, vendors(user_id, company_name, profile_image)')
           .eq('buyer_id', buyerId)
           .order('created_at', { ascending: false });
 
         if (error) {
-          const fallback = await supabase
+          const fallback = await dbClient
             .from('leads')
             .select('*')
             .eq('buyer_id', buyerId)
@@ -954,14 +951,14 @@ export const buyerApi = {
 
     if (email) {
       try {
-        let { data, error } = await supabase
+        let { data, error } = await dbClient
           .from('leads')
           .select('*, vendors(user_id, company_name, profile_image)')
           .eq('buyer_email', email)
           .order('created_at', { ascending: false });
 
         if (error) {
-          const fallback = await supabase
+          const fallback = await dbClient
             .from('leads')
             .select('*')
             .eq('buyer_email', email)
@@ -1006,7 +1003,7 @@ export const buyerApi = {
     let proposal = null;
     let propError = null;
 
-    const withVendorRes = await supabase
+    const withVendorRes = await dbClient
       .from('proposals')
       .select('*, vendors(user_id, company_name, profile_image, phone, email)')
       .eq('id', proposalId)
@@ -1016,7 +1013,7 @@ export const buyerApi = {
     propError = withVendorRes.error;
 
     if (propError) {
-      const fallbackRes = await supabase
+      const fallbackRes = await dbClient
         .from('proposals')
         .select('*')
         .eq('id', proposalId)
@@ -1041,7 +1038,7 @@ export const buyerApi = {
     }
 
     if (!proposal?.vendors && proposal?.vendor_id) {
-      const { data: vendorRow } = await supabase
+      const { data: vendorRow } = await dbClient
         .from('vendors')
         .select('company_name, profile_image, phone, email')
         .eq('id', proposal.vendor_id)
@@ -1051,7 +1048,7 @@ export const buyerApi = {
       }
     }
 
-    const { data: messages, error: msgError } = await supabase
+    const { data: messages, error: msgError } = await dbClient
       .from('proposal_messages')
       .select('*')
       .eq('proposal_id', proposalId)
@@ -1068,7 +1065,7 @@ export const buyerApi = {
   addProposalMessage: async (proposalId, message) => {
     const user = await getAuthUser();
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('proposal_messages')
       .insert([{
         proposal_id: proposalId,
@@ -1084,7 +1081,7 @@ export const buyerApi = {
   },
 
   updateProposalStatus: async (proposalId, status) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('proposals')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', proposalId)
@@ -1188,7 +1185,7 @@ export const buyerApi = {
   addFavorite: async (vendorId) => {
     const buyerId = await getBuyerId();
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('favorites')
       .insert([{
         buyer_id: buyerId,
@@ -1205,7 +1202,7 @@ export const buyerApi = {
   removeFavorite: async (vendorId) => {
     const buyerId = await getBuyerId();
 
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('favorites')
       .delete()
       .eq('buyer_id', buyerId)
@@ -1219,7 +1216,7 @@ export const buyerApi = {
       buyerId = await getBuyerId();
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('favorites')
       .select('*, vendors(id, user_id, company_name, email, phone, profile_image, verification_badge, seller_rating)')
       .eq('buyer_id', buyerId)
@@ -1232,7 +1229,7 @@ export const buyerApi = {
   isFavorited: async (vendorId) => {
     const buyerId = await getBuyerId();
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('favorites')
       .select('id')
       .eq('buyer_id', buyerId)
@@ -1247,7 +1244,7 @@ export const buyerApi = {
   getSuggestions: async () => {
     const buyerId = await getBuyerId();
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('suggestions')
       .select('*')
       .eq('buyer_id', buyerId)
@@ -1260,7 +1257,7 @@ export const buyerApi = {
   createSuggestion: async (suggestionData) => {
     const buyerId = await getBuyerId();
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('suggestions')
       .insert([{
         buyer_id: buyerId,
@@ -1280,7 +1277,7 @@ export const buyerApi = {
     const term = String(searchTerm || '').trim().replace(/[,%'()]/g, ' ');
     if (term.length < 2) return [];
 
-    let query = supabase
+    let query = dbClient
       .from('vendors')
       .select('id, vendor_id, company_name, owner_name, email, phone, city, state, pincode, state_id, city_id, kyc_status, is_active, is_verified')
       .eq('is_active', true)
@@ -1305,7 +1302,7 @@ export const buyerApi = {
       'id, vendor_id, company_name, owner_name, email, phone, city, state, pincode, state_id, city_id, kyc_status, is_active, is_verified';
 
     if (normalized.includes('@')) {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendors')
         .select(selectFields)
         .eq('email', normalized.toLowerCase())
@@ -1318,7 +1315,7 @@ export const buyerApi = {
       return data || null;
     }
 
-    const { data: byVendorId, error: byVendorIdError } = await supabase
+    const { data: byVendorId, error: byVendorIdError } = await dbClient
       .from('vendors')
       .select(selectFields)
       .eq('vendor_id', normalized)
@@ -1332,7 +1329,7 @@ export const buyerApi = {
 
     if (!isUuid(normalized)) return null;
 
-    const { data: byId, error: byIdError } = await supabase
+    const { data: byId, error: byIdError } = await dbClient
       .from('vendors')
       .select(selectFields)
       .eq('id', normalized)
@@ -1344,7 +1341,7 @@ export const buyerApi = {
   },
 
   searchVendors: async (filters = {}) => {
-    let query = supabase
+    let query = dbClient
       .from('vendors')
       .select('id, company_name, email, phone, profile_image, verification_badge, seller_rating, state, city');
 
@@ -1369,7 +1366,7 @@ export const buyerApi = {
   },
 
   getVendorProfile: async (vendorId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('vendors')
       .select('*')
       .eq('id', vendorId)
@@ -1380,7 +1377,7 @@ export const buyerApi = {
   },
 
   getVendorProducts: async (vendorId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('products')
       .select('*')
       .eq('vendor_id', vendorId)

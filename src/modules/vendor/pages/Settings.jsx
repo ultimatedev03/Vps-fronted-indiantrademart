@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { otpService } from '@/services/otpService';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -30,10 +30,10 @@ const VendorSettings = () => {
   useEffect(() => {
     const fetchVendorId = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await dbClient.auth.getUser();
         if (user) {
           setUserEmail(user.email || '');
-          const { data: vendor } = await supabase
+          const { data: vendor } = await dbClient
             .from('vendors')
             .select('vendor_id')
             .eq('user_id', user.id)
@@ -134,7 +134,7 @@ const VendorSettings = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="mx-auto w-full min-w-0 space-y-6">
       <h1 className="text-2xl font-bold">Account Settings</h1>
       
       {vendorId && (

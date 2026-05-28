@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StateDropdown, CityDropdown } from '@/shared/components/LocationSelectors';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, X } from 'lucide-react';
 import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
@@ -71,7 +71,7 @@ const PostRequirementModal = ({ isOpen, onOpenChange }) => {
     setCatLoading(true);
     const t = setTimeout(async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('micro_categories')
           .select(`
             id, name, slug,
@@ -148,11 +148,11 @@ const PostRequirementModal = ({ isOpen, onOpenChange }) => {
     let cityName = '';
 
     if (stateId) {
-      const { data } = await supabase.from('states').select('name').eq('id', stateId).maybeSingle();
+      const { data } = await dbClient.from('states').select('name').eq('id', stateId).maybeSingle();
       stateName = data?.name || '';
     }
     if (cityId) {
-      const { data } = await supabase.from('cities').select('name').eq('id', cityId).maybeSingle();
+      const { data } = await dbClient.from('cities').select('name').eq('id', cityId).maybeSingle();
       cityName = data?.name || '';
     }
 
@@ -272,7 +272,7 @@ const PostRequirementModal = ({ isOpen, onOpenChange }) => {
 
   return (
     <Dialog open={!!isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:w-[34vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Tell Us What You Need</DialogTitle>
           <DialogDescription>Submit your requirement and get quotes from verified vendors.</DialogDescription>

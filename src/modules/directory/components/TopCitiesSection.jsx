@@ -214,7 +214,7 @@ const TopCitiesSection = () => {
 
   return (
     <section className="py-16 bg-white min-h-[520px]">
-      <div className="container mx-auto px-4">
+      <div className="w-[92vw] mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900 mb-3">Find Suppliers from Top Cities</h2>
           <p className="text-gray-500 text-lg">Connect with verified suppliers across India's major business hubs</p>
@@ -225,7 +225,7 @@ const TopCitiesSection = () => {
             <div
               key={city.id}
               onClick={() => navigate(`/directory/city/${city.slug}`)}
-              className="group mx-auto flex aspect-square w-full max-w-[165px] cursor-pointer flex-col items-center justify-center rounded-full border border-gray-100 bg-white px-4 py-5 transition-all duration-300 hover:-translate-y-1 hover:border-blue-100 hover:shadow-lg"
+              className="group mx-auto flex h-36 w-36 cursor-pointer flex-col items-center justify-center rounded-full border border-gray-100 bg-white px-3 py-4 transition-all duration-300 hover:-translate-y-1 hover:border-blue-100 hover:shadow-lg sm:h-40 sm:w-40 lg:h-44 lg:w-44"
               title={city.name}
             >
               <div className="mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-gray-100 bg-gray-50 shadow-sm ring-4 ring-gray-50 transition-all group-hover:bg-blue-50 group-hover:ring-blue-50">

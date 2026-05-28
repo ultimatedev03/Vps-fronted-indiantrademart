@@ -1,9 +1,9 @@
 /**
  * usersApi.js — Admin users service (backend-first)
  *
- * MIGRATION: All direct Supabase calls removed.
+ * MIGRATION: All direct MySQL calls removed.
  * User creation now goes through /api/employee/staff (server-side invite flow)
- * which uses the Supabase admin client to avoid the "current session clobbered"
+ * which uses the MySQL admin client to avoid the "current session clobbered"
  * problem of client-side signUp.
  */
 
@@ -18,7 +18,7 @@ export const usersApi = {
 
   /**
    * Create a user via the server-side staff invite endpoint.
-   * This avoids the client-side supabase.auth.signUp() which would
+   * This avoids the client-side dbClient.auth.signUp() which would
    * clobber the current admin session by immediately logging in as the new user.
    */
   createUser: async (userData) => {

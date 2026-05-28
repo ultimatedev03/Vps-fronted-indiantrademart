@@ -1,12 +1,12 @@
 
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { resolveBuyerId, resolveBuyerProfile } from '@/modules/buyer/services/buyerSession';
 
 export const buyerProposalApi = {
   list: async (status = 'ALL') => {
     const buyerId = await resolveBuyerId({ required: true });
 
-    let query = supabase
+    let query = dbClient
       .from('proposals')
       .select('*, vendor:vendors(company_name, id)')
       .eq('buyer_id', buyerId)
@@ -22,7 +22,7 @@ export const buyerProposalApi = {
   },
 
   get: async (id) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('proposals')
       .select('*, vendor:vendors(*)')
       .eq('id', id)
@@ -33,14 +33,14 @@ export const buyerProposalApi = {
   },
 
   create: async (proposalData) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await dbClient.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
     const buyer = await resolveBuyerProfile({ required: true });
     const buyerId = buyer?.id;
     if (!buyerId) throw new Error('Buyer profile not found');
     
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('proposals')
       .insert([{ ...proposalData, buyer_id: buyerId, status: 'SENT' }])
       .select()
@@ -49,7 +49,7 @@ export const buyerProposalApi = {
     if (error) throw error;
 
     // Get vendor details to send notification
-    const { data: vendor, error: vendorError } = await supabase
+    const { data: vendor, error: vendorError } = await dbClient
       .from('vendors')
       .select('id, user_id, company_name, email')
       .eq('id', proposalData.vendor_id)
@@ -61,7 +61,7 @@ export const buyerProposalApi = {
     try {
       let vendorUserId = vendor?.user_id || null;
       if (!vendorUserId && vendor?.email) {
-        const { data: userRow } = await supabase
+        const { data: userRow } = await dbClient
           .from('users')
           .select('id')
           .eq('email', String(vendor.email).toLowerCase().trim())
@@ -84,7 +84,7 @@ export const buyerProposalApi = {
 
         console.log('Creating notification with payload:', notificationPayload);
 
-        let { data: notifData, error: notifError } = await supabase
+        let { data: notifData, error: notifError } = await dbClient
           .from('notifications')
           .insert([notificationPayload])
           .select();
@@ -92,7 +92,7 @@ export const buyerProposalApi = {
         if (notifError && String(notifError?.message || '').toLowerCase().includes('reference_id')) {
           const fallbackPayload = { ...notificationPayload };
           delete fallbackPayload.reference_id;
-          ({ data: notifData, error: notifError } = await supabase
+          ({ data: notifData, error: notifError } = await dbClient
             .from('notifications')
             .insert([fallbackPayload])
             .select());
@@ -114,7 +114,7 @@ export const buyerProposalApi = {
   },
 
   close: async (id) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('proposals')
       .update({ status: 'CLOSED' })
       .eq('id', id)

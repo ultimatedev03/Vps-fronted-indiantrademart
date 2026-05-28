@@ -96,7 +96,7 @@ const Support = () => {
   });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto w-full min-w-0 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Support Tickets</h1>
         <Dialog open={open} onOpenChange={setOpen}>

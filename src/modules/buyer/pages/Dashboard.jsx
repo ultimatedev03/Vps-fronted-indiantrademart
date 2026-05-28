@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { buyerApi } from '@/modules/buyer/services/buyerApi';
 import { productFavorites, PRODUCT_FAVORITES_UPDATED_EVENT } from '@/modules/buyer/services/productFavorites';
 

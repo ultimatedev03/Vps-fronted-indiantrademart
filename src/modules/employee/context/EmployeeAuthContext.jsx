@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { employeeApi } from '@/modules/employee/services/employeeApi';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { toast } from '@/components/ui/use-toast';
 
 const EmployeeAuthContext = createContext(null);
@@ -16,7 +16,7 @@ export const EmployeeAuthProvider = ({ children }) => {
 
     const bootstrap = async () => {
       try {
-        // 1) try restore from supabase session (source of truth)
+        // 1) try restore from dbClient session (source of truth)
         const current = await employeeApi.auth.getCurrentUser();
         if (isMounted) setUser(current);
 
@@ -32,7 +32,7 @@ export const EmployeeAuthProvider = ({ children }) => {
     bootstrap();
 
     // Keep UI synced if token refresh / logout happens in another tab
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data: sub } = dbClient.auth.onAuthStateChange(async (event) => {
       try {
         if (event === 'SIGNED_OUT') {
           setUser(null);

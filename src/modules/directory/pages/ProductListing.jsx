@@ -8,7 +8,7 @@ import SearchFilters from '@/modules/directory/components/SearchFilters';
 import SearchResultsList from '@/modules/directory/components/SearchResultsList';
 
 import { directoryApi } from '@/modules/directory/api/directoryApi';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
 const stripHtml = (s) => safeStr(s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -195,13 +195,13 @@ const ProductListing = () => {
 
     try {
       if (stateSlug) {
-        const { data: st } = await supabase.from('states').select('id').eq('slug', stateSlug).maybeSingle();
+        const { data: st } = await dbClient.from('states').select('id').eq('slug', stateSlug).maybeSingle();
         stateId = st?.id || null;
       }
 
       if (citySlug) {
         if (stateId) {
-          const { data: ct } = await supabase
+          const { data: ct } = await dbClient
             .from('cities')
             .select('id')
             .eq('slug', citySlug)
@@ -211,7 +211,7 @@ const ProductListing = () => {
         }
 
         if (!cityId) {
-          const { data: ct2 } = await supabase.from('cities').select('id, state_id').eq('slug', citySlug).maybeSingle();
+          const { data: ct2 } = await dbClient.from('cities').select('id, state_id').eq('slug', citySlug).maybeSingle();
           cityId = ct2?.id || null;
           if (!stateId) stateId = ct2?.state_id || null;
         }
@@ -316,7 +316,7 @@ const ProductListing = () => {
       </Helmet>
 
       <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-6">
+        <div className="w-[92vw] mx-auto py-6">
           {/* Chip breadcrumb row */}
           <div className="flex items-center gap-2 flex-wrap">
             <Link to="/" className={chip}>
@@ -357,7 +357,7 @@ const ProductListing = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-[92vw] mx-auto py-8">
         {loading ? (
           <div className="flex justify-center py-14">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />

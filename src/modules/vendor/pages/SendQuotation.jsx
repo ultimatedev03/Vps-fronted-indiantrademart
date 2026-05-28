@@ -258,7 +258,7 @@ const SendQuotation = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="mx-auto w-full min-w-0 space-y-6">
       <Button variant="ghost" onClick={() => navigate(proposalsPath)} className="mb-4">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Proposals
       </Button>

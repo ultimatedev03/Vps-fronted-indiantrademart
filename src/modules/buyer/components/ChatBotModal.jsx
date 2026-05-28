@@ -4,8 +4,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, X, Bot } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { dbClient } from '@/lib/dbClient';
+import { useAuth } from '@/contexts/AppAuthContext';
 
 const ChatBotModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -23,7 +23,7 @@ const ChatBotModal = ({ isOpen, onClose }) => {
   }, [isOpen, user]);
 
   const loadHistory = async () => {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('chatbot_history')
       .select('*')
       .eq('user_id', user.id)
@@ -61,7 +61,7 @@ const ChatBotModal = ({ isOpen, onClose }) => {
 
     // Persist User Msg
     if (user) {
-      await supabase.from('chatbot_history').insert([{
+      await dbClient.from('chatbot_history').insert([{
         user_id: user.id,
         message: text,
         sender: 'user'
@@ -82,7 +82,7 @@ const ChatBotModal = ({ isOpen, onClose }) => {
       
       // Persist Bot Msg
       if (user) {
-        await supabase.from('chatbot_history').insert([{
+        await dbClient.from('chatbot_history').insert([{
           user_id: user.id,
           message: reply,
           sender: 'bot'
@@ -93,7 +93,7 @@ const ChatBotModal = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[400px] p-0 gap-0 overflow-hidden rounded-xl border-0 shadow-2xl">
+      <DialogContent className="sm:w-[25vw] p-0 gap-0 overflow-hidden rounded-xl border-0 shadow-2xl">
         <div className="bg-[#003D82] p-4 flex justify-between items-center text-white">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
@@ -114,7 +114,7 @@ const ChatBotModal = ({ isOpen, onClose }) => {
         <div className="h-[400px] bg-gray-50 overflow-y-auto p-4 flex flex-col gap-3">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+              <div className={`w-[80vw] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
                 msg.sender === 'user' ? 'bg-[#003D82] text-white rounded-tr-none' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
               }`}>
                 {msg.text}

@@ -1,11 +1,11 @@
 // File: src/modules/lead/services/leadApi.js
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 
 // ============ HELPER FUNCTIONS ============
 
-// Get current vendor ID — relies on backend session (no Supabase Auth on client).
+// Get current vendor ID — relies on backend session (no MySQL Auth on client).
 const getVendorId = async () => {
   // Backend resolves the vendor from the session cookie / JWT.
   const response = await fetchVendorJson('/api/vendors/me');
@@ -31,7 +31,7 @@ const isSubscriptionActive = (subscription) => {
 
 const getActiveVendorSubscription = async (vendorId) => {
   const nowIso = new Date().toISOString();
-  const { data: rows, error } = await supabase
+  const { data: rows, error } = await dbClient
     .from('vendor_plan_subscriptions')
     .select('id, vendor_id, plan_id, status, start_date, end_date')
     .eq('vendor_id', vendorId)
@@ -118,7 +118,7 @@ const enrichLeadBuyerMeta = async (lead = {}) => {
     );
 
   if (!buyerMeta && leadBuyerId) {
-    const { data: buyerById, error: buyerByIdError } = await supabase
+    const { data: buyerById, error: buyerByIdError } = await dbClient
       .from('buyers')
       .select('id, user_id, full_name, company_name, email, phone, avatar_url, is_active')
       .eq('id', leadBuyerId)
@@ -131,7 +131,7 @@ const enrichLeadBuyerMeta = async (lead = {}) => {
   }
 
   if (!buyerMeta && leadBuyerEmail) {
-    const { data: buyerByEmail, error: buyerByEmailError } = await supabase
+    const { data: buyerByEmail, error: buyerByEmailError } = await dbClient
       .from('buyers')
       .select('id, user_id, full_name, company_name, email, phone, avatar_url, is_active')
       .ilike('email', leadBuyerEmail)
@@ -246,7 +246,7 @@ const loadVendorLeadContext = async (vendorId) => {
   };
 
   try {
-    const { data: prefs } = await supabase
+    const { data: prefs } = await dbClient
       .from('vendor_preferences')
       .select('preferred_micro_categories, preferred_states, preferred_cities, auto_lead_filter, min_budget, max_budget')
       .eq('vendor_id', vendorId)
@@ -266,7 +266,7 @@ const loadVendorLeadContext = async (vendorId) => {
     preferredCityIds.forEach((id) => ctx.cityIdSet.add(id));
 
     if (preferredCategoryIds.length) {
-      const { data: prefMicroRows } = await supabase
+      const { data: prefMicroRows } = await dbClient
         .from('micro_categories')
         .select('id, name, sub_categories(id, name, head_categories(id, name))')
         .in('id', preferredCategoryIds);
@@ -281,7 +281,7 @@ const loadVendorLeadContext = async (vendorId) => {
         if (head?.name) ctx.categorySet.add(normalizeText(head.name));
       });
 
-      const { data: headCats } = await supabase
+      const { data: headCats } = await dbClient
         .from('head_categories')
         .select('id, name')
         .in('id', preferredCategoryIds);
@@ -292,7 +292,7 @@ const loadVendorLeadContext = async (vendorId) => {
     }
 
     // Vendor products -> micro category names + product names
-    const { data: products } = await supabase
+    const { data: products } = await dbClient
       .from('products')
       .select('name, micro_category_id, head_category_id, sub_category_id')
       .eq('vendor_id', vendorId)
@@ -308,7 +308,7 @@ const loadVendorLeadContext = async (vendorId) => {
     const subIds = dedupe(products?.map((p) => p?.sub_category_id).filter(Boolean) || []);
     subIds.forEach((id) => ctx.subIdSet.add(id));
     if (microIds.length) {
-      const { data: productMicroRows } = await supabase
+      const { data: productMicroRows } = await dbClient
         .from('micro_categories')
         .select('id, name, sub_categories(id, name, head_categories(id, name))')
         .in('id', microIds);
@@ -325,7 +325,7 @@ const loadVendorLeadContext = async (vendorId) => {
     }
 
     if (preferredStateIds.length) {
-      const { data: stateRows } = await supabase
+      const { data: stateRows } = await dbClient
         .from('states')
         .select('id, name')
         .in('id', preferredStateIds);
@@ -336,7 +336,7 @@ const loadVendorLeadContext = async (vendorId) => {
     }
 
     if (preferredCityIds.length) {
-      const { data: cityRows } = await supabase
+      const { data: cityRows } = await dbClient
         .from('cities')
         .select('id, name')
         .in('id', preferredCityIds);
@@ -355,7 +355,7 @@ const loadVendorLeadContext = async (vendorId) => {
 export const leadApi = {
   // --- LEADS API ---
   list: async (filters = {}) => {
-    let query = supabase
+    let query = dbClient
       .from('leads')
       .select('*');
 
@@ -371,7 +371,7 @@ export const leadApi = {
   },
 
   listActive: async () => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('leads')
       .select('*')
       .eq('status', 'AVAILABLE')
@@ -382,7 +382,7 @@ export const leadApi = {
   },
 
   listByVendor: async (vendorId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('leads')
       .select('*')
       .eq('vendor_id', vendorId)
@@ -520,7 +520,7 @@ export const leadApi = {
     },
 
     update: async (id, updates) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('lead_contacts')
         .update(updates)
         .eq('id', id)
@@ -534,7 +534,7 @@ export const leadApi = {
       const validStatuses = ['PENDING', 'CONNECTED', 'NO_RESPONSE', 'CONVERTED'];
       if (!validStatuses.includes(status)) throw new Error(`Invalid status: ${status}`);
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('lead_contacts')
         .update({ status })
         .eq('id', id)
@@ -567,7 +567,7 @@ export const leadApi = {
   purchases: {
     list: async (vendorId) => {
       // FIX: Don't specify columns to avoid RLS violation
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('lead_purchases')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -580,7 +580,7 @@ export const leadApi = {
         let leadById = new Map();
 
         if (leadIds.length) {
-          const { data: leadRows, error: leadRowsErr } = await supabase
+          const { data: leadRows, error: leadRowsErr } = await dbClient
             .from('leads')
             .select('*')
             .in('id', leadIds);
@@ -598,7 +598,7 @@ export const leadApi = {
     },
 
     get: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('lead_purchases')
         .select('*')
         .eq('id', id)
@@ -606,7 +606,7 @@ export const leadApi = {
       if (error) throw error;
       
       if (data) {
-        const { data: lead } = await supabase
+        const { data: lead } = await dbClient
           .from('leads')
           .select('*')
           .eq('id', data.lead_id)
@@ -648,12 +648,12 @@ export const leadApi = {
     },
 
     getStats: async (vendorId) => {
-      const { count: totalPurchases } = await supabase
+      const { count: totalPurchases } = await dbClient
         .from('lead_purchases')
         .select('*', { count: 'exact', head: true })
         .eq('vendor_id', vendorId);
 
-      const { data: purchases } = await supabase
+      const { data: purchases } = await dbClient
         .from('lead_purchases')
         .select('amount')
         .eq('vendor_id', vendorId);
@@ -699,7 +699,7 @@ export const leadApi = {
       const vendorId = await getVendorId();
       
       // Get leads that were created by this vendor (direct from buyer)
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('leads')
         .select('*')
         .eq('vendor_id', vendorId)

@@ -274,7 +274,7 @@ const QuotePopup = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ duration: 0.2 }}
-                className="relative z-[9999] flex max-h-[calc(100vh-1.5rem)] w-full max-w-[500px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+                className="relative z-[9999] flex max-h-[calc(100vh-1.5rem)] w-full w-[32vw] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
             >
                 <button 
                     onClick={handleClose}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Helper to get vendor ID
 const getVendorId = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error('Not authenticated');
-  const { data: vendor, error } = await supabase
+  const { data: vendor, error } = await dbClient
     .from('vendors')
     .select('id')
     .eq('user_id', user.id)
@@ -40,7 +40,7 @@ const uploadGeneralDocument = async (file) => {
     documentType: 'GENERAL',
   });
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('vendor_documents')
     .insert([{
       vendor_id: vendorId,
@@ -74,9 +74,9 @@ const PhotosDocs = () => {
       loadKycStatus();
       
       // Subscribe to real-time KYC status updates
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (user) {
-        const subscription = supabase
+        const subscription = dbClient
           .channel('kyc_status_updates')
           .on(
             'postgres_changes',
@@ -105,10 +105,10 @@ const PhotosDocs = () => {
   
   const loadKycStatus = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) return;
       
-      const { data: vendor, error } = await supabase
+      const { data: vendor, error } = await dbClient
         .from('vendors')
         .select('kyc_status')
         .eq('user_id', user.id)

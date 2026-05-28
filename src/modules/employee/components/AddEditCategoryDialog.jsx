@@ -11,9 +11,7 @@ import { ChevronLeft, ChevronRight, Images, Trash2, X } from 'lucide-react';
 import { MIN_IMAGE_UPLOAD_BYTES, formatFileSize } from '@/shared/utils/fileValidation';
 
 
-const IMAGE_MAX_BYTES = 800 * 1024; // 800KB
-
-const formatKb = (bytes) => `${Math.round(Number(bytes || 0) / 1024)}KB`;
+const IMAGE_MAX_BYTES = 25 * 1024 * 1024;
 
 const sanitizeCategoryName = (value = '') =>
   String(value)
@@ -285,7 +283,7 @@ const AddEditCategoryDialog = ({
         return;
       }
       if (file.size > IMAGE_MAX_BYTES) {
-        setErrors((prev) => ({ ...prev, image_file: `Image must be at most ${formatKb(IMAGE_MAX_BYTES)}` }));
+        setErrors((prev) => ({ ...prev, image_file: `Image must be at most ${formatFileSize(IMAGE_MAX_BYTES)}` }));
         resetFileInput();
         return;
       }
@@ -529,7 +527,7 @@ const AddEditCategoryDialog = ({
     <>
       <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="w-[92vw] max-w-lg max-h-[88vh] overflow-y-auto p-4 sm:p-5"
+          className="w-[92vw] w-[32vw] max-h-[88vh] overflow-y-auto p-4 sm:p-5"
           onEscapeKeyDown={(event) => {
             if (!previewOpen) return;
             event.preventDefault();
@@ -665,7 +663,7 @@ const AddEditCategoryDialog = ({
                 <p className="text-[11px] text-slate-500">
                   Min {formatFileSize(MIN_IMAGE_UPLOAD_BYTES)}.
                   {' '}
-                  Max {formatKb(IMAGE_MAX_BYTES)}.
+                  Images are optimized automatically. Max source {formatFileSize(IMAGE_MAX_BYTES)}.
                   {' '}
                   Maximum {maxImages} image{maxImages > 1 ? 's' : ''}.
                 </p>
@@ -754,7 +752,7 @@ const AddEditCategoryDialog = ({
               }}
             >
               <div
-                className="relative w-full max-w-3xl rounded-xl bg-white p-3 md:p-4"
+                className="relative w-[92vw] sm:w-[56vw] rounded-xl bg-white p-3 md:p-4"
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
               >

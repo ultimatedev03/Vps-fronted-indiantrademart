@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { toast } from '@/components/ui/use-toast';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
 
@@ -33,7 +33,7 @@ const LocationsFixed = () => {
   const fetchStates = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('states')
         .select('*')
         .eq('is_active', true)
@@ -60,7 +60,7 @@ const LocationsFixed = () => {
   // Fetch cities for selected state
   const fetchCities = async (stateId) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .select('*')
         .eq('state_id', stateId)
@@ -94,7 +94,7 @@ const LocationsFixed = () => {
       let slug = newCityName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       
       // Check if slug already exists for this state
-      const { data: existing, error: checkError } = await supabase
+      const { data: existing, error: checkError } = await dbClient
         .from('cities')
         .select('id, slug')
         .eq('state_id', selectedState.id)
@@ -112,7 +112,7 @@ const LocationsFixed = () => {
       }
       
       // Try direct insert
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .insert([{
           state_id: selectedState.id,
@@ -159,7 +159,7 @@ const LocationsFixed = () => {
     if (!window.confirm('Are you sure you want to delete this city?')) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('cities')
         .update({ is_active: false })
         .eq('id', cityId);

@@ -484,7 +484,7 @@ export default function VendorProducts() {
 
       {/* View Modal */}
       <Dialog open={openView} onOpenChange={setOpenView}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[52vw] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Product Details</DialogTitle>
             <DialogDescription>{viewProduct?.name || ""}</DialogDescription>
@@ -619,7 +619,7 @@ export default function VendorProducts() {
 
       {/* Edit Modal */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[52vw] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>Admin can update product fields</DialogDescription>

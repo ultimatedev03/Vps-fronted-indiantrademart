@@ -19,12 +19,12 @@ const SuccessStoryDetail = () => {
       </Helmet>
 
       <section className="bg-gradient-to-r from-slate-900 via-blue-900 to-blue-700 py-16 text-white">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <Link to="/success-stories" className="inline-flex items-center gap-2 text-sm text-blue-100 hover:text-white">
             <ArrowLeft className="h-4 w-4" />
             Back to all stories
           </Link>
-          <div className="mt-6 max-w-3xl">
+          <div className="mt-6 w-[52vw]">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200">Success Story</p>
             <h1 className="mt-3 text-4xl font-bold leading-tight">{story.title}</h1>
             <p className="mt-4 text-lg text-blue-100">{story.summary}</p>
@@ -32,7 +32,7 @@ const SuccessStoryDetail = () => {
         </div>
       </section>
 
-      <main className="container mx-auto px-4 py-12">
+      <main className="w-[92vw] mx-auto py-12">
         <div className="grid gap-8 lg:grid-cols-[1.7fr_0.9fr]">
           <article className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="grid gap-6 md:grid-cols-3">

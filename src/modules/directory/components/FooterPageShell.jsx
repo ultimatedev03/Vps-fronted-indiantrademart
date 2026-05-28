@@ -19,16 +19,16 @@ export const FooterPageShell = ({ eyebrow, title, description, stats = [], aside
       <div className="absolute -left-16 top-12 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
       <div className="absolute bottom-0 right-0 h-64 w-64 translate-x-1/4 translate-y-1/4 rounded-full bg-blue-500/20 blur-3xl" />
 
-      <div className="container relative mx-auto px-4 py-16 md:py-20">
+      <div className="relative w-[92vw] mx-auto py-16 md:py-20">
         <div className={cn('grid gap-8', aside ? 'lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.75fr)] lg:items-end' : '')}>
-          <div className="max-w-3xl space-y-5">
+          <div className="w-[52vw] space-y-5">
             {eyebrow ? (
               <span className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-blue-100">
                 {eyebrow}
               </span>
             ) : null}
             <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">{title}</h1>
-            {description ? <p className="max-w-2xl text-base leading-7 text-slate-300 md:text-lg">{description}</p> : null}
+            {description ? <p className="w-[44vw] text-base leading-7 text-slate-300 md:text-lg">{description}</p> : null}
           </div>
 
           {aside ? (
@@ -55,7 +55,7 @@ export const FooterPageShell = ({ eyebrow, title, description, stats = [], aside
     </section>
 
     <main className="relative">
-      <div className="container mx-auto px-4 py-10 md:py-14">
+      <div className="w-[92vw] mx-auto py-10 md:py-14">
         <div className="space-y-8">{children}</div>
       </div>
     </main>
@@ -73,7 +73,7 @@ export const FooterPageSection = ({ title, description, action, className, child
       <div className="mb-6 flex flex-col gap-4 border-b border-slate-200/80 pb-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
           {title ? <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h2> : null}
-          {description ? <p className="max-w-2xl text-sm leading-6 text-slate-600 md:text-base">{description}</p> : null}
+          {description ? <p className="w-[44vw] text-sm leading-6 text-slate-600 md:text-base">{description}</p> : null}
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>

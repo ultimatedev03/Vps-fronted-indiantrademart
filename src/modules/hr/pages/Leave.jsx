@@ -129,7 +129,7 @@ const HrLeave = () => {
           placeholder="Search by name, role, department..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="sm:max-w-xs"
+          className="sm:w-[20vw]"
         />
         <div className="flex gap-2">
           {[

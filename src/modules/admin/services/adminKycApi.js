@@ -3,7 +3,7 @@
  *
  * MIGRATION NOTE (Phase 3): All KYC mutations now route through the
  * Express backend (/api/kyc/*) which enforces role guards, audit logging,
- * and sanitization. Direct Supabase writes are removed.
+ * and sanitization. Direct MySQL writes are removed.
  */
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';

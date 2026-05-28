@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
 
 const PageStatusContext = createContext(null);
@@ -62,7 +62,7 @@ export const PageStatusProvider = ({ children }) => {
 
     fetchAllPageStatuses();
 
-    const subscription = supabase
+    const subscription = dbClient
       .channel('all_page_statuses', { config: { broadcast: { self: true } } })
       .on(
         'postgres_changes',

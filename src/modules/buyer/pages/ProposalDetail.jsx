@@ -128,7 +128,7 @@ const ProposalDetail = () => {
   if (!proposal || !view) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-[60vw] mx-auto space-y-6">
       <Button variant="ghost" onClick={() => navigate('/buyer/proposals')}>
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back

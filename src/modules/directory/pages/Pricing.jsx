@@ -340,8 +340,8 @@ const Pricing = () => {
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 py-14">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
+        <div className="w-[92vw] mx-auto">
+          <div className="w-[52vw] mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border bg-white shadow-sm text-xs text-slate-700">
               <Crown className="w-4 h-4" />
               Vendor Subscription Plans
@@ -385,26 +385,26 @@ const Pricing = () => {
           </div>
 
           {loading ? (
-            <div className="mt-12 max-w-6xl mx-auto rounded-2xl border bg-white p-8 text-center text-slate-600">
+            <div className="mt-12 w-[78vw] mx-auto rounded-2xl border bg-white p-8 text-center text-slate-600">
               Loading pricing plans...
             </div>
           ) : null}
 
           {!loading && error ? (
-            <div className="mt-12 max-w-6xl mx-auto rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+            <div className="mt-12 w-[78vw] mx-auto rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
               <p className="text-red-700 font-semibold">Unable to load pricing right now.</p>
               <p className="text-red-600 text-sm mt-1">{error}</p>
             </div>
           ) : null}
 
           {!loading && !error && plans.length === 0 ? (
-            <div className="mt-12 max-w-6xl mx-auto rounded-2xl border bg-white p-8 text-center text-slate-600">
+            <div className="mt-12 w-[78vw] mx-auto rounded-2xl border bg-white p-8 text-center text-slate-600">
               No active plans found.
             </div>
           ) : null}
 
           {!loading && !error && plans.length > 0 ? (
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-[78vw] mx-auto">
               {plans.map((plan) => {
                 const Icon = getPlanIcon(plan?.name);
                 const pricing = getBillingPricing(plan, billing);
@@ -566,7 +566,7 @@ const Pricing = () => {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] w-[52vw] overflow-y-auto">
           {selectedPlan && selectedPricing ? (
             <>
               <DialogHeader>

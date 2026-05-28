@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -400,10 +400,10 @@ const Profile = () => {
     let channel = null;
 
     const setupSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!isActive || !user?.id) return;
 
-      channel = supabase
+      channel = dbClient
         .channel('profile_kyc_updates')
         .on(
           'postgres_changes',
@@ -429,7 +429,7 @@ const Profile = () => {
     return () => {
       isActive = false;
       if (channel) {
-        supabase.removeChannel(channel).catch(() => {});
+        dbClient.removeChannel(channel).catch(() => {});
       }
     };
   }, []);
@@ -589,7 +589,7 @@ const Profile = () => {
   const ownerTitle = profile.ownerName || profile.owner_name || '';
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-12 font-sans text-slate-900">
+    <div className="min-w-0 bg-slate-50 pb-12 font-sans text-slate-900">
       <style>{`
         html { overflow-y: auto; }
         body { overflow-y: scroll; scrollbar-gutter: stable; }
@@ -599,10 +599,10 @@ const Profile = () => {
         * { scrollbar-width: none !important; }
       `}</style>
 
-      <div className="max-w-[1400px] mx-auto p-2 md:p-2 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="mx-auto grid w-full min-w-0 grid-cols-1 gap-6 p-2 md:p-2 lg:grid-cols-12">
 
         {/* === LEFT SIDEBAR (✅ FIXED: Both cards sticky together) === */}
-        <div className="lg:col-span-3 lg:self-start">
+        <div className="min-w-0 lg:col-span-3 lg:self-start">
           {/* ✅ Sticky wrapper: profile + subscription dono ek saath sticky */}
           <div className="space-y-6 lg:sticky lg:top-6">
             <Card className="border-t-4 border-t-[#003D82] shadow-sm">
@@ -726,7 +726,7 @@ const Profile = () => {
         </div>
 
         {/* === MAIN CONTENT === */}
-        <div className="lg:col-span-9">
+        <div className="min-w-0 lg:col-span-9">
           <Tabs
             value={activeTab}
             onValueChange={(val) => {
@@ -735,7 +735,7 @@ const Profile = () => {
             }}
             className="w-full"
           >
-            <div className="bg-white rounded-t-lg border-b border-slate-200 shadow-sm">
+            <div className="min-w-0 overflow-hidden bg-white rounded-t-lg border-b border-slate-200 shadow-sm">
               <TabsList className="w-full justify-start bg-transparent h-auto p-0 overflow-x-auto scrollbar-hide">
                 {[
                   { label: 'Primary Details', value: 'primary' },
@@ -755,7 +755,7 @@ const Profile = () => {
               </TabsList>
             </div>
 
-            <div className="bg-white rounded-b-lg border border-t-0 border-slate-200 shadow-sm min-h-[500px]">
+            <div className="min-w-0 overflow-hidden bg-white rounded-b-lg border border-t-0 border-slate-200 shadow-sm min-h-[500px]">
               {/* 1. PRIMARY DETAILS */}
               <TabsContent value="primary" className="m-0 p-6">
                 <SectionHeader
@@ -1139,7 +1139,7 @@ const Profile = () => {
           onClick={() => setImagePreviewOpen(false)}
         >
           <div
-            className="relative w-full max-w-sm rounded-xl bg-white p-3 shadow-2xl"
+            className="relative w-full w-[24vw] rounded-xl bg-white p-3 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -1480,11 +1480,11 @@ const DocumentsSection = ({ documents, onRefresh, kycStatus }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 25 * 1024 * 1024;
     if (file.size > maxSize) {
       toast({
         title: "File too large",
-        description: "Please upload a file smaller than 10MB",
+        description: "Please upload a source file smaller than 25MB",
         variant: "destructive"
       });
       return;
@@ -1541,27 +1541,27 @@ const DocumentsSection = ({ documents, onRefresh, kycStatus }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex min-w-0 items-center justify-between gap-3 mb-6">
         <h3 className="font-bold text-lg">KYC Documents</h3>
         <Badge>{kycStatus || 'PENDING'}</Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
         {docTypes.map(type => {
           const doc = documents.find((d) => String(d?.document_type || '').trim().toUpperCase() === type.id);
           const allowReplacement = Boolean(doc && !kycLocked);
 
           return (
-            <div key={type.id} className="border rounded-lg p-4 flex items-center justify-between bg-white">
-              <div className="flex items-center gap-3">
+            <div key={type.id} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-white p-4">
+              <div className="flex min-w-0 items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${doc ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
                   {doc ? <Check className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-sm text-slate-700">
                     {type.label}{type.optional ? ' (Optional)' : ''}
                   </p>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="truncate text-[10px] text-slate-400">
                     {doc
                       ? `Uploaded ${new Date(doc.uploaded_at).toLocaleDateString()} ${new Date(doc.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                       : 'Pending Upload'}
@@ -1629,7 +1629,7 @@ const DocumentsSection = ({ documents, onRefresh, kycStatus }) => {
       </div>
 
       <p className="mt-3 text-xs text-slate-500">
-        KYC upload rules: only JPG/PNG, minimum 100KB, maximum 5MB. PAN, Aadhar, and bank proof are required; GST is optional.
+        KYC upload rules: JPG/PNG only. Images are optimized automatically. PAN, Aadhar, and bank proof are required; GST is optional.
       </p>
 
       {normalizedKycStatus === 'REJECTED' && (

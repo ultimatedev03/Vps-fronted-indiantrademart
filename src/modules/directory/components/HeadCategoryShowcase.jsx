@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Loader2 } from 'lucide-react';
 import { optimizeImageUrl } from '@/shared/utils/imageUrl';
 
@@ -94,7 +94,7 @@ const HeadCategoryShowcase = ({
     const loadMicros = async () => {
       setMicroLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('micro_categories')
           .select('id, sub_category_id, name, slug')
           .in('sub_category_id', subIds)

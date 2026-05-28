@@ -1,7 +1,7 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const getUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error("Not authenticated");
   return user;
 };
@@ -10,7 +10,7 @@ export const notificationService = {
   // Send notification to a specific user
   sendNotification: async (userId, type, title, message, link = null) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('notifications')
         .insert([{
           user_id: userId,
@@ -36,7 +36,7 @@ export const notificationService = {
   sendNotificationToRole: async (role, type, title, message, link = null) => {
     try {
       // Get all employees with the specified role
-      const { data: employees, error: empError } = await supabase
+      const { data: employees, error: empError } = await dbClient
         .from('employees')
         .select('user_id')
         .eq('role', role);
@@ -56,7 +56,7 @@ export const notificationService = {
         created_at: new Date().toISOString()
       }));
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('notifications')
         .insert(notifications)
         .select();
@@ -72,7 +72,7 @@ export const notificationService = {
   // Get notifications for current user
   getNotifications: async (userId, limit = 50) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
@@ -90,7 +90,7 @@ export const notificationService = {
   // Get unread notification count
   getUnreadCount: async (userId) => {
     try {
-      const { count, error } = await supabase
+      const { count, error } = await dbClient
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
@@ -107,7 +107,7 @@ export const notificationService = {
   // Mark notification as read
   markAsRead: async (notificationId) => {
     try {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId);
@@ -122,7 +122,7 @@ export const notificationService = {
   // Mark all notifications as read for a user
   markAllAsRead: async (userId) => {
     try {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', userId)
@@ -138,7 +138,7 @@ export const notificationService = {
   // Delete a notification
   deleteNotification: async (notificationId) => {
     try {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .delete()
         .eq('id', notificationId);
@@ -152,7 +152,7 @@ export const notificationService = {
 
   // Subscribe to real-time notifications
   subscribeToNotifications: (userId, callback) => {
-    const subscription = supabase
+    const subscription = dbClient
       .channel(`notifications:${userId}`)
       .on(
         'postgres_changes',

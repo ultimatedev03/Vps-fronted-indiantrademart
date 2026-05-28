@@ -18,6 +18,7 @@ export const adminApi = {
           totalProducts: Number(raw?.totalProducts ?? raw?.products ?? 0) || 0,
           pendingKyc: Number(raw?.pendingKyc ?? raw?.pending_kyc ?? 0) || 0,
           openTickets: Number(raw?.openTickets ?? raw?.tickets ?? 0) || 0,
+          trends: raw?.trends || {},
         };
       }
     } catch (e) {
@@ -44,6 +45,7 @@ export const adminApi = {
       activeVendors: 0,
       totalOrders: 0,
       totalRevenue: 0,
+      trends: {},
       ...counts,
       openTickets,
     };
@@ -122,8 +124,11 @@ export const adminApi = {
     return [];
   },
 
-  getVendorsByCreator: async (creatorId) => {
-    const res = await fetchWithCsrf(apiUrl(`/api/admin/vendors?creatorId=${creatorId}`));
+  getVendorsByCreator: async (creatorId, creatorEmployeeId = '') => {
+    const params = new URLSearchParams();
+    if (creatorId) params.set('creatorId', creatorId);
+    if (creatorEmployeeId) params.set('creatorEmployeeId', creatorEmployeeId);
+    const res = await fetchWithCsrf(apiUrl(`/api/admin/vendors?${params.toString()}`));
     if (!res.ok) throw new Error('Failed to fetch vendors by creator');
     const json = await res.json();
     return json?.vendors || [];

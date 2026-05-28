@@ -1,3 +1,5 @@
+import { apiUrl } from '@/lib/apiBase';
+
 const toNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
@@ -55,6 +57,10 @@ export const optimizeImageUrl = (value, options = {}) => {
   const raw = String(value || '').trim();
   if (!raw) return '';
 
+  if (raw.startsWith('/uploads/')) {
+    return apiUrl(raw);
+  }
+
   const url = safeUrl(raw);
   if (!url) return raw;
 
@@ -77,8 +83,6 @@ export const optimizeImageUrl = (value, options = {}) => {
     return optimizeCloudinaryUrl(url, transform);
   }
 
-  // Supabase storage — return raw URL without any render/transform params.
-  // This avoids triggering Supabase image transformation quotas.
   if (host.includes('.supabase.co') && url.pathname.includes('/storage/v1/object/public/')) {
     return raw.split('?')[0];
   }

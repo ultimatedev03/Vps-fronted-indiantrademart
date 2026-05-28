@@ -15,7 +15,7 @@ const MaintenancePage = ({ message }) => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative z-10 max-w-2xl w-full text-center"
+        className="relative z-10 w-[44vw] w-full text-center"
       >
         <div className="mx-auto bg-red-500/10 h-24 w-24 rounded-full flex items-center justify-center mb-8 border border-red-500/20 backdrop-blur-sm animate-pulse">
            <ShieldAlert className="h-12 w-12 text-red-500" />
@@ -53,7 +53,7 @@ const MaintenancePage = ({ message }) => {
           </div>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg mx-auto">
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 w-[32vw] mx-auto">
           <div className="flex items-center justify-center gap-3 text-neutral-500 bg-black/40 p-3 rounded-lg border border-white/5">
             <Mail className="h-4 w-4" />
             <span className="text-sm">support@indiantrademart.com</span>

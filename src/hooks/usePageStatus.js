@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
 
 const DEBUG = Boolean(import.meta?.env?.VITE_DEBUG_PAGE_STATUS === 'true');
@@ -67,7 +67,7 @@ export const usePageStatus = (pageRoute) => {
     checkPageStatus();
 
     // Subscribe to realtime changes
-    const subscription = supabase
+    const subscription = dbClient
       .channel('page_status_changes')
       .on(
         'postgres_changes',

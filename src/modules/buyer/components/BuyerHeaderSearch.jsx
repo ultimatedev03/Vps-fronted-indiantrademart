@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Search, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationBell from '@/shared/components/NotificationBell';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,7 +26,7 @@ const BuyerHeaderSearch = () => {
   return (
     <div className="h-16 px-6 flex items-center justify-between gap-4 bg-white border-b border-gray-100">
       {/* Search Bar */}
-      <form className="flex-1 max-w-xl" onSubmit={handleSearch}>
+      <form className="flex-1 w-[36vw]" onSubmit={handleSearch}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input 
@@ -47,10 +47,10 @@ const BuyerHeaderSearch = () => {
         
         <div className="hidden md:flex items-center gap-3 pl-3 border-l ml-1">
            <div className="text-right hidden lg:block">
-              <p className="text-sm font-semibold text-gray-900 leading-none truncate max-w-[150px]">
+              <p className="text-sm font-semibold text-gray-900 leading-none truncate w-[9vw]">
                 {user?.full_name || 'Buyer Account'}
               </p>
-              <p className="text-xs text-gray-500 mt-1 truncate max-w-[150px]">{user?.email}</p>
+              <p className="text-xs text-gray-500 mt-1 truncate w-[9vw]">{user?.email}</p>
            </div>
            <Avatar className="h-8 w-8 border border-gray-200">
              <AvatarImage src={user?.avatar_url} alt={user?.full_name} />

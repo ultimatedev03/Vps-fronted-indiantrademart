@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -227,7 +227,7 @@ const KYCApproval = () => {
   }, [loadVendors]);
 
   useEffect(() => {
-    const channel = supabase
+    const channel = dbClient
       .channel('admin-kyc-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, () => {
         void loadVendors();
@@ -241,7 +241,7 @@ const KYCApproval = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
     };
   }, [loadVendors]);
 
@@ -493,7 +493,7 @@ const KYCApproval = () => {
       </Card>
 
       <Dialog open={showDocsModal} onOpenChange={setShowDocsModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[60vw] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>KYC Documents: {selectedVendor?.company_name}</DialogTitle>
             <DialogDescription>Review submitted documents before approval.</DialogDescription>

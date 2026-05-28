@@ -121,7 +121,7 @@ const Cities = () => {
 
       {/* CRUD Modal */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:w-[32vw]">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit City' : 'Add New City'}</DialogTitle>
           </DialogHeader>

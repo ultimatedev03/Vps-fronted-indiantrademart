@@ -69,7 +69,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+      <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center">
         <div className="flex justify-center mb-4">
           <div className="h-16 w-16 bg-[#003D82] rounded-full flex items-center justify-center border-4 border-neutral-800">
             <Shield className="h-8 w-8 text-white" />
@@ -83,7 +83,7 @@ const Login = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-8 sm:mx-auto w-[92vw] sm:w-[28vw]">
         <div className="bg-white py-8 px-4 shadow-xl rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>

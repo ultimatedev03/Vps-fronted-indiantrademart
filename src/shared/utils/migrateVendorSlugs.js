@@ -1,8 +1,8 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { generateUniqueSlug } from '@/shared/utils/slugUtils';
 
 const getVendorsBatch = async (from, to) => {
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('vendors')
     .select('id, slug, company_name, owner_name, email')
     .order('id', { ascending: true })
@@ -59,7 +59,7 @@ export const migrateVendorSlugsBatch = async (batchSize = 50) => {
             continue;
           }
 
-          const { error: updateError } = await supabase
+          const { error: updateError } = await dbClient
             .from('vendors')
             .update(updatePayload)
             .eq('id', vendor.id);

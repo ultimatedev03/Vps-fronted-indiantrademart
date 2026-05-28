@@ -99,7 +99,7 @@ const Header = () => {
 
   return (
     <header className="fixed top-0 w-full z-50 bg-slate-900 border-b border-slate-800 shadow-md h-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+      <div className="w-[96vw] mx-auto h-full">
         <div className="flex justify-between items-center h-full">
           
           {/* Logo & Desktop Nav */}

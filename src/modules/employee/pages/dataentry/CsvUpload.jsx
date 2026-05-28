@@ -68,7 +68,7 @@ const CsvUpload = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="mx-auto w-full min-w-0 space-y-6">
             <div className="flex items-center gap-4">
                 <Link to="/employee/dataentry/categories">
                     <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>

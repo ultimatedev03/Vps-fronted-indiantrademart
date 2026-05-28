@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { otpService } from '@/services/otpService';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ const Verify = () => {
           return;
         }
 
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const { data: { user }, error } = await dbClient.auth.getUser();
         if (error) throw error;
 
         if (user?.email) {
@@ -168,7 +168,7 @@ const Verify = () => {
     // Prefer vendorApi if it is server-side (safer with RLS)
     // But also try direct update as fallback.
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
 
       // 1) Try vendorApi (if it updates by user id)
       if (user?.id && vendorApi?.updateVendorVerification) {
@@ -181,7 +181,7 @@ const Verify = () => {
       }
 
       // 2) Fallback direct update (requires proper RLS)
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('vendors')
         .update({
           is_verified: true,
@@ -290,7 +290,7 @@ const Verify = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-[92vw] sm:w-[28vw]">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-[#003D82]">Verify Account</CardTitle>
           <CardDescription>

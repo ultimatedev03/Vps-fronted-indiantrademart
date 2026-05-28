@@ -78,7 +78,7 @@ const PageStatusWrapper = ({ pageRoute, children }) => {
   if (isOffline) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center px-4">
-        <div className="max-w-md bg-white rounded-xl shadow-lg p-8 text-center border-t-4 border-red-500">
+        <div className="w-[28vw] bg-white rounded-xl shadow-lg p-8 text-center border-t-4 border-red-500">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-red-100 rounded-full">
               <AlertTriangle className="h-8 w-8 text-red-600" />

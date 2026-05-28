@@ -34,7 +34,7 @@ const CategoriesGrid = () => {
 
   return (
     <section className="py-16 bg-neutral-50">
-      <div className="container mx-auto px-4">
+      <div className="w-[92vw] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

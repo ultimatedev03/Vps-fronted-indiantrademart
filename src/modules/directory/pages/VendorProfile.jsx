@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Card from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
@@ -153,7 +153,7 @@ class VendorProfileErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="w-[92vw] mx-auto py-8 w-[60vw]">
           <Card>
             <Card.Content className="p-6 text-center text-gray-600 space-y-3">
               <div className="text-lg font-semibold text-gray-900">Something went wrong</div>
@@ -474,7 +474,7 @@ const VendorProfileContent = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
+      <div className="w-[92vw] mx-auto py-8 space-y-6">
         <Skeleton className="h-64 w-full rounded-xl" />
         <div className="grid grid-cols-4 gap-6">
           <Skeleton className="h-48 w-full rounded-xl" />
@@ -488,7 +488,7 @@ const VendorProfileContent = () => {
 
   if (!displayVendor) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="w-[92vw] mx-auto py-8 w-[60vw]">
         <Card>
           <Card.Content className="p-6 text-center text-gray-600 space-y-3">
             <div className="text-lg font-semibold text-gray-900">
@@ -507,7 +507,7 @@ const VendorProfileContent = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl font-sans">
+    <div className="w-[92vw] mx-auto py-8 w-[86vw] font-sans">
 
       {/* Hero / Header Card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
@@ -545,7 +545,7 @@ const VendorProfileContent = () => {
                   </span>
                 </div>
                 {displayVendor.tagline ? (
-                  <p className="mt-3 max-w-2xl text-sm text-slate-600">
+                  <p className="mt-3 w-[44vw] text-sm text-slate-600">
                     {displayVendor.tagline}
                   </p>
                 ) : null}
@@ -735,7 +735,7 @@ const VendorProfileContent = () => {
                   )}
 
                   <Dialog open={!!selectedCollection} onOpenChange={(open) => { if (!open) setSelectedCollectionKey(''); }}>
-                    <DialogContent className="max-w-4xl">
+                    <DialogContent className="w-[60vw]">
                       <DialogHeader>
                         <DialogTitle className="text-base">
                           {selectedCollection?.subName}

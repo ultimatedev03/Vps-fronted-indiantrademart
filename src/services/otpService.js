@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 
@@ -115,7 +115,7 @@ export const otpService = {
   createAuthUser: async (email, password, userData = {}) => {
     if (!email || !password) throw new Error('Email and password are required');
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await dbClient.auth.signUp({
       email,
       password,
       options: {

@@ -81,7 +81,7 @@ const Products = () => {
       </div>
 
       <div className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 w-[24vw]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search products..."

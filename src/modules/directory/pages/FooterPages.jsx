@@ -326,7 +326,7 @@ export const CustomerCare = () => (
           <p className="text-sm text-slate-600">Share the full issue context so the right team can respond accurately.</p>
           <a
             href="mailto:support@indiantrademart.com"
-            className="block max-w-full break-all text-sm font-semibold leading-6 text-slate-900 hover:text-blue-700"
+            className="block w-full break-all text-sm font-semibold leading-6 text-slate-900 hover:text-blue-700"
           >
             support@indiantrademart.com
           </a>
@@ -1928,7 +1928,7 @@ export const ProductsPage = () => {
         <link rel="canonical" href="https://indiantrademart.com/products" />
       </Helmet>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 md:py-8">
+      <main className="mx-auto w-[86vw] px-4 py-6 md:py-8">
         {loadError && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {loadError}

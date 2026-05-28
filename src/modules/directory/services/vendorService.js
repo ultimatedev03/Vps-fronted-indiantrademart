@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const isMissingColumnError = (err) => {
   if (!err) return false;
@@ -89,20 +89,20 @@ const applyVendorListModifiers = (query, { onlyActive, from = 0, to = null, limi
 
 const fetchVendorRows = async ({ onlyActive, from = 0, to = null, limit = null }) => {
   let res = await applyVendorListModifiers(
-    supabase.from('vendors').select(FEATURED_VENDOR_COLUMNS),
+    dbClient.from('vendors').select(FEATURED_VENDOR_COLUMNS),
     { onlyActive, from, to, limit }
   );
 
   if (res.error && isMissingColumnError(res.error)) {
     res = await applyVendorListModifiers(
-      supabase.from('vendors').select(FEATURED_VENDOR_FALLBACK_COLUMNS),
+      dbClient.from('vendors').select(FEATURED_VENDOR_FALLBACK_COLUMNS),
       { onlyActive, from, to, limit }
     );
   }
 
   if (res.error && isMissingColumnError(res.error)) {
     res = await applyVendorListModifiers(
-      supabase.from('vendors').select('*'),
+      dbClient.from('vendors').select('*'),
       { onlyActive, from, to, limit }
     );
   }
@@ -212,7 +212,7 @@ export const vendorService = {
   },
 
   getVendorById: async (vendorId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('vendors')
       .select('*, products(*)')
       .eq('id', vendorId)
@@ -228,7 +228,7 @@ export const vendorService = {
   searchVendors: async ({ serviceSlug, stateSlug, citySlug, query }) => {
     try {
       // Start building the query on 'vendors' table
-      let dbQuery = supabase
+      let dbQuery = dbClient
       .from('vendors')
       .select(`
           *,
@@ -240,7 +240,7 @@ export const vendorService = {
 
       // 1. Filter by Location (State)
       if (stateSlug) {
-        const { data: stateData } = await supabase
+        const { data: stateData } = await dbClient
           .from('states')
           .select('id')
           .eq('slug', stateSlug)
@@ -253,7 +253,7 @@ export const vendorService = {
 
       // 2. Filter by Location (City)
       if (citySlug) {
-        const { data: cityData } = await supabase
+        const { data: cityData } = await dbClient
           .from('cities')
           .select('id')
           .eq('slug', citySlug)
@@ -311,7 +311,7 @@ export const vendorService = {
     let cityName = '';
 
     try {
-      const { data: cityData } = await supabase
+      const { data: cityData } = await dbClient
         .from('cities')
         .select('id, name')
         .eq('slug', citySlug)
@@ -330,7 +330,7 @@ export const vendorService = {
     const from = Math.max(0, (Number(page) - 1) * Number(limit));
     const to = from + Number(limit) - 1;
 
-    let dbQuery = supabase
+    let dbQuery = dbClient
       .from('vendors')
       .select(
         `

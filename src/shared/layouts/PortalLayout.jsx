@@ -7,7 +7,7 @@ import {
   BarChart3, UserCheck, Ticket, Database, Home, CalendarClock, ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { useAuth as useVendorAuth } from '@/modules/vendor/context/AuthContext';
 import { useInternalAuth } from '@/modules/admin/context/InternalAuthContext';
 import MaintenancePage from '@/shared/components/MaintenancePage';
@@ -129,7 +129,7 @@ const PortalLayout = ({ role }) => {
 
     checkPageStatus();
 
-    const channel = supabase
+    const channel = dbClient
       .channel('portal_status_check')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'page_status' }, (payload) => {
         const routeToCheck =
@@ -147,7 +147,7 @@ const PortalLayout = ({ role }) => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
     };
   }, [location.pathname, role]);
 

@@ -288,7 +288,7 @@ const MicroCategoryPage = () => {
       </Helmet>
 
       <div className="bg-white border-b py-4">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <nav className="flex text-sm text-gray-500 mb-4 items-center flex-wrap">
             <Link to="/directory" className="hover:text-blue-700 flex items-center">
               <Home className="w-3 h-3 mr-1" /> Directory
@@ -306,7 +306,7 @@ const MicroCategoryPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-[92vw] mx-auto py-8">
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />

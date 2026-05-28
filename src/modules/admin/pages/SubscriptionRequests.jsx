@@ -152,10 +152,10 @@ export default function SubscriptionRequests() {
                     <td className="px-4 py-3 font-medium text-gray-900">{r.vendor_name}</td>
                     <td className="px-4 py-3 text-gray-500">{r.vendor_state || '—'}</td>
                     <td className="px-4 py-3 text-gray-700 font-semibold">{r.extension_days}d</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={r.reason}>{r.reason}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate" title={r.sales_note}>{r.sales_note || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate" title={r.manager_note}>{r.manager_note || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate" title={r.vp_note}>{r.vp_note || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600 w-[20vw] truncate" title={r.reason}>{r.reason}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs w-[20vw] truncate" title={r.sales_note}>{r.sales_note || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs w-[20vw] truncate" title={r.manager_note}>{r.manager_note || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs w-[20vw] truncate" title={r.vp_note}>{r.vp_note || '—'}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs">{r.created_by_email}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs">{fmt(r.created_at)}</td>
                     <td className="px-4 py-3">
@@ -190,7 +190,7 @@ export default function SubscriptionRequests() {
       {/* Approve modal */}
       {resolveModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-[92vw] sm:w-[28vw] space-y-4">
             <h3 className="text-base font-semibold text-gray-900">
               Approve Extension — {resolveModal.vendor_name}
             </h3>
@@ -235,7 +235,7 @@ export default function SubscriptionRequests() {
       {/* Reject modal */}
       {rejectModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-[92vw] sm:w-[28vw] space-y-4">
             <h3 className="text-base font-semibold text-gray-900">
               Reject Request — {rejectModal.vendor_name}
             </h3>

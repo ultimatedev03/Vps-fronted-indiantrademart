@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, X, Save } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const dedupeCities = (rows = []) => {
   const cityMap = new Map();
@@ -152,7 +152,7 @@ const PreferencesSection = () => {
       if (!unresolvedCityIds.length) return;
 
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('cities')
           .select('id, name, state_id')
           .in('id', unresolvedCityIds);
@@ -179,12 +179,12 @@ const PreferencesSection = () => {
     setLoading(true);
     try {
       const [statesRes, categoriesRes, prefsRes, activeSub] = await Promise.all([
-        supabase
+        dbClient
           .from('states')
           .select('id, name')
           .eq('is_active', true)
           .order('name'),
-        supabase
+        dbClient
           .from('head_categories')
           .select('id, name')
           .eq('is_active', true)

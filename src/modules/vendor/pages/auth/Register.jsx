@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { referralApi } from '@/modules/vendor/services/referralApi';
 import { otpService } from '@/services/otpService';
@@ -277,7 +277,7 @@ const VendorRegister = () => {
       if (!authData?.user) throw new Error('Failed to create auth user');
 
       if (authData.session) {
-        await supabase.auth.setSession(authData.session);
+        await dbClient.auth.setSession(authData.session);
       }
 
       await vendorApi.registerVendor({
@@ -286,7 +286,7 @@ const VendorRegister = () => {
       });
 
       try {
-        const { error: verifyError } = await supabase
+        const { error: verifyError } = await dbClient
           .from('vendors')
           .update({
             is_verified: true,
@@ -313,7 +313,7 @@ const VendorRegister = () => {
       }
 
       try {
-        await supabase.from('notifications').insert([{
+        await dbClient.from('notifications').insert([{
           user_id: authData.user.id,
           type: 'WELCOME',
           title: 'Welcome to Indian Trade Mart',
@@ -380,7 +380,7 @@ const VendorRegister = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-lg">
+      <Card className="w-[92vw] sm:w-[34vw] shadow-lg">
         <CardHeader className="text-center space-y-2">
           {/* ✅ LOGO CENTER + CLICK TO HOME + REMOVE TEXT */}
           <div className="flex justify-center">

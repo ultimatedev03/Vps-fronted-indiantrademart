@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { useAuth as useVendorAuth } from '@/modules/vendor/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ const VendorLogin = () => {
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await dbClient.auth.signInWithPassword({
         email: String(formData.email || '').trim().toLowerCase(),
         password: formData.password,
         role: 'VENDOR',
@@ -57,13 +57,13 @@ const VendorLogin = () => {
 
       if (!vendor) {
         // Try to link by email if user_id missing in vendors table
-        const { data: vendorByEmail } = await supabase
+        const { data: vendorByEmail } = await dbClient
           .from('vendors')
           .select('*')
           .ilike('email', formData.email.toLowerCase())
           .maybeSingle();
         if (vendorByEmail) {
-          await supabase.from('vendors').update({ user_id: authData.user.id }).eq('id', vendorByEmail.id);
+          await dbClient.from('vendors').update({ user_id: authData.user.id }).eq('id', vendorByEmail.id);
           vendor = { ...vendorByEmail, user_id: authData.user.id };
         }
       }
@@ -71,7 +71,7 @@ const VendorLogin = () => {
       if (!vendor) {
         // Auth exists but no profile? Should typically go to registration or profile completion
         // For now, let's treat as onboarding needed or error
-        await supabase.auth.signOut().catch(() => {});
+        await dbClient.auth.signOut().catch(() => {});
         toast({ title: "Profile Missing", description: "Vendor profile not found. Please register.", variant: "destructive" });
         return;
       }
@@ -86,7 +86,7 @@ const VendorLogin = () => {
           try {
             // Fallback for legacy rows where user_id linkage is stale.
             const normalizedEmail = String(formData.email || '').trim().toLowerCase();
-            await supabase
+            await dbClient
               .from('vendors')
               .update({
                 is_verified: true,
@@ -104,7 +104,7 @@ const VendorLogin = () => {
       // 3. Stamp role metadata to help route guards
       const currentRole = authData.user?.user_metadata?.role;
       if (currentRole !== 'VENDOR') {
-        await supabase.auth.updateUser({ data: { role: 'VENDOR' } }).catch(() => {});
+        await dbClient.auth.updateUser({ data: { role: 'VENDOR' } }).catch(() => {});
       }
 
       // 4. Success
@@ -147,7 +147,7 @@ const VendorLogin = () => {
         <Logo />
       </div>
       
-      <Card className="w-full max-w-md shadow-lg border-t-4 border-t-[#003D82]">
+      <Card className="w-[92vw] sm:w-[28vw] shadow-lg border-t-4 border-t-[#003D82]">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center text-[#003D82]">Vendor Login</CardTitle>
           <CardDescription className="text-center">

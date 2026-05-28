@@ -56,7 +56,7 @@ const PremiumBrandsSection = () => {
         }
       `}</style>
 
-      <div className="container mx-auto px-4 overflow-x-hidden">
+      <div className="w-[92vw] mx-auto overflow-x-hidden">
         <div className="text-center mb-10">
           <h2 className="text-2xl font-bold text-gray-900">
             Explore products from <span className="text-[#4F46E5]">Premium Brands</span>
@@ -87,7 +87,7 @@ const PremiumBrandsSection = () => {
                   width="160"
                   height="64"
                   sizes="(min-width: 1024px) 176px, (min-width: 768px) 160px, 144px"
-                  className={`max-h-12 w-auto max-w-[136px] object-contain md:max-h-14 md:max-w-[152px] lg:max-h-16 lg:max-w-[168px] ${pendingBrandSlug === brand.slug ? 'opacity-35' : ''}`}
+                  className={`max-h-12 w-auto w-[8vw] object-contain md:max-h-14 md:w-[9vw] lg:max-h-16 lg:w-[10vw] ${pendingBrandSlug === brand.slug ? 'opacity-35' : ''}`}
                   loading="lazy"
                   decoding="async"
                   onError={(event) => {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { buyerProfileApi } from '@/modules/buyer/services/buyerProfileApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -389,7 +389,7 @@ const BuyerProfile = () => {
           onClick={() => setImagePreviewOpen(false)}
         >
           <div
-            className="relative w-full max-w-sm rounded-xl bg-white p-3 shadow-2xl"
+            className="relative w-full w-[24vw] rounded-xl bg-white p-3 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <button

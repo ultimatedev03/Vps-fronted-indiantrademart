@@ -319,7 +319,7 @@ const Proposals = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-[420px]">
+        <TabsList className="grid w-full grid-cols-2 w-[26vw]">
           <TabsTrigger value="received">Received Requests</TabsTrigger>
           <TabsTrigger value="sent">Sent Quotations</TabsTrigger>
         </TabsList>
@@ -354,7 +354,7 @@ const Proposals = () => {
       </Tabs>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[44vw]">
           <DialogHeader>
             <DialogTitle>{selectedService}</DialogTitle>
             <DialogDescription>

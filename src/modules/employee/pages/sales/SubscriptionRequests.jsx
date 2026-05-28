@@ -357,7 +357,7 @@ export default function SubscriptionRequests() {
                     <td className="px-4 py-3 font-medium text-gray-900">{r.vendor_name}</td>
                     <td className="px-4 py-3 text-gray-500">{r.vendor_state || '—'}</td>
                     <td className="px-4 py-3 text-gray-700 font-medium">{r.extension_days}d</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={r.reason}>{r.reason}</td>
+                    <td className="px-4 py-3 text-gray-600 w-[20vw] truncate" title={r.reason}>{r.reason}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${statusBadge(r.status)}`}>
                         {r.status}

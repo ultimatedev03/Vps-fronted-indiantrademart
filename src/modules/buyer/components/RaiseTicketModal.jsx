@@ -67,7 +67,7 @@ const RaiseTicketModal = ({ children }) => {
       <DialogTrigger asChild>
         {children || <Button>Raise Ticket</Button>}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:w-[32vw]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Ticket className="h-5 w-5 text-[#003D82]" />

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import Card from '@/shared/components/Card';
 import { Button } from '@/components/ui/button';
 import {
@@ -102,6 +102,7 @@ const Dashboard = () => {
 
   const [vendorId, setVendorId] = useState(null);
   const [recentProducts, setRecentProducts] = useState([]);
+  const [performanceData, setPerformanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
@@ -109,10 +110,11 @@ const Dashboard = () => {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [data, products, sub] = await Promise.all([
+        const [data, products, sub, performance] = await Promise.all([
           vendorApi.dashboard.getStats(),
           vendorApi.products.list(),
-          vendorApi.subscriptions.getCurrent()
+          vendorApi.subscriptions.getCurrent(),
+          vendorApi.dashboard.getPerformance7Days()
         ]);
 
         const normalized = {
@@ -133,6 +135,7 @@ const Dashboard = () => {
 
         setRecentProducts(products?.slice(0, 3) || []);
         setSubscription(sub || null);
+        setPerformanceData(Array.isArray(performance) ? performance : []);
 
         if (vendId && !paramVendorId) {
           navigate(resolvePath(`${vendId}/dashboard`, 'vendor'), { replace: true });
@@ -148,7 +151,7 @@ const Dashboard = () => {
     loadDashboard();
 
     // Subscribe to real-time vendor updates for KYC status changes
-    const subscription = supabase
+    const subscription = dbClient
       .channel('vendor_updates')
       .on(
         'postgres_changes',
@@ -204,15 +207,15 @@ const Dashboard = () => {
   const profilePrimaryPath = `${profilePath}?tab=primary`;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 overflow-x-hidden">
       {/* Welcome & KYC Status */}
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-neutral-800">Hello, {ownerName}! 👋</h2>
           <p className="text-neutral-500">Here's what's happening with your store today.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
           {/* Subscription Status */}
           <Link to={subscriptionsPath} className="block">
             <SubscriptionBadge subscription={subscription} loading={subscriptionLoading} />
@@ -254,7 +257,7 @@ const Dashboard = () => {
             if (isExpiringSoon) {
               return (
                 <Link to={subscriptionsPath} className="block">
-                  <div className="bg-orange-50 border border-orange-200 text-orange-800 px-4 py-3 rounded-lg flex items-center gap-3 hover:shadow-sm transition-shadow cursor-pointer">
+                  <div className="bg-orange-50 border border-orange-200 text-orange-800 px-4 py-3 rounded-lg flex min-w-0 items-center gap-3 hover:shadow-sm transition-shadow cursor-pointer">
                     <AlertTriangle className="h-5 w-5" />
                     <div>
                       <p className="font-semibold text-sm">Plan Expiring Soon</p>
@@ -283,9 +286,9 @@ const Dashboard = () => {
           ) : (
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg flex items-center gap-3 hover:shadow-sm transition-shadow">
               <AlertTriangle className="h-5 w-5" />
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold text-sm">KYC {stats.kycStatus}</p>
-                <p className="text-xs">Complete verification to unlock all features.</p>
+                <p className="text-xs break-words">Complete verification to unlock all features.</p>
               </div>
               <Link to={profileKycPath}>
                 <Button
@@ -428,15 +431,7 @@ const Dashboard = () => {
               <div className="h-64 w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
-                    data={[
-                      { name: 'Mon', views: 40, leads: 24 },
-                      { name: 'Tue', views: 30, leads: 13 },
-                      { name: 'Wed', views: 50, leads: 48 },
-                      { name: 'Thu', views: 27, leads: 39 },
-                      { name: 'Fri', views: 80, leads: 50 },
-                      { name: 'Sat', views: 90, leads: 60 },
-                      { name: 'Sun', views: 110, leads: 85 },
-                    ]}
+                    data={performanceData}
                     margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                   >
                     <defs>
@@ -453,8 +448,8 @@ const Dashboard = () => {
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
                     <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
-                    <Area type="monotone" dataKey="views" stroke="#00A699" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" />
-                    <Area type="monotone" dataKey="leads" stroke="#003D82" strokeWidth={3} fillOpacity={1} fill="url(#colorLeads)" />
+                    <Area type="monotone" name="Contacts" dataKey="contacts" stroke="#00A699" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" />
+                    <Area type="monotone" name="Leads" dataKey="leads" stroke="#003D82" strokeWidth={3} fillOpacity={1} fill="url(#colorLeads)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

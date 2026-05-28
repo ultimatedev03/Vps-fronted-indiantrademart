@@ -501,7 +501,7 @@ export default function Vendors() {
 
   return (
     // ✅ full-height layout: top fixed + only table scrolls
-    <div className="h-full min-h-0 flex flex-col gap-3 w-full max-w-full overflow-hidden">
+    <div className="h-full min-h-0 flex flex-col gap-3 w-full w-full overflow-hidden">
       {/* TOP (fixed) */}
       <div className="shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -535,7 +535,7 @@ export default function Vendors() {
           </div>
         </div>
 
-        <div className="mt-2 flex flex-col md:flex-row gap-2 p-2 bg-white rounded-lg border w-full max-w-full">
+        <div className="mt-2 flex flex-col md:flex-row gap-2 p-2 bg-white rounded-lg border w-full w-full">
           <form onSubmit={onSearch} className="flex-1 relative min-w-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
@@ -615,9 +615,9 @@ export default function Vendors() {
       </div>
 
       {/* TABLE AREA (only this scrolls) */}
-      <div className="flex-1 min-h-0 w-full max-w-full overflow-hidden">
-        <Card className="h-full w-full max-w-full">
-          <CardContent className="h-full p-0 w-full max-w-full">
+      <div className="flex-1 min-h-0 w-full w-full overflow-hidden">
+        <Card className="h-full w-full w-full">
+          <CardContent className="h-full p-0 w-full w-full">
             <div className="h-full overflow-y-auto overflow-x-hidden">
               <Table className="w-full table-fixed">
                 <TableHeader>
@@ -863,7 +863,7 @@ export default function Vendors() {
 
       {/* Vendor Details Modal */}
       <Dialog open={showVendorModal} onOpenChange={setShowVendorModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[44vw]">
           <DialogHeader>
             <DialogTitle>Vendor Details</DialogTitle>
             <DialogDescription>Package and status details</DialogDescription>

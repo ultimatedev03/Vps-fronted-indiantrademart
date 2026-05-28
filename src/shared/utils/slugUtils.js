@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const MAX_SLUG_LENGTH = 100;
 const FALLBACK_PRODUCT_SLUG = 'product';
@@ -152,7 +152,7 @@ export const generateUniqueSlug = async (text, options = {}) => {
   let suffix = 2;
 
   while (true) {
-    let query = supabase
+    let query = dbClient
       .from(table)
       .select('id', { count: 'exact', head: true })
       .eq(column, candidate);

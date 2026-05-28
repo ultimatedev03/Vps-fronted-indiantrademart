@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { toast } from '@/components/ui/use-toast';
 import { ChevronRight, ChevronDown, Plus, Edit2, Trash2, Tag, Search, X, Loader2 } from 'lucide-react';
 import AddEditCategoryDialog from '@/modules/employee/components/AddEditCategoryDialog';
@@ -136,7 +136,7 @@ const CategoriesFixed = () => {
   const fetchHeadCategories = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('head_categories')
         .select('*')
         .eq('is_active', true)
@@ -154,7 +154,7 @@ const CategoriesFixed = () => {
   // Fetch sub categories for a head category
   const fetchSubCategories = async (headCategoryId) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('sub_categories')
         .select('*')
         .eq('head_category_id', headCategoryId)
@@ -172,7 +172,7 @@ const CategoriesFixed = () => {
   // Fetch micro categories for a sub category
   const fetchMicroCategories = async (subCategoryId) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('micro_categories')
         .select('*')
         .eq('sub_category_id', subCategoryId)
@@ -196,14 +196,14 @@ const CategoriesFixed = () => {
   // Fetch meta for micro category
   const fetchMicroMeta = async (microCategoryId) => {
     try {
-      let res = await supabase
+      let res = await dbClient
         .from('micro_category_meta')
         .select('*')
         .eq('micro_categories', microCategoryId)
         .maybeSingle();
 
       if (res.error && isMissingColumnError(res.error)) {
-        res = await supabase
+        res = await dbClient
           .from('micro_category_meta')
           .select('*')
           .eq('micro_category_id', microCategoryId)
@@ -242,7 +242,7 @@ const CategoriesFixed = () => {
 
       const pattern = `%${q}%`;
 
-      const headPromise = supabase
+      const headPromise = dbClient
         .from('head_categories')
         .select('id,name,slug')
         .eq('is_active', true)
@@ -250,7 +250,7 @@ const CategoriesFixed = () => {
         .order('name')
         .limit(25);
 
-      const subPromise = supabase
+      const subPromise = dbClient
         .from('sub_categories')
         .select('id,name,slug,head_category_id')
         .eq('is_active', true)
@@ -258,7 +258,7 @@ const CategoriesFixed = () => {
         .order('name')
         .limit(25);
 
-      const microPromise = supabase
+      const microPromise = dbClient
         .from('micro_categories')
         .select('id,name,slug,sub_category_id')
         .eq('is_active', true)
@@ -280,7 +280,7 @@ const CategoriesFixed = () => {
       // Load parent head names for subs
       const headIdsForSubs = [...new Set(subsRaw.map((s) => s.head_category_id).filter(Boolean))];
       const { data: subsHeads, error: subsHeadsErr } = headIdsForSubs.length
-        ? await supabase.from('head_categories').select('id,name,slug').in('id', headIdsForSubs)
+        ? await dbClient.from('head_categories').select('id,name,slug').in('id', headIdsForSubs)
         : { data: [], error: null };
       if (subsHeadsErr) throw subsHeadsErr;
 
@@ -297,7 +297,7 @@ const CategoriesFixed = () => {
       // Load parent sub + head for micros
       const subIdsForMicros = [...new Set(microsRaw.map((m) => m.sub_category_id).filter(Boolean))];
       const { data: microsSubs, error: microsSubsErr } = subIdsForMicros.length
-        ? await supabase.from('sub_categories').select('id,name,slug,head_category_id').in('id', subIdsForMicros)
+        ? await dbClient.from('sub_categories').select('id,name,slug,head_category_id').in('id', subIdsForMicros)
         : { data: [], error: null };
       if (microsSubsErr) throw microsSubsErr;
 
@@ -309,7 +309,7 @@ const CategoriesFixed = () => {
       ].filter((id) => !headMap.has(id));
 
       const { data: microsHeads, error: microsHeadsErr } = headIdsForMicros.length
-        ? await supabase.from('head_categories').select('id,name,slug').in('id', headIdsForMicros)
+        ? await dbClient.from('head_categories').select('id,name,slug').in('id', headIdsForMicros)
         : { data: [], error: null };
       if (microsHeadsErr) throw microsHeadsErr;
 
@@ -440,13 +440,13 @@ const CategoriesFixed = () => {
       };
 
       if (existing) {
-        let res = await supabase
+        let res = await dbClient
           .from('micro_category_meta')
           .update(payload)
           .eq('micro_categories', selectedMicroCategory.id);
 
         if (res.error && isMissingColumnError(res.error)) {
-          res = await supabase
+          res = await dbClient
             .from('micro_category_meta')
             .update(payload)
             .eq('micro_category_id', selectedMicroCategory.id);
@@ -465,7 +465,7 @@ const CategoriesFixed = () => {
           return;
         }
       } else {
-        let res = await supabase.from('micro_category_meta').insert([
+        let res = await dbClient.from('micro_category_meta').insert([
           {
             micro_categories: selectedMicroCategory.id,
             ...insertPayload,
@@ -473,7 +473,7 @@ const CategoriesFixed = () => {
         ]);
 
         if (res.error && isMissingColumnError(res.error)) {
-          res = await supabase.from('micro_category_meta').insert([
+          res = await dbClient.from('micro_category_meta').insert([
             {
               micro_category_id: selectedMicroCategory.id,
               ...insertPayload,
@@ -882,7 +882,7 @@ const CategoriesFixed = () => {
                                     </Button>
                                   </DialogTrigger>
 
-                                  <DialogContent className="max-w-2xl">
+                                  <DialogContent className="w-[44vw]">
                                     <DialogHeader>
                                       <DialogTitle>Meta Tags & Description - {microCategory.name}</DialogTitle>
                                     </DialogHeader>

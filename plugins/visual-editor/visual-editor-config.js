@@ -14,7 +14,7 @@ export const POPUP_STYLES = `
 	display: none;
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
 	#inline-editor-popup {
 		width: calc(100% - 20px);
 	}
@@ -126,7 +126,7 @@ export const EDIT_MODE_STYLES = `
 		z-index: 10001;
 		font-size: 14px;
 		border: 1px solid #3B3D4A;
-		max-width: 184px;
+		width: 11vw;
 		text-align: center;
 	}
 

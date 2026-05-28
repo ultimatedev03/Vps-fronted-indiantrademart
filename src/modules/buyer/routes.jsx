@@ -27,7 +27,7 @@ const AccountSuspendedPage = () => {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="max-w-xl w-full bg-white border rounded-xl p-6 space-y-4">
+      <div className="w-[36vw] w-full bg-white border rounded-xl p-6 space-y-4">
         <h1 className="text-2xl font-bold text-red-600">Account Suspended</h1>
         <p className="text-gray-600">
           Your buyer account has been suspended by Admin. You can still access Support Tickets.

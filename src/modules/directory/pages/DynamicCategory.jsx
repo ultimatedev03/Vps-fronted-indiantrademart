@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { categoryApi } from '@/modules/directory/services/categoryApi';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import PillBreadcrumbs from '@/shared/components/PillBreadcrumbs';
 import SearchResultsList from '@/modules/directory/components/SearchResultsList';
 import { Loader2, Folder, ArrowRight, MapPin, Home, ChevronRight } from 'lucide-react';
@@ -53,7 +53,7 @@ const DynamicCategory = () => {
           let stateId = null, cityId = null;
           
           // Search in states
-          const { data: states } = await supabase
+          const { data: states } = await dbClient
             .from('states')
             .select('id, name, slug')
             .ilike('name', `%${location}%`);
@@ -64,7 +64,7 @@ const DynamicCategory = () => {
           }
           
           // Also search in cities
-          const { data: cities } = await supabase
+          const { data: cities } = await dbClient
             .from('cities')
             .select('id, name, slug, state_id')
             .ilike('name', `%${location}%`);
@@ -132,7 +132,7 @@ const DynamicCategory = () => {
       <div className="min-h-screen bg-gray-50">
         {/* Breadcrumb and Header */}
         <div className="bg-white border-b py-6">
-          <div className="container mx-auto px-4">
+          <div className="w-[92vw] mx-auto">
             {isLocationBased ? (
               <>
                 <nav className="flex text-sm text-gray-500 items-center flex-wrap mb-4">
@@ -155,7 +155,7 @@ const DynamicCategory = () => {
                   {locationName && <span className="text-2xl text-gray-600"> in {locationName}</span>}
                 </h1>
                 {category.meta_description && (
-                  <p className="text-gray-700 max-w-3xl mt-3 leading-relaxed">
+                  <p className="text-gray-700 w-[52vw] mt-3 leading-relaxed">
                     {category.meta_description}
                   </p>
                 )}
@@ -175,7 +175,7 @@ const DynamicCategory = () => {
         </div>
 
         {/* Content Section */}
-        <div className="container mx-auto px-4 py-8">
+        <div className="w-[92vw] mx-auto py-8">
           {isLocationBased ? (
             /* Location-based product listing */
             products.length > 0 ? (

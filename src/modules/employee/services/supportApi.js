@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 

@@ -28,13 +28,13 @@ const Footer = () => {
       )}
 
       <footer className="bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-gray-100">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           {/* Main Footer Content */}
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 border-b border-gray-700 py-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(250px,1.1fr)_repeat(4,minmax(0,1fr))]">
             {/* Brand Column */}
             <div className="space-y-3.5">
               {/* ✅ Logo + Brand name side-by-side + ONE LINE heading */}
-              <Link to="/" className="inline-flex max-w-full items-center gap-2.5" aria-label="Indian Trade Mart">
+              <Link to="/" className="inline-flex w-full items-center gap-2.5" aria-label="Indian Trade Mart">
                 <img
                   src="/itm-logo.png"
                   alt="IndianTradeMART Logo"
@@ -63,7 +63,7 @@ const Footer = () => {
                 </div>
               </Link>
 
-              <p className="max-w-xs text-sm leading-6 text-gray-300">
+              <p className="w-[20vw] text-sm leading-6 text-gray-300">
                 Connecting businesses with trusted technology providers across India.
               </p>
 

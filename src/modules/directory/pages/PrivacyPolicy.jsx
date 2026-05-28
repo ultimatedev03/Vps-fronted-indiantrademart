@@ -46,12 +46,12 @@ const PrivacyPolicy = () => {
       </Helmet>
 
       <section className="bg-slate-950 text-white">
-        <div className="container mx-auto px-4 py-16">
+        <div className="w-[92vw] mx-auto py-16">
           <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-200">
             Legal
           </span>
           <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-5xl">Privacy Policy</h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
+          <p className="mt-5 w-[52vw] text-lg leading-8 text-slate-300">
             This page explains the types of information Indian Trade Mart may collect, how that information is used in
             operating the marketplace, and the main controls available to users.
           </p>
@@ -59,7 +59,7 @@ const PrivacyPolicy = () => {
         </div>
       </section>
 
-      <section className="container mx-auto px-4 py-16">
+      <section className="w-[92vw] mx-auto py-16">
         <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
           <div className="space-y-8">
             {sections.map((section) => (

@@ -1,13 +1,14 @@
 /**
  * dataEntryApi.js — Data Entry employee service (backend-first)
  *
- * MIGRATION (Phase 3): All direct Supabase calls removed.
+ * MIGRATION (Phase 3): All direct MySQL calls removed.
  * All operations route through /api/data-entry/* on the Express backend,
  * which enforces auth, role checks, and audit logging.
  */
 
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
+import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,23 @@ const safeJson = async (res) => {
 };
 
 const de = (path) => apiUrl(`/api/data-entry${path}`);
+
+const normalizeKycDocumentType = (value = '') => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw.includes('GST')) return 'GST';
+  if (raw.includes('PAN')) return 'PAN';
+  if (raw.includes('BANK')) return 'BANK';
+  if (raw.includes('AADHAR') || raw.includes('AADHAAR') || raw.includes('COMPANY')) return 'AADHAR';
+  return raw || 'DOCUMENT';
+};
+
+const inferUploadType = (file) => {
+  const mime = String(file?.type || '').toLowerCase();
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime === 'application/pdf') return 'pdf';
+  return '';
+};
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
@@ -168,6 +186,43 @@ export const dataEntryApi = {
     return json?.document;
   },
 
+  uploadKycDoc: async (vendorId, documentType, file) => {
+    if (!vendorId) throw new Error('Vendor is required');
+    if (!file) throw new Error('No file selected');
+
+    const uploadType = inferUploadType(file);
+    if (!uploadType || !['image', 'pdf'].includes(uploadType)) {
+      throw new Error('KYC accepts image or PDF files');
+    }
+
+    const uploadFile = await optimizeMediaFile(file, 'kyc');
+    const dataUrl = await fileToDataUrl(uploadFile);
+
+    const uploadRes = await fetchWithCsrf(apiUrl('/api/employee/product-media-upload'), {
+      method: 'POST',
+      body: JSON.stringify({
+        type: uploadType,
+        file_name: uploadFile.name || 'kyc-document',
+        content_type: uploadFile.type || '',
+        data_url: dataUrl,
+      }),
+    });
+    const uploadJson = await safeJson(uploadRes);
+    if (!uploadRes.ok || !uploadJson?.success) {
+      throw new Error(uploadJson?.error || `Upload failed (${uploadRes.status})`);
+    }
+
+    const publicUrl = String(uploadJson?.publicUrl || '').trim();
+    if (!publicUrl) throw new Error('Upload succeeded but URL was not returned');
+
+    return dataEntryApi.addVendorDocument(
+      vendorId,
+      normalizeKycDocumentType(documentType),
+      publicUrl,
+      uploadFile.name || file.name || 'kyc-document'
+    );
+  },
+
   // ── PRODUCTS ──────────────────────────────────────────────────────────────
 
   getVendorProducts: async (vendorId) => {
@@ -225,16 +280,18 @@ export const dataEntryApi = {
   /** Upload product media — routes through existing employee upload endpoint */
   uploadProductMedia: async (file, type) => {
     if (!file) throw new Error('No file selected');
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
+    const uploadType = String(type || '').toLowerCase();
+    const uploadFile = await optimizeMediaFile(file, uploadType === 'image' ? 'product' : 'general');
+    const dataUrl = await fileToDataUrl(uploadFile);
 
     const res = await fetchWithCsrf(apiUrl('/api/employee/product-media-upload'), {
       method: 'POST',
-      body: JSON.stringify({ type, file_name: file.name || 'upload', content_type: file.type || '', data_url: dataUrl }),
+      body: JSON.stringify({
+        type,
+        file_name: uploadFile.name || 'upload',
+        content_type: uploadFile.type || '',
+        data_url: dataUrl,
+      }),
     });
     const json = await safeJson(res);
     if (!res.ok || !json?.success) throw new Error(json?.error || `Upload failed (${res.status})`);

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -72,8 +72,8 @@ const Vendors = () => {
 
             while (true) {
                 const query = offset === 0
-                    ? supabase.from('vendors').select('*', { count: 'exact' })
-                    : supabase.from('vendors').select('*');
+                    ? dbClient.from('vendors').select('*', { count: 'exact' })
+                    : dbClient.from('vendors').select('*');
 
                 const { data, error, count } = await query
                     .order('company_name', { ascending: true })
@@ -159,7 +159,7 @@ const Vendors = () => {
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             onKeyDown={handleSearchKeyDown}
-                            className="max-w-md"
+                            className="w-[28vw]"
                         />
                         <p className="mt-2 text-xs text-gray-500">
                             Press Enter to open the vendor directly when there is a single match.

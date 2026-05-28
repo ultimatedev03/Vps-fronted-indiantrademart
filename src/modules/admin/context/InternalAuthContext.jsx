@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { toast } from '@/components/ui/use-toast';
@@ -118,7 +118,7 @@ export const InternalAuthProvider = ({ children }) => {
       );
 
       // 1) Employees table by user_id (primary)
-      const { data: empById } = await supabase
+      const { data: empById } = await dbClient
         .from('employees')
         .select('*')
         .eq('user_id', authUser.id)
@@ -130,7 +130,7 @@ export const InternalAuthProvider = ({ children }) => {
 
       // 2) Employees table by email (fallback when user_id not wired yet)
       if (authUser.email) {
-        const { data: empByEmail } = await supabase
+        const { data: empByEmail } = await dbClient
           .from('employees')
           .select('*')
           .eq('email', authUser.email)
@@ -165,7 +165,7 @@ export const InternalAuthProvider = ({ children }) => {
         // Sync from active session (authoritative)
         const {
           data: { session },
-        } = await supabase.auth.getSession();
+        } = await dbClient.auth.getSession();
 
         if (session?.user) {
           resolvedUser = await fetchInternalUserFromSession(session.user);
@@ -179,7 +179,7 @@ export const InternalAuthProvider = ({ children }) => {
     };
     boot();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: sub } = dbClient.auth.onAuthStateChange(async (event, session) => {
       try {
         if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -206,39 +206,28 @@ export const InternalAuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * 🔐 Backend-first login — uses Express /api/auth/login
-   * instead of direct supabase.auth.signInWithPassword.
-   * This ensures consistent cookie/CSRF session behavior.
+   * Uses the shared auth client so the Express cookie and the in-memory
+   * backend access token stay in sync for follow-up admin API calls.
    */
   const login = async (email, password, expectedRole, captcha = {}) => {
     try {
       setIsLoading(true);
       const expectedNormalizedRole = normalizeRoleValue(expectedRole, undefined);
 
-      // 🚨 Kill any cached session first
-      await supabase.auth.signOut();
+      await dbClient.auth.signOut();
 
-      // ✅ Backend-first: use Express auth endpoint
-      const loginRes = await fetchWithCsrf(apiUrl('/api/auth/login'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          role_hint: expectedNormalizedRole || undefined,
-          ...(captcha?.captcha_token ? { captcha_token: captcha.captcha_token } : {}),
-          ...(captcha?.captcha_action ? { captcha_action: captcha.captcha_action } : {}),
-        }),
+      const { data: loginData, error: loginError } = await dbClient.auth.signInWithPassword({
+        email,
+        password,
+        role_hint: expectedNormalizedRole || undefined,
+        ...(captcha?.captcha_token ? { captcha_token: captcha.captcha_token } : {}),
+        ...(captcha?.captcha_action ? { captcha_action: captcha.captcha_action } : {}),
       });
 
-      const loginData = await loginRes.json().catch(() => ({}));
-
-      if (!loginRes.ok || !loginData?.success) {
-        throw new Error(loginData?.error || 'Invalid credentials');
+      if (loginError) {
+        throw new Error(loginError.message || 'Invalid credentials');
       }
 
-      // Backend login sets httpOnly cookie, now sync local supabase session
-      // via /api/auth/me to get the session user
       const sessionUser = loginData?.user;
       if (!sessionUser?.id) {
         throw new Error('Unauthorized');
@@ -254,7 +243,7 @@ export const InternalAuthProvider = ({ children }) => {
 
       // Fallback: try direct employees table lookup
       if (!normalized) {
-        const { data: empById } = await supabase
+        const { data: empById } = await dbClient
           .from('employees')
           .select('*')
           .eq('user_id', sessionUser.id)
@@ -266,7 +255,7 @@ export const InternalAuthProvider = ({ children }) => {
       }
 
       if (!normalized) {
-        const { data: empByEmail } = await supabase
+        const { data: empByEmail } = await dbClient
           .from('employees')
           .select('*')
           .eq('email', email)
@@ -305,7 +294,7 @@ export const InternalAuthProvider = ({ children }) => {
     } catch (error) {
       const normalizedError =
         error instanceof Error ? error : new Error('Login failed');
-      await supabase.auth.signOut();
+      await dbClient.auth.signOut();
       setUser(null);
       setIsAuthenticated(false);
 
@@ -322,7 +311,7 @@ export const InternalAuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await dbClient.auth.signOut();
     setUser(null);
     setIsAuthenticated(false);
     toast({ title: 'Logged Out', description: 'You have been logged out successfully.' });

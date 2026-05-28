@@ -18,7 +18,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/modules/vendor/context/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -911,7 +911,7 @@ const Messages = () => {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getUser().then(({ data }) => {
+    dbClient.auth.getUser().then(({ data }) => {
       if (!active) return;
       setActorUserId(String(data?.user?.id || ''));
     });
@@ -1321,7 +1321,7 @@ const Messages = () => {
 
     fetchMessages(selectedChatId, { proposalIds: activeProposalIds });
 
-    let channel = supabase.channel(`proposal-chat-${selectedChatId}`, {
+    let channel = dbClient.channel(`proposal-chat-${selectedChatId}`, {
       config: { presence: { key: presenceKey } },
     });
 
@@ -1417,7 +1417,7 @@ const Messages = () => {
       setPresenceByUserId({});
       clearInterval(backgroundSyncId);
       if (fallbackPollId) clearInterval(fallbackPollId);
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
     };
   }, [selectedChatId, selectedChat, resolvedActorUserId]);
 
@@ -1906,7 +1906,7 @@ const Messages = () => {
                               y: event.clientY,
                             });
                           }}
-                          className={`max-w-[70%] px-4 py-2 rounded-xl text-sm ${
+                          className={`w-[70vw] px-4 py-2 rounded-xl text-sm ${
                             isMe
                               ? 'bg-[#003D82] text-white rounded-tr-none'
                               : 'bg-white border text-gray-800 rounded-tl-none'
@@ -2076,7 +2076,7 @@ const Messages = () => {
             <X className="h-5 w-5" />
           </button>
           <div
-            className="relative z-10 w-full max-w-sm rounded-xl bg-white p-3 shadow-2xl"
+            className="relative z-10 w-full w-[24vw] rounded-xl bg-white p-3 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <img

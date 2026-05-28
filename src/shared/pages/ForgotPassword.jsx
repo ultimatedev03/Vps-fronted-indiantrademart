@@ -269,7 +269,7 @@ const ForgotPassword = () => {
         <Logo />
       </div>
 
-      <Card className="w-full max-w-md shadow-lg border-t-4 border-t-[#003D82]">
+      <Card className="w-[92vw] sm:w-[28vw] shadow-lg border-t-4 border-t-[#003D82]">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center text-[#003D82]">
             Reset Password

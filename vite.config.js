@@ -63,6 +63,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
       proxy: {
         '/api': { target: backendUrl, changeOrigin: true, rewrite: (p) => p },
+        '/uploads': { target: backendUrl, changeOrigin: true, rewrite: (p) => p },
       },
     },
     resolve: {

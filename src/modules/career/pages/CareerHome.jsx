@@ -51,17 +51,17 @@ const CareerHome = () => {
       {/* Hero */}
       <section className="relative overflow-hidden bg-slate-900 py-16 text-white sm:py-20 xl:py-28">
          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-10" />
-         <div className="container mx-auto px-4 relative z-10 text-center">
+         <div className="w-[92vw] mx-auto relative z-10 text-center">
             <span className="inline-block py-1 px-3 rounded-full bg-rose-500/20 text-rose-300 text-sm font-medium mb-6 border border-rose-500/30">
                We are hiring!
             </span>
-            <h1 className="mx-auto mb-6 max-w-4xl text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl">
+            <h1 className="mx-auto mb-6 w-[60vw] text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl">
                Build the Future of B2B Trade
             </h1>
-            <p className="mx-auto mb-10 max-w-2xl text-lg text-slate-300 sm:text-xl">
+            <p className="mx-auto mb-10 w-[44vw] text-lg text-slate-300 sm:text-xl">
                Join a team of passionate innovators revolutionizing how India does business. We're looking for thinkers, doers, and dreamers.
             </p>
-            <div className="mx-auto flex max-w-xl flex-col justify-center gap-4 sm:flex-row">
+            <div className="mx-auto flex w-[36vw] flex-col justify-center gap-4 sm:flex-row">
                <div className="relative flex-1">
                   <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
                   <input 
@@ -82,7 +82,7 @@ const CareerHome = () => {
 
       {/* Stats */}
       <section className="border-b border-slate-200 bg-white py-10 sm:py-12">
-         <div className="container mx-auto px-4">
+         <div className="w-[92vw] mx-auto">
             <div className="grid grid-cols-2 gap-6 text-center sm:gap-8 md:grid-cols-4">
                <div>
                   <div className="text-3xl font-bold text-slate-900 mb-1">500+</div>
@@ -106,10 +106,10 @@ const CareerHome = () => {
 
       {/* Open Roles */}
       <section id="career-openings" className="bg-slate-50 py-16 sm:py-20">
-         <div className="container mx-auto px-4">
+         <div className="w-[92vw] mx-auto">
             <h2 className="text-3xl font-bold text-slate-900 mb-10 text-center">Current Openings</h2>
             
-            <div className="grid gap-4 max-w-3xl mx-auto">
+            <div className="grid gap-4 w-[52vw] mx-auto">
                {filteredOpenings.map((job, idx) => (
                   <div key={idx} className="group flex cursor-pointer flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 transition-all hover:border-rose-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
                      <div className="min-w-0">
@@ -153,7 +153,7 @@ const CareerHome = () => {
       
       {/* Culture */}
       <section className="bg-white py-16 sm:py-20">
-         <div className="container mx-auto px-4">
+         <div className="w-[92vw] mx-auto">
             <div className="grid grid-cols-1 gap-12 items-center lg:grid-cols-2">
                <div>
                   <h2 className="text-3xl font-bold text-slate-900 mb-6">Life at IndianTradeMart</h2>

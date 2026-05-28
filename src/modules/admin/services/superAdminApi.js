@@ -1,7 +1,7 @@
 /**
  * superAdminApi.js — Super Admin service (backend-first)
  *
- * MIGRATION: All direct Supabase calls removed.
+ * MIGRATION: All direct MySQL calls removed.
  * Routes through /api/superadmin/* on the Express backend, which enforces
  * superadmin-level auth, audit logging, and role checks.
  */

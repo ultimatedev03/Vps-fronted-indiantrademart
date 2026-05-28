@@ -1,5 +1,5 @@
 // ✅ File: src/modules/directory/api/directoryApi.js
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 // ✅ helper (only used for getTopCities fallback slug)
 const slugify = (text = '') =>
@@ -59,7 +59,7 @@ const pickFirstImageUrl = (images) => {
 
 export const directoryApi = {
   getHeadCategories: async () => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('head_categories')
       .select('id, name, slug, image_url, description')
       .eq('is_active', true)
@@ -70,10 +70,10 @@ export const directoryApi = {
   },
 
   getSubCategories: async (headSlug) => {
-    const { data: head } = await supabase.from('head_categories').select('id').eq('slug', headSlug).single();
+    const { data: head } = await dbClient.from('head_categories').select('id').eq('slug', headSlug).single();
     if (!head) return [];
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('sub_categories')
       .select('id, name, slug, image_url, description')
       .eq('head_category_id', head.id)
@@ -91,7 +91,7 @@ export const directoryApi = {
     let subId = null;
 
     if (headSlug) {
-      const { data: head, error: headErr } = await supabase
+      const { data: head, error: headErr } = await dbClient
         .from('head_categories')
         .select('id')
         .eq('slug', headSlug)
@@ -102,7 +102,7 @@ export const directoryApi = {
       const headId = head?.[0]?.id;
       if (!headId) return [];
 
-      const { data: subs, error: subErr } = await supabase
+      const { data: subs, error: subErr } = await dbClient
         .from('sub_categories')
         .select('id')
         .eq('slug', subSlug)
@@ -112,7 +112,7 @@ export const directoryApi = {
       if (subErr) throw subErr;
       subId = subs?.[0]?.id || null;
     } else {
-      const { data: subs, error: subErr } = await supabase
+      const { data: subs, error: subErr } = await dbClient
         .from('sub_categories')
         .select('id')
         .eq('slug', subSlug)
@@ -124,7 +124,7 @@ export const directoryApi = {
 
     if (!subId) return [];
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('micro_categories')
       .select('id, name, slug, sort_order, image_url')
       .eq('sub_category_id', subId)
@@ -144,7 +144,7 @@ export const directoryApi = {
       if (ids.length === 0) return {};
 
       // 1) First prefer explicit micro category images (if configured)
-      const { data: microData, error: microErr } = await supabase
+      const { data: microData, error: microErr } = await dbClient
         .from('micro_categories')
         .select('id, image_url')
         .in('id', ids);
@@ -161,7 +161,7 @@ export const directoryApi = {
       const missing = ids.filter((id) => !map[id]);
       if (missing.length === 0) return map;
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .select('micro_category_id, images, created_at, vendors!inner(is_active)')
         .in('micro_category_id', missing)
@@ -199,7 +199,7 @@ export const directoryApi = {
 
       const fetchLimit = Math.min(ids.length * per * 3, 600);
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .select('id, name, slug, price, images, micro_category_id, created_at, vendors!inner(is_active)')
         .in('micro_category_id', ids)
@@ -231,7 +231,7 @@ export const directoryApi = {
 
     let results = [];
 
-    const { data: microData, error: microError } = await supabase
+    const { data: microData, error: microError } = await dbClient
       .from('micro_categories')
       .select(`
         id, name, slug, 
@@ -256,7 +256,7 @@ export const directoryApi = {
 
     // (keeping as-is; optional: you can tighten by checking active vendors too)
     if (results.length < 6) {
-      const { data: prodData, error: prodError } = await supabase
+      const { data: prodData, error: prodError } = await dbClient
         .from('products')
         .select('id, micro_category_id, status')
         .ilike('name', `%${q}%`)
@@ -267,7 +267,7 @@ export const directoryApi = {
         const microIds = Array.from(new Set((prodData || []).map(p => p.micro_category_id).filter(Boolean)));
 
         if (microIds.length > 0) {
-          const { data: microFromProducts, error: mpErr } = await supabase
+          const { data: microFromProducts, error: mpErr } = await dbClient
             .from('micro_categories')
             .select(`
               id, name, slug,
@@ -296,7 +296,7 @@ export const directoryApi = {
     }
 
     if (results.length < 5) {
-      const { data: subData, error: subError } = await supabase
+      const { data: subData, error: subError } = await dbClient
         .from('sub_categories')
         .select(`
           id, name, slug,
@@ -340,7 +340,7 @@ export const directoryApi = {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    let query = supabase
+    let query = dbClient
       .from('products')
       .select(`
         *,
@@ -374,7 +374,7 @@ export const directoryApi = {
 
     if (microIds.length > 0) {
       try {
-        const { data: categoryRows, error: categoryError } = await supabase
+        const { data: categoryRows, error: categoryError } = await dbClient
           .from('micro_categories')
           .select(`
             id, name, slug,
@@ -404,7 +404,7 @@ export const directoryApi = {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    let query = supabase
+    let query = dbClient
       .from('products')
       .select(`
         *,
@@ -418,7 +418,7 @@ export const directoryApi = {
       .eq('vendors.is_active', true);
 
     if (microSlug) {
-      const { data: micro, error: microErr } = await supabase
+      const { data: micro, error: microErr } = await dbClient
         .from('micro_categories')
         .select('id')
         .eq('slug', microSlug)
@@ -449,7 +449,7 @@ export const directoryApi = {
 
   // ✅ UPDATED: return null if vendor suspended (hide)
   getProductDetailBySlug: async (slug) => {
-    const { data: product, error } = await supabase
+    const { data: product, error } = await dbClient
       .from('products')
       .select(`
         *,
@@ -463,7 +463,7 @@ export const directoryApi = {
     if (!product) return null;
 
     if (product && product.micro_category_id) {
-      const { data: catData } = await supabase
+      const { data: catData } = await dbClient
         .from('micro_categories')
         .select(`
           id, name, slug, image_url,
@@ -489,13 +489,13 @@ export const directoryApi = {
           const extraIds = extraCategories.map(c => c?.id).filter(Boolean);
 
           if (extraIds.length > 0) {
-            let metaRes = await supabase
+            let metaRes = await dbClient
               .from('micro_category_meta')
               .select('micro_categories, meta_tags, description')
               .in('micro_categories', extraIds);
 
             if (metaRes.error && isMissingColumnError(metaRes.error)) {
-              metaRes = await supabase
+              metaRes = await dbClient
                 .from('micro_category_meta')
                 .select('micro_category_id, meta_tags, description')
                 .in('micro_category_id', extraIds);
@@ -517,7 +517,7 @@ export const directoryApi = {
 
     if (product && product.micro_category_id) {
       try {
-        let metaRes = await supabase
+        let metaRes = await dbClient
           .from('micro_category_meta')
           .select('meta_tags, description')
           .eq('micro_categories', product.micro_category_id)
@@ -526,7 +526,7 @@ export const directoryApi = {
           .maybeSingle();
 
         if (metaRes.error && isMissingColumnError(metaRes.error)) {
-          metaRes = await supabase
+          metaRes = await dbClient
             .from('micro_category_meta')
             .select('meta_tags, description')
             .eq('micro_category_id', product.micro_category_id)
@@ -552,7 +552,7 @@ export const directoryApi = {
   },
 
   getStates: async () => {
-    const { data } = await supabase.from('states').select('id, name, slug').order('name');
+    const { data } = await dbClient.from('states').select('id, name, slug').order('name');
     return data || [];
   },
 
@@ -561,7 +561,7 @@ export const directoryApi = {
     if (!stateId) return [];
 
     // try misspelled column first
-    let res = await supabase
+    let res = await dbClient
       .from('cities')
       .select('id, name, slug, suplier_count')
       .eq('state_id', stateId)
@@ -569,7 +569,7 @@ export const directoryApi = {
 
     // fallback if schema has supplier_count
     if (res?.error) {
-      res = await supabase
+      res = await dbClient
         .from('cities')
         .select('id, name, slug, supplier_count')
         .eq('state_id', stateId)
@@ -578,7 +578,7 @@ export const directoryApi = {
 
     // final fallback without count
     if (res?.error) {
-      res = await supabase
+      res = await dbClient
         .from('cities')
         .select('id, name, slug')
         .eq('state_id', stateId)
@@ -611,7 +611,7 @@ export const directoryApi = {
     if (!Number.isFinite(n) || n <= 0) n = 200;
 
     // 1) try with suplier_count (your DB)
-    let res = await supabase
+    let res = await dbClient
       .from('cities')
       .select('id, name, slug, suplier_count')
       .order('suplier_count', { ascending: false })
@@ -620,7 +620,7 @@ export const directoryApi = {
 
     // 2) fallback: supplier_count
     if (res?.error) {
-      res = await supabase
+      res = await dbClient
         .from('cities')
         .select('id, name, slug, supplier_count')
         .order('supplier_count', { ascending: false })
@@ -630,7 +630,7 @@ export const directoryApi = {
 
     // 3) fallback: no count
     if (res?.error) {
-      res = await supabase
+      res = await dbClient
         .from('cities')
         .select('id, name, slug')
         .order('name', { ascending: true })
@@ -656,14 +656,14 @@ export const directoryApi = {
 
   getHeadCategoryBySlug: async (headSlug) => {
     if (!headSlug) return null;
-    let res = await supabase
+    let res = await dbClient
       .from('head_categories')
       .select('id, name, slug, description, meta_tags, keywords')
       .eq('slug', headSlug)
       .limit(1);
 
     if (res.error && isMissingColumnError(res.error)) {
-      res = await supabase
+      res = await dbClient
         .from('head_categories')
         .select('id, name, slug, description')
         .eq('slug', headSlug)
@@ -679,7 +679,7 @@ export const directoryApi = {
 
     let headId = null;
     if (headSlug) {
-      const { data: head } = await supabase
+      const { data: head } = await dbClient
         .from('head_categories')
         .select('id')
         .eq('slug', headSlug)
@@ -687,13 +687,13 @@ export const directoryApi = {
       headId = head?.[0]?.id || null;
     }
 
-    let res = await supabase
+    let res = await dbClient
       .from('sub_categories')
       .select('id, name, slug, description, meta_tags, keywords, head_category_id')
       .eq('slug', subSlug)
       .limit(1);
 
-    if (headId) res = await supabase
+    if (headId) res = await dbClient
       .from('sub_categories')
       .select('id, name, slug, description, meta_tags, keywords, head_category_id')
       .eq('slug', subSlug)
@@ -701,14 +701,14 @@ export const directoryApi = {
       .limit(1);
 
     if (res.error && isMissingColumnError(res.error)) {
-      res = await supabase
+      res = await dbClient
         .from('sub_categories')
         .select('id, name, slug, description, head_category_id')
         .eq('slug', subSlug)
         .limit(1);
 
       if (headId) {
-        res = await supabase
+        res = await dbClient
           .from('sub_categories')
           .select('id, name, slug, description, head_category_id')
           .eq('slug', subSlug)
@@ -723,7 +723,7 @@ export const directoryApi = {
 
   getMicroCategoryBySlug: async (microSlug) => {
     try {
-      const { data: micro, error } = await supabase
+      const { data: micro, error } = await dbClient
         .from('micro_categories')
         .select(`
           id, name, slug,
@@ -740,7 +740,7 @@ export const directoryApi = {
       if (error || !micro) return null;
 
       const runMetaQuery = async (col, fields) =>
-        supabase
+        dbClient
           .from('micro_category_meta')
           .select(fields)
           .eq(col, micro.id)
@@ -777,7 +777,7 @@ export const directoryApi = {
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
-      const { data: micro, error: microError } = await supabase
+      const { data: micro, error: microError } = await dbClient
         .from('micro_categories')
         .select('id')
         .eq('slug', microSlug)
@@ -787,7 +787,7 @@ export const directoryApi = {
 
       if (microError || !micro) return { data: [], count: 0 };
 
-      let query = supabase
+      let query = dbClient
         .from('products')
         .select(`
           *,

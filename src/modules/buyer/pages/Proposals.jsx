@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, FileText, Loader2, Calendar, ArrowRightLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { buyerApi } from '@/modules/buyer/services/buyerApi';
 import { toast } from '@/components/ui/use-toast';
 
@@ -116,10 +116,6 @@ const Proposals = () => {
           __status: cls.displayStatus, // ✅ buyer-side corrected status for quotation
           __qtyText: qtyText,
           __budgetText: budgetPretty ? `₹${budgetPretty}` : (p.budget ? `₹${p.budget}` : null),
-          __sourceNote:
-            cls.kind === 'QUOTATION'
-              ? 'Vendor ne aapki enquiry ke reply me quotation bheja.'
-              : 'Aapne vendor ko requirement/proposal bheja.',
         };
       });
 
@@ -140,7 +136,6 @@ const Proposals = () => {
           __status: normalizeUpper(l.status || 'SENT'),
           __qtyText: qtyText,
           __budgetText: budgetPretty ? `₹${budgetPretty}` : (l.budget ? `₹${l.budget}` : null),
-          __sourceNote: 'Aapne vendor ko enquiry/lead bheji.',
         };
       });
 
@@ -253,7 +248,7 @@ const Proposals = () => {
           <h2 className="text-2xl font-bold text-[#003D82]">My Enquiries & Proposals</h2>
         </div>
 
-        <div className="flex items-center gap-2 max-w-sm">
+        <div className="flex items-center gap-2 w-[24vw]">
           <div className="relative w-full">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
@@ -432,11 +427,6 @@ const Proposals = () => {
                             Reply to your enquiry: <span className="font-medium">{item.__replyTo.__title}</span>
                           </span>
                         </div>
-                      ) : null}
-
-                      {/* small note */}
-                      {item.__sourceNote ? (
-                        <p className="text-xs text-gray-500">{item.__sourceNote}</p>
                       ) : null}
 
                       {item.description ? (

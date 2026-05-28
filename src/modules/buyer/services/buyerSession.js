@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 
@@ -18,7 +18,7 @@ export const isAlreadyRegisteredError = (error) => {
 };
 
 export const getAuthUserOrThrow = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error } = await dbClient.auth.getUser();
   if (error) throw error;
   if (!user) throw new Error('Not authenticated');
   return user;
@@ -46,11 +46,11 @@ const fetchBuyerFromAuthMe = async () => {
   }
 };
 
-const fetchBuyerFromSupabase = async (user) => {
+const fetchBuyerFromMySQL = async (user) => {
   if (!user?.id && !user?.email) return null;
 
   if (user?.id) {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('buyers')
       .select('*')
       .eq('user_id', user.id)
@@ -59,7 +59,7 @@ const fetchBuyerFromSupabase = async (user) => {
   }
 
   if (user?.id) {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('buyers')
       .select('*')
       .eq('id', user.id)
@@ -69,7 +69,7 @@ const fetchBuyerFromSupabase = async (user) => {
 
   const email = normalizeEmail(user?.email);
   if (email) {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from('buyers')
       .select('*')
       .eq('email', email)
@@ -97,7 +97,7 @@ export const resolveBuyerProfile = async ({ required = false } = {}) => {
   const load = (async () => {
     let buyer = await fetchBuyerFromApi();
     if (!buyer) buyer = await fetchBuyerFromAuthMe();
-    if (!buyer) buyer = await fetchBuyerFromSupabase(user);
+    if (!buyer) buyer = await fetchBuyerFromMySQL(user);
     return buyer || null;
   })();
 

@@ -89,9 +89,9 @@ export const categoryApi = {
   },
 
   seedCategories: async (jsonData) => {
-    // Currently relying on edge functions, left as is if not hitting supabase client.
+    // Currently relying on edge functions, left as is if not hitting dbClient client.
     // Assuming backend will handle this, but for now we leave it stubbed or unchanged
-    // to strictly remove direct supabase imports from here.
+    // to strictly remove direct dbClient imports from here.
     const res = await fetch(apiUrl('/api/dir/categories/seed'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

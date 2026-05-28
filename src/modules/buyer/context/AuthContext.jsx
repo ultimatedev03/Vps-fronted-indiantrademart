@@ -7,9 +7,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAuth } from "@/contexts/SupabaseAuthContext";
+import { useAuth } from "@/contexts/AppAuthContext";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/customSupabaseClient";
+import { dbClient } from "@/lib/dbClient";
 import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
 import { apiUrl } from "@/lib/apiBase";
 
@@ -46,7 +46,7 @@ async function fetchBuyerRow({ userId, email }) {
 
   // 1) best: buyers.user_id == auth user.id
   if (userId) {
-    const res1 = await supabase
+    const res1 = await dbClient
       .from("buyers")
       .select("*")
       .eq("user_id", userId)
@@ -57,7 +57,7 @@ async function fetchBuyerRow({ userId, email }) {
 
   // 2) fallback: buyers.id == userId
   if (userId) {
-    const res2 = await supabase
+    const res2 = await dbClient
       .from("buyers")
       .select("*")
       .eq("id", userId)
@@ -68,7 +68,7 @@ async function fetchBuyerRow({ userId, email }) {
 
   // 3) fallback: buyers.email == email
   if (email) {
-    const res3 = await supabase
+    const res3 = await dbClient
       .from("buyers")
       .select("*")
       .ilike("email", String(email))
@@ -85,7 +85,7 @@ async function resolvePresenceUserId({ userId, email }) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
   if (primaryId) {
-    const { data: byId, error: byIdError } = await supabase
+    const { data: byId, error: byIdError } = await dbClient
       .from("users")
       .select("id")
       .eq("id", primaryId)
@@ -94,7 +94,7 @@ async function resolvePresenceUserId({ userId, email }) {
   }
 
   if (normalizedEmail) {
-    const { data: byEmail, error: byEmailError } = await supabase
+    const { data: byEmail, error: byEmailError } = await dbClient
       .from("users")
       .select("id")
       .ilike("email", normalizedEmail)
@@ -269,7 +269,7 @@ export const BuyerAuthProvider = ({ children }) => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
+    const channel = dbClient
       .channel(`buyer-status-${user.id}`)
       .on(
         "postgres_changes",
@@ -291,12 +291,12 @@ export const BuyerAuthProvider = ({ children }) => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
     };
   }, [user?.id, refreshBuyer]);
 
   // Low-frequency fallback for missed realtime events. Status changes should
-  // arrive through Supabase realtime; polling every few seconds does not scale.
+  // arrive through MySQL realtime; polling every few seconds does not scale.
   useEffect(() => {
     if (!user?.id) return;
 
@@ -383,7 +383,7 @@ export const BuyerAuthProvider = ({ children }) => {
       at: new Date().toISOString(),
     });
 
-    const channel = supabase.channel("portal-online-status", {
+    const channel = dbClient.channel("portal-online-status", {
       config: { presence: { key: presenceKey } },
     });
     onlinePresenceChannelRef.current = channel;
@@ -412,7 +412,7 @@ export const BuyerAuthProvider = ({ children }) => {
         window.clearInterval(heartbeatId);
       }
       setPortalPresenceByUserId({});
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
       if (onlinePresenceChannelRef.current === channel) {
         onlinePresenceChannelRef.current = null;
       }

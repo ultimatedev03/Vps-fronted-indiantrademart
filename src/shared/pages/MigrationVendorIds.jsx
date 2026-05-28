@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 
@@ -27,7 +27,7 @@ const MigrationVendorIds = () => {
   const loadVendors = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendors')
         .select('id, email, owner_name, company_name, phone, vendor_id')
         .order('created_at', { ascending: false });
@@ -114,7 +114,7 @@ const MigrationVendorIds = () => {
 
       // Ensure uniqueness
       while (!isUnique && attempts < 10) {
-        const { data: existing } = await supabase
+        const { data: existing } = await dbClient
           .from('vendors')
           .select('id')
           .eq('vendor_id', vendorId)
@@ -139,7 +139,7 @@ const MigrationVendorIds = () => {
       }));
 
       // Update vendor in database
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('vendors')
         .update({ vendor_id: vendorId })
         .eq('id', vendor.id);
@@ -255,7 +255,7 @@ const MigrationVendorIds = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="w-[78vw] mx-auto">
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-3xl">Vendor ID Migration</CardTitle>

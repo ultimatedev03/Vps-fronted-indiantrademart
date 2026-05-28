@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 
@@ -47,7 +47,7 @@ const buildEmployeeUser = (authUser, empRow) => {
 };
 
 const fetchEmployeeRow = async (authUserId) => {
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('employees')
     .select('*')
     .eq('user_id', authUserId)
@@ -65,7 +65,7 @@ const fetchEmployeeRowByEmail = async (email) => {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from('employees')
     .select('*')
     .eq('email', normalizedEmail)
@@ -109,12 +109,12 @@ export const employeeApi = {
      */
     login: async (email, password, captcha = {}, expectedRole = '') => {
       try {
-        await supabase.auth.signOut();
+        await dbClient.auth.signOut();
       } catch {
         // ignore stale session cleanup errors before fresh login
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await dbClient.auth.signInWithPassword({
         email,
         password,
         ...(captcha?.captcha_token ? { captcha_token: captcha.captcha_token } : {}),
@@ -128,7 +128,7 @@ export const employeeApi = {
       const hintedRole = getAuthHintedRole(data.user);
 
       if (normalizedExpectedRole && hintedRole && hintedRole !== normalizedExpectedRole) {
-        await supabase.auth.signOut();
+        await dbClient.auth.signOut();
         throw new Error(
           `${formatRoleLabel(hintedRole)} accounts must use the ${formatRoleLabel(normalizedExpectedRole)} Login.`
         );
@@ -146,7 +146,7 @@ export const employeeApi = {
       }
 
       if (!empRow) {
-        await supabase.auth.signOut();
+        await dbClient.auth.signOut();
         // If you want to allow auth-only login, you can remove this throw.
         throw new Error('No employee profile found. Please ask admin to create your employee account.');
       }
@@ -155,7 +155,7 @@ export const employeeApi = {
       const user = buildEmployeeUser(data.user, { ...empRow, role: resolvedRole });
 
       if (normalizedExpectedRole && resolvedRole !== normalizedExpectedRole) {
-        await supabase.auth.signOut();
+        await dbClient.auth.signOut();
         throw new Error(
           `${formatRoleLabel(resolvedRole)} accounts must use the ${formatRoleLabel(normalizedExpectedRole)} Login.`
         );
@@ -165,7 +165,7 @@ export const employeeApi = {
     },
 
     logout: async () => {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await dbClient.auth.signOut();
       if (error) throw new Error(error.message);
       return true;
     },
@@ -174,7 +174,7 @@ export const employeeApi = {
      * Restore session and return employee profile (if available).
      */
     getCurrentUser: async () => {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await dbClient.auth.getSession();
       if (sessionError) {
         console.error('[employeeApi] getSession error:', sessionError);
         return null;

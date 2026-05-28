@@ -86,7 +86,7 @@ const BrowseByIndustry = ({ limit = 9 }) => {
   if (loading) {
     return (
       <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4 text-center">
+        <div className="w-[92vw] mx-auto text-center">
           <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto" />
         </div>
       </section>
@@ -95,11 +95,11 @@ const BrowseByIndustry = ({ limit = 9 }) => {
 
   return (
     <section className="py-12 bg-gray-50">
-      <div className="container mx-auto px-4">
+      <div className="w-[92vw] mx-auto">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Browse by Industry</h1>
-          <p className="text-gray-600 text-lg max-w-2xl">
+          <p className="text-gray-600 text-lg w-[44vw]">
             Comprehensive product listings from top manufacturers and verified suppliers across key sectors.
           </p>
         </div>

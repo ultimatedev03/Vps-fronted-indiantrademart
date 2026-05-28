@@ -2,22 +2,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
 import Papa from 'papaparse';
-import { createClient } from '@supabase/supabase-js';
+import { db } from './mysqlToolClient.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  // eslint-disable-next-line no-console
-  console.error('Missing SUPABASE_URL/VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
-  process.exit(1);
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-});
 
 const chunk = (arr, size = 500) => {
   const out = [];
@@ -94,8 +81,8 @@ async function readCsv(filePath) {
 
 async function loadStateCityMaps() {
   const [{ data: states, error: stateErr }, { data: cities, error: cityErr }] = await Promise.all([
-    supabase.from('states').select('id, name'),
-    supabase.from('cities').select('id, name, state_id'),
+    db.from('states').select('id, name'),
+    db.from('cities').select('id, name, state_id'),
   ]);
 
   if (stateErr) throw new Error(`Failed to load states: ${stateErr.message}`);
@@ -160,7 +147,7 @@ async function upsertDivisions(divisionRows = [], dryRun = false) {
 
   const divisionByKey = new Map();
   for (const group of chunk(divisionRows, 400)) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('geo_divisions')
       .upsert(group, { onConflict: 'division_key' })
       .select('id, division_key');
@@ -174,7 +161,7 @@ async function upsertDivisions(divisionRows = [], dryRun = false) {
   if (divisionByKey.size < divisionRows.length) {
     const keys = unique(divisionRows.map((d) => d.division_key));
     for (const group of chunk(keys, 500)) {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('geo_divisions')
         .select('id, division_key')
         .in('division_key', group);
@@ -191,7 +178,7 @@ async function upsertDivisions(divisionRows = [], dryRun = false) {
 async function upsertDivisionPincodes(divisionPincodeRows = [], dryRun = false) {
   if (!divisionPincodeRows.length || dryRun) return 0;
   for (const group of chunk(divisionPincodeRows, 800)) {
-    const { error } = await supabase
+    const { error } = await db
       .from('geo_division_pincodes')
       .upsert(group, { onConflict: 'division_id,pincode' });
     if (error) throw new Error(`Failed to upsert division pincodes: ${error.message}`);
@@ -202,7 +189,7 @@ async function upsertDivisionPincodes(divisionPincodeRows = [], dryRun = false) 
 async function insertRawRows(rawRows = [], dryRun = false) {
   if (!rawRows.length || dryRun) return 0;
   for (const group of chunk(rawRows, 1000)) {
-    const { error } = await supabase.from('geo_postal_raw').insert(group);
+    const { error } = await db.from('geo_postal_raw').insert(group);
     if (error) throw new Error(`Failed to insert raw postal rows: ${error.message}`);
   }
   return rawRows.length;
@@ -388,8 +375,10 @@ async function main() {
   console.log('Done.');
 }
 
-main().catch((error) => {
-  // eslint-disable-next-line no-console
-  console.error(error?.message || error);
-  process.exit(1);
-});
+main()
+  .catch((error) => {
+    // eslint-disable-next-line no-console
+    console.error(error?.message || error);
+    process.exitCode = 1;
+  })
+  .finally(() => db.close());

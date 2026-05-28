@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { useInternalAuth } from '@/modules/admin/context/InternalAuthContext';
 import { useAuth as useVendorAuth } from '@/modules/vendor/context/AuthContext';
 

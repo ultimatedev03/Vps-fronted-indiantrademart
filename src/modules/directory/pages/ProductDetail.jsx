@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ import {
 import { shareUtils } from '@/shared/utils/shareUtils';
 import { phoneUtils } from '@/shared/utils/phoneUtils';
 import { toast } from '@/components/ui/use-toast';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { productFavorites } from '@/modules/buyer/services/productFavorites';
 import { productRatings, PRODUCT_RATINGS_UPDATED_EVENT } from '@/shared/services/productRatings';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
@@ -551,7 +551,7 @@ const ProductDetail = () => {
   const hydrateProduct = async (product) => {
     if (!product) return null;
     if (product.micro_category_id) {
-      const { data: catData } = await supabase
+      const { data: catData } = await dbClient
         .from('micro_categories')
         .select(
           `
@@ -567,13 +567,13 @@ const ProductDetail = () => {
       if (catData) {
         product.micro_categories = catData;
 
-        let metaRes = await supabase
+        let metaRes = await dbClient
           .from('micro_category_meta')
           .select('meta_tags, description')
           .eq('micro_categories', product.micro_category_id)
           .maybeSingle();
         if (metaRes.error && (metaRes.error.code === '42703' || /column .* does not exist/i.test(metaRes.error.message || ''))) {
-          metaRes = await supabase
+          metaRes = await dbClient
             .from('micro_category_meta')
             .select('meta_tags, description')
             .eq('micro_category_id', product.micro_category_id)
@@ -591,7 +591,7 @@ const ProductDetail = () => {
   const findProductByLegacySlug = async ({ slug, select, requireActiveVendor = false }) => {
     if (!slug) return null;
 
-    let query = supabase
+    let query = dbClient
       .from('products')
       .select(select)
       .eq('metadata->>legacy_slug', slug);
@@ -605,7 +605,7 @@ const ProductDetail = () => {
       return hydrateProduct(byPrimaryLegacySlug);
     }
 
-    let aliasQuery = supabase
+    let aliasQuery = dbClient
       .from('products')
       .select(select)
       .contains('metadata', { legacy_slugs: [slug] });
@@ -651,7 +651,7 @@ const ProductDetail = () => {
         // If not found (often due to vendor inactive), allow vendor owner to view
         if (!product && userRole === 'VENDOR' && currentVendorId) {
           for (const slugCandidate of slugCandidates) {
-            const { data: raw } = await supabase
+            const { data: raw } = await dbClient
               .from('products')
               .select('*, vendors(*)')
               .eq('slug', slugCandidate)
@@ -677,7 +677,7 @@ const ProductDetail = () => {
 
         // Fallback: try loading by ID (in case slug is actually an ID)
         if (!product) {
-          const { data: rawById } = await supabase
+          const { data: rawById } = await dbClient
             .from('products')
             .select('*, vendors(*)')
             .eq('id', productSlug)
@@ -866,7 +866,7 @@ const ProductDetail = () => {
           setEnquiryOpen(v);
         }}
       >
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent className="sm:w-[36vw]">
           <DialogHeader>
             <DialogTitle>Send Enquiry</DialogTitle>
             <DialogDescription>
@@ -962,7 +962,7 @@ const ProductDetail = () => {
       </Dialog>
 
       <Dialog open={ratingDialogOpen} onOpenChange={(v) => !savingRating && setRatingDialogOpen(v)}>
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent className="sm:w-[36vw]">
           <DialogHeader>
             <DialogTitle>Rate This Service</DialogTitle>
             <DialogDescription>
@@ -1045,7 +1045,7 @@ const ProductDetail = () => {
 
       {isDraft && (
         <div className="bg-yellow-50 border-b border-yellow-200 py-3 px-4 mb-0 shadow-sm">
-          <div className="container mx-auto text-sm text-yellow-800 flex items-center gap-2">
+          <div className="w-[92vw] mx-auto text-sm text-yellow-800 flex items-center gap-2">
             <span className="font-semibold">⚠️ Draft Product:</span> This product is in draft status and not visible
             to other buyers.
           </div>
@@ -1053,7 +1053,7 @@ const ProductDetail = () => {
       )}
 
       <div className="border-b border-slate-200 bg-white px-4 py-3">
-        <div className="container mx-auto flex flex-wrap gap-1 text-sm text-slate-500">
+        <div className="w-[92vw] mx-auto flex flex-wrap gap-1 text-sm text-slate-500">
           <Link to="/directory">Directory</Link> {' › '}
           {cat ? (
             <>
@@ -1080,7 +1080,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-[92vw] mx-auto py-8">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[300px_minmax(0,1fr)_300px] xl:grid-cols-[330px_minmax(0,1fr)_310px]">
           <aside className="lg:sticky lg:top-24">
             <div className="aspect-square overflow-hidden bg-slate-50">
@@ -1128,7 +1128,7 @@ const ProductDetail = () => {
                     </Badge>
                   ) : null}
                 </div>
-                <h1 className="max-w-4xl break-words text-[1.65rem] font-semibold leading-[1.22] text-slate-950 sm:text-[2rem] lg:text-[2.25rem]">
+                <h1 className="w-[60vw] break-words text-[1.65rem] font-semibold leading-[1.22] text-slate-950 sm:text-[2rem] lg:text-[2.25rem]">
                   {productName}
                 </h1>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
@@ -1208,7 +1208,7 @@ const ProductDetail = () => {
             <div className="mt-8 space-y-8">
               <section className="border-b border-slate-200 pb-8">
                 <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Overview</h2>
-                <p className="mt-3 max-w-[72ch] whitespace-pre-line break-words text-[15px] leading-8 text-slate-700">
+                <p className="mt-3 w-[52vw] whitespace-pre-line break-words text-[15px] leading-8 text-slate-700">
                   {visibleOverview}
                 </p>
                 {isOverviewLong && (

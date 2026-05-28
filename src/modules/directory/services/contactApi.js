@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 /**
  * Submit contact form to database
@@ -11,7 +11,7 @@ import { supabase } from '@/lib/customSupabaseClient';
  */
 export const submitContactForm = async (formData) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('contact_submissions')
       .insert([
         {

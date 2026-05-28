@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { vendorApi as vendorDataApi } from '@/modules/vendor/services/vendorApi';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { dataEntryApi } from '@/modules/employee/services/dataEntryApi';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +18,9 @@ import { ArrowLeft, ChevronDown, Loader2, Upload, X, Plus } from 'lucide-react';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 
 const MAX_IMAGES = 7;
-const MIN_PRODUCT_IMAGE_BYTES = 50 * 1024;
-const MAX_PRODUCT_IMAGE_BYTES = 1024 * 1024;
+const MIN_PRODUCT_IMAGE_BYTES = 10 * 1024;
+const MAX_PRODUCT_IMAGE_BYTES = 25 * 1024 * 1024;
+const MAX_PRODUCT_MEDIA_BYTES = 50 * 1024 * 1024;
 
 // ✅ IndiaMART-style common UOMs (practical + familiar)
 const UNIT_OPTIONS = [
@@ -657,7 +658,7 @@ const ProductForm = () => {
           url = await dataEntryApi.uploadProductMedia(file, 'image');
         } else {
           // Ensure auth + CSRF cookies are hydrated after refresh before upload starts.
-          await supabase.auth.getSession();
+          await dbClient.auth.getSession();
 
           try {
             url = await vendorApi.auth.uploadImage(file, 'product-images');
@@ -672,7 +673,7 @@ const ProductForm = () => {
             if (!shouldRetry) throw firstErr;
 
             // Retry once after forcing a fresh auth/session check.
-            await supabase.auth.getSession();
+            await dbClient.auth.getSession();
             url = await vendorApi.auth.uploadImage(file, 'product-images');
           }
         }
@@ -683,6 +684,65 @@ const ProductForm = () => {
       toast({
         title: 'Upload Failed',
         description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      input.value = '';
+    }
+  };
+
+  const handleProductMediaUpload = async (e, type) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const uploadType = String(type || '').toLowerCase();
+    const mime = String(file.type || '').toLowerCase();
+    const isAllowed =
+      (uploadType === 'video' && mime.startsWith('video/')) ||
+      (uploadType === 'pdf' && mime === 'application/pdf');
+
+    if (!isAllowed) {
+      toast({
+        title: 'Unsupported file',
+        description: uploadType === 'video' ? 'Please upload a video file.' : 'Please upload a PDF file.',
+        variant: 'destructive',
+      });
+      input.value = '';
+      return;
+    }
+
+    if (Number(file.size || 0) > MAX_PRODUCT_MEDIA_BYTES) {
+      toast({
+        title: 'File too large',
+        description: `Maximum source size is ${formatImageSize(MAX_PRODUCT_MEDIA_BYTES)}.`,
+        variant: 'destructive',
+      });
+      input.value = '';
+      return;
+    }
+
+    setUploading(true);
+    try {
+      let url;
+      if (isDataEntryMode) {
+        url = await dataEntryApi.uploadProductMedia(file, uploadType);
+      } else {
+        await dbClient.auth.getSession();
+        url = await vendorApi.auth.uploadImage(file, 'product-media');
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        [uploadType === 'video' ? 'video_url' : 'pdf_url']: url,
+      }));
+      toast({ title: `${uploadType === 'video' ? 'Video' : 'PDF'} uploaded` });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Upload failed',
+        description: error?.message || 'Please try again',
         variant: 'destructive',
       });
     } finally {
@@ -898,7 +958,7 @@ const ProductForm = () => {
       const stateSlug = (st?.slug || st?.name || '').toLowerCase().replace(/\s+/g, '-');
       const slug = stateSlug ? `${citySlug}-${stateSlug}` : citySlug;
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .insert([{ name: cityName, slug: slug, state_id: selectedStateId }])
         .select()
@@ -928,7 +988,7 @@ const ProductForm = () => {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto p-4 space-y-4 pb-24">
+    <div className="mx-auto w-full min-w-0 space-y-4 p-4 pb-24">
       <div className="flex items-center justify-between bg-white border rounded-md px-4 py-3 shadow-sm">
         <div>
           <div className="text-sm text-slate-500">
@@ -1032,7 +1092,7 @@ const ProductForm = () => {
                 </div>
               )}
               <p className="text-[11px] text-slate-500">
-                Allowed image size: {formatImageSize(MIN_PRODUCT_IMAGE_BYTES)} to {formatImageSize(MAX_PRODUCT_IMAGE_BYTES)}.
+                Images are optimized automatically. Source size: {formatImageSize(MIN_PRODUCT_IMAGE_BYTES)} to {formatImageSize(MAX_PRODUCT_IMAGE_BYTES)}.
               </p>
             </CardContent>
           </Card>
@@ -1051,6 +1111,18 @@ const ProductForm = () => {
                   }
                   placeholder="https://..."
                 />
+                <Button asChild type="button" variant="outline" size="sm" className="w-full" disabled={uploading}>
+                  <label className="cursor-pointer">
+                    <Upload className="mr-2 h-3.5 w-3.5" />
+                    Upload Video
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      onChange={(event) => handleProductMediaUpload(event, 'video')}
+                    />
+                  </label>
+                </Button>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Brochure (PDF URL)</Label>
@@ -1061,6 +1133,21 @@ const ProductForm = () => {
                   }
                   placeholder="https://..."
                 />
+                <Button asChild type="button" variant="outline" size="sm" className="w-full" disabled={uploading}>
+                  <label className="cursor-pointer">
+                    <Upload className="mr-2 h-3.5 w-3.5" />
+                    Upload PDF
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="application/pdf,.pdf"
+                      onChange={(event) => handleProductMediaUpload(event, 'pdf')}
+                    />
+                  </label>
+                </Button>
+                <p className="text-[11px] text-slate-500">
+                  Video delivery is optimized automatically when Cloudinary is configured. PDF uploads are stored safely.
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 
 const AuthContext = createContext({});
@@ -19,7 +19,7 @@ async function resolvePresenceUserId({ userId, email }) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
 
   if (primaryId) {
-    const { data: byId, error: byIdError } = await supabase
+    const { data: byId, error: byIdError } = await dbClient
       .from('users')
       .select('id')
       .eq('id', primaryId)
@@ -28,7 +28,7 @@ async function resolvePresenceUserId({ userId, email }) {
   }
 
   if (normalizedEmail) {
-    const { data: byEmail, error: byEmailError } = await supabase
+    const { data: byEmail, error: byEmailError } = await dbClient
       .from('users')
       .select('id')
       .ilike('email', normalizedEmail)
@@ -171,7 +171,7 @@ export const AuthProvider = ({ children }) => {
   // ✅ Refresh user (auth + vendor profile)
   const refreshUser = useCallback(async () => {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await dbClient.auth.getSession();
       if (error) throw error;
 
       if (!session?.user) {
@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      await dbClient.auth.signOut();
     } catch (e) {
       console.error('Logout error:', e);
     } finally {
@@ -255,7 +255,7 @@ export const AuthProvider = ({ children }) => {
 
     boot();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = dbClient.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
 
       if (session?.user) {
@@ -356,7 +356,7 @@ export const AuthProvider = ({ children }) => {
       at: new Date().toISOString(),
     });
 
-    const channel = supabase.channel('portal-online-status', {
+    const channel = dbClient.channel('portal-online-status', {
       config: { presence: { key: presenceKey } },
     });
     onlinePresenceChannelRef.current = channel;
@@ -385,7 +385,7 @@ export const AuthProvider = ({ children }) => {
         window.clearInterval(heartbeatId);
       }
       setPortalPresenceByUserId({});
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
       if (onlinePresenceChannelRef.current === channel) {
         onlinePresenceChannelRef.current = null;
       }

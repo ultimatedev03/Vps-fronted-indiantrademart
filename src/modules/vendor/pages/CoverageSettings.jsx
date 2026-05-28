@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,7 @@ const CoverageSettings = () => {
   // ---------- helpers ----------
   const ensureTrialActive = async () => {
     try {
-      const { data: active } = await supabase
+      const { data: active } = await dbClient
         .from('vendor_plan_subscriptions')
         .select('*, plan:vendor_plans(*)')
         .eq('vendor_id', vendorId)
@@ -52,7 +52,7 @@ const CoverageSettings = () => {
 
       const start = new Date();
       const end = new Date(start.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
-      const { data: trial, error } = await supabase
+      const { data: trial, error } = await dbClient
         .from('vendor_plan_subscriptions')
         .insert([{
           vendor_id: vendorId,
@@ -93,9 +93,9 @@ const CoverageSettings = () => {
   useEffect(() => {
     const fetchVendorId = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await dbClient.auth.getUser();
         if (!user) return;
-        const { data: vendor } = await supabase
+        const { data: vendor } = await dbClient
           .from('vendors')
           .select('id')
           .eq('user_id', user.id)
@@ -114,7 +114,7 @@ const CoverageSettings = () => {
       setLoading(true);
       try {
         // plan
-        const { data: sub } = await supabase
+        const { data: sub } = await dbClient
           .from('vendor_plan_subscriptions')
           .select('*, plan:vendor_plans(*)')
           .eq('vendor_id', vendorId)
@@ -129,7 +129,7 @@ const CoverageSettings = () => {
         setCoverageLimits(limits);
 
         // preferences
-        const { data: prefs } = await supabase
+        const { data: prefs } = await dbClient
           .from('vendor_preferences')
           .select('preferred_states, preferred_cities, preferred_micro_categories')
           .eq('vendor_id', vendorId)
@@ -154,7 +154,7 @@ const CoverageSettings = () => {
         setPreferredCategories(prefCats.slice(0, limits.categories));
 
         // states list
-        const { data: stateList } = await supabase
+        const { data: stateList } = await dbClient
           .from('states')
           .select('id, name')
           .eq('is_active', true)
@@ -164,7 +164,7 @@ const CoverageSettings = () => {
         // cities for selected states
           const selectedStateIds = prefStates;
           if (selectedStateIds.length) {
-            const { data: cities } = await supabase
+            const { data: cities } = await dbClient
               .from('cities')
               .select('id, name, state_id')
               .in('state_id', selectedStateIds)
@@ -179,7 +179,7 @@ const CoverageSettings = () => {
         }
 
         // sub categories
-        const { data: subCats } = await supabase
+        const { data: subCats } = await dbClient
           .from('sub_categories')
           .select('id, name, head_categories(id, name)')
           .eq('is_active', true)
@@ -188,7 +188,7 @@ const CoverageSettings = () => {
 
         // micro category details for selected preferences
         if (prefCats.length) {
-          const { data: microDetails } = await supabase
+          const { data: microDetails } = await dbClient
             .from('micro_categories')
             .select('id, name, sub_categories(id, name, head_categories(id, name))')
             .in('id', prefCats);
@@ -221,7 +221,7 @@ const CoverageSettings = () => {
     }
     setSelectedStates((p) => [...p, normalizedStateId]);
     if (!stateCities[normalizedStateId]) {
-      const { data: cities } = await supabase
+      const { data: cities } = await dbClient
         .from('cities')
         .select('id, name, state_id')
         .eq('state_id', normalizedStateId)
@@ -277,7 +277,7 @@ const CoverageSettings = () => {
       return;
     }
     try {
-      const { data } = await supabase
+      const { data } = await dbClient
         .from('micro_categories')
         .select('id, name, sub_categories(id, name, head_categories(id, name))')
         .eq('sub_category_id', subId)
@@ -363,14 +363,14 @@ const CoverageSettings = () => {
     const timer = setTimeout(async () => {
       try {
         const [microRes, subRes] = await Promise.all([
-          supabase
+          dbClient
             .from('micro_categories')
             .select('id, name, sub_categories(id, name, head_categories(id, name))')
             .ilike('name', `%${q}%`)
             .eq('is_active', true)
             .order('name')
             .limit(6),
-          supabase
+          dbClient
             .from('sub_categories')
             .select('id, name, head_categories(id, name)')
             .ilike('name', `%${q}%`)

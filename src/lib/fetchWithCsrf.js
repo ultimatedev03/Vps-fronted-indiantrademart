@@ -1,5 +1,5 @@
 
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -17,7 +17,7 @@ const getBackendAccessToken = async () => {
   try {
     const {
       data: { session },
-    } = await supabase.auth.getSession();
+    } = await dbClient.auth.getSession();
     return String(session?.backend_access_token || '').trim();
   } catch {
     return '';
@@ -43,7 +43,7 @@ const shouldAttachJsonContentType = (body) => {
 
 const refreshAuthContext = async () => {
   try {
-    await supabase.auth.getSession();
+    await dbClient.auth.getSession();
   } catch {
     // ignore session hydration failures
   }

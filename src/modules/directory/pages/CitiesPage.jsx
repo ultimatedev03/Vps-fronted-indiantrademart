@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, MapPin, ArrowLeft } from 'lucide-react';
@@ -18,7 +18,7 @@ const CitiesPage = () => {
       setLoading(true);
       try {
         // Load states first (so we can show the state name without relying on FK join names)
-        const { data: statesData, error: statesErr } = await supabase
+        const { data: statesData, error: statesErr } = await dbClient
           .from('states')
           .select('id, name, slug')
           .eq('is_active', true)
@@ -32,7 +32,7 @@ const CitiesPage = () => {
         setStatesMap(map);
 
         // Load all active cities
-        const { data: citiesData, error: citiesErr } = await supabase
+        const { data: citiesData, error: citiesErr } = await dbClient
           .from('cities')
           .select('id, name, slug, supplier_count, state_id')
           .eq('is_active', true)
@@ -79,7 +79,7 @@ const CitiesPage = () => {
       <div className="min-h-screen bg-slate-50">
         {/* Header */}
         <div className="bg-white border-b">
-          <div className="container mx-auto px-4 py-6">
+          <div className="w-[92vw] mx-auto py-6">
             <div className="flex items-center gap-3">
               <Button
                 type="button"
@@ -96,7 +96,7 @@ const CitiesPage = () => {
               </div>
             </div>
 
-            <div className="mt-5 max-w-xl">
+            <div className="mt-5 w-[36vw]">
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -107,7 +107,7 @@ const CitiesPage = () => {
         </div>
 
         {/* Content */}
-        <div className="container mx-auto px-4 py-10">
+        <div className="w-[92vw] mx-auto py-10">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-slate-600">
               <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading cities...

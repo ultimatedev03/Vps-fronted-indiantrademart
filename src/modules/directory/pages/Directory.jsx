@@ -53,10 +53,10 @@ const Directory = () => {
 
       {/* ✅ Hero Search (KEEP THIS SAME) */}
       <div className="bg-[#003D82] py-16 px-4">
-        <div className="container mx-auto max-w-4xl text-center">
+        <div className="w-[92vw] mx-auto w-[60vw] text-center">
           <h1 className="text-3xl md:text-5xl font-bold text-white mb-6">Find Products & Suppliers</h1>
 
-          <div className="max-w-4xl mx-auto">
+          <div className="w-[60vw] mx-auto">
             <DirectorySearchBar enableSuggestions className="shadow-xl" />
           </div>
 
@@ -65,7 +65,7 @@ const Directory = () => {
       </div>
 
       {/* ✅ Browse Industries (IndiaMART style showcase) */}
-      <div className="container mx-auto px-4 py-12">
+      <div className="w-[92vw] mx-auto py-12">
         <div className="flex items-center justify-between gap-4 mb-8">
           <h2 className="text-2xl font-bold text-slate-900">Browse Industries</h2>
 

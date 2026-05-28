@@ -380,10 +380,10 @@ const Tickets = () => {
                 <TableRow key={ticket.id} className="hover:bg-gray-50">
                   <TableCell>
                     <div>
-                      <p className="font-medium text-sm truncate max-w-[260px]">
+                      <p className="font-medium text-sm truncate w-[16vw]">
                         {ticket.subject || 'No Subject'}
                       </p>
-                      <p className="text-xs text-gray-500 truncate max-w-[260px]">
+                      <p className="text-xs text-gray-500 truncate w-[16vw]">
                         {ticket.description?.substring(0, 60)}...
                       </p>
                     </div>
@@ -393,12 +393,12 @@ const Tickets = () => {
                     {ticket.vendor_id ? (
                       <div className="flex items-center gap-2 text-sm text-gray-700">
                         <Building2 className="h-4 w-4 text-gray-400" />
-                        <span className="truncate max-w-[180px]">{ticket?.vendors?.company_name || 'Vendor'}</span>
+                        <span className="truncate w-[11vw]">{ticket?.vendors?.company_name || 'Vendor'}</span>
                       </div>
                     ) : ticket.buyer_id ? (
                       <div className="flex items-center gap-2 text-sm text-gray-700">
                         <User className="h-4 w-4 text-gray-400" />
-                        <span className="truncate max-w-[180px]">{ticket?.buyers?.full_name || ticket?.buyers?.company_name || 'Buyer'}</span>
+                        <span className="truncate w-[11vw]">{ticket?.buyers?.full_name || ticket?.buyers?.company_name || 'Buyer'}</span>
                       </div>
                     ) : (
                       <span className="text-xs text-gray-500">General</span>
@@ -434,7 +434,7 @@ const Tickets = () => {
       </div>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="w-[44vw] max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />

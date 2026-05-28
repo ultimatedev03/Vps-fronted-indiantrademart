@@ -1,9 +1,10 @@
 // ✅ File: src/modules/vendor/services/vendorApi.js
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { generateUniqueSlug, mergeProductSlugAliases } from '@/shared/utils/slugUtils';
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
+import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
 
 // ---------------- HELPERS ----------------
 
@@ -46,11 +47,11 @@ const getVendorId = async () => {
   const backendVendor = await getCurrentVendorProfile({ suppressAuthErrors: true });
   if (backendVendor?.id) return backendVendor.id;
 
-  const { data: { user }, error: uErr } = await supabase.auth.getUser();
+  const { data: { user }, error: uErr } = await dbClient.auth.getUser();
   if (uErr) throw uErr;
   if (!user) throw new Error('Not authenticated');
 
-  const { data: vendorByUser, error: byUserError } = await supabase
+  const { data: vendorByUser, error: byUserError } = await dbClient
     .from('vendors')
     .select('id, user_id, email')
     .eq('user_id', user.id)
@@ -67,7 +68,7 @@ const getVendorId = async () => {
     throw new Error('Vendor profile not found');
   }
 
-  const { data: vendorByEmail, error: byEmailError } = await supabase
+  const { data: vendorByEmail, error: byEmailError } = await dbClient
     .from('vendors')
     .select('id, user_id, email')
     .ilike('email', email)
@@ -86,7 +87,7 @@ const getVendorId = async () => {
 
   // Best effort relink for legacy rows missing user_id mapping.
   if (!vendorByEmail.user_id || vendorByEmail.user_id !== user.id) {
-    supabase
+    dbClient
       .from('vendors')
       .update({ user_id: user.id })
       .eq('id', vendorByEmail.id)
@@ -101,7 +102,7 @@ const getVendorCandidateIds = async () => {
   const backendVendor = await getCurrentVendorProfile({ suppressAuthErrors: true });
   if (backendVendor?.id) return [String(backendVendor.id)];
 
-  const { data: { user }, error: uErr } = await supabase.auth.getUser();
+  const { data: { user }, error: uErr } = await dbClient.auth.getUser();
   if (uErr) throw uErr;
   if (!user) throw new Error('Not authenticated');
 
@@ -110,7 +111,7 @@ const getVendorCandidateIds = async () => {
   const email = String(user.email || '').toLowerCase().trim();
 
   if (userId) {
-    const { data: byUserRows, error: byUserError } = await supabase
+    const { data: byUserRows, error: byUserError } = await dbClient
       .from('vendors')
       .select('id')
       .eq('user_id', userId)
@@ -126,7 +127,7 @@ const getVendorCandidateIds = async () => {
   }
 
   if (email) {
-    const { data: byEmailRows, error: byEmailError } = await supabase
+    const { data: byEmailRows, error: byEmailError } = await dbClient
       .from('vendors')
       .select('id')
       .ilike('email', email)
@@ -286,19 +287,19 @@ const enrichProductsWithCategoryNames = async (rows = []) => {
 
     const [microRes, subRes, headRes] = await Promise.all([
       microIds.size
-        ? supabase
+        ? dbClient
             .from('micro_categories')
             .select('id, name, sub_categories(id, name, head_categories(id, name))')
             .in('id', Array.from(microIds))
         : Promise.resolve({ data: [], error: null }),
       subIds.size
-        ? supabase
+        ? dbClient
             .from('sub_categories')
             .select('id, name, head_categories(id, name)')
             .in('id', Array.from(subIds))
         : Promise.resolve({ data: [], error: null }),
       headIds.size
-        ? supabase
+        ? dbClient
             .from('head_categories')
             .select('id, name')
             .in('id', Array.from(headIds))
@@ -449,7 +450,7 @@ const normalizeVendorAccountStatus = (vendor) => {
   const isVerified = vendor?.is_verified === true;
   const isActive = vendor?.is_active === true;
 
-  // Suspended/terminated means NOT active (but login can still happen via Supabase auth)
+  // Suspended/terminated means NOT active (but login can still happen via MySQL auth)
   const isSuspended = vendor?.is_active === false;
 
   // Optional columns (if your DB has them)
@@ -536,7 +537,7 @@ const enrichProposalBuyerMeta = async (rows = []) => {
 
     const leadByProposalId = new Map();
     if (proposalIds.length) {
-      const { data: leads, error: leadError } = await supabase
+      const { data: leads, error: leadError } = await dbClient
         .from('leads')
         .select('id, proposal_id, buyer_id, buyer_name, buyer_email, buyer_phone, company_name, created_at')
         .in('proposal_id', proposalIds)
@@ -563,7 +564,7 @@ const enrichProposalBuyerMeta = async (rows = []) => {
     );
     const purchasedLeadIdSet = new Set();
     if (leadIds.length && vendorIds.length) {
-      const { data: purchases, error: purchaseError } = await supabase
+      const { data: purchases, error: purchaseError } = await dbClient
         .from('lead_purchases')
         .select('lead_id')
         .in('lead_id', leadIds)
@@ -603,7 +604,7 @@ const enrichProposalBuyerMeta = async (rows = []) => {
 
     const buyerById = new Map();
     if (buyerIds.length) {
-      const { data: buyersById, error: buyerByIdError } = await supabase
+      const { data: buyersById, error: buyerByIdError } = await dbClient
         .from('buyers')
         .select('id, user_id, full_name, company_name, email, phone, avatar_url, is_active')
         .in('id', buyerIds);
@@ -619,7 +620,7 @@ const enrichProposalBuyerMeta = async (rows = []) => {
 
     const buyerByEmail = new Map();
     if (buyerEmails.length) {
-      const { data: buyersByEmail, error: buyerByEmailError } = await supabase
+      const { data: buyersByEmail, error: buyerByEmailError } = await dbClient
         .from('buyers')
         .select('id, user_id, full_name, company_name, email, phone, avatar_url, is_active')
         .in('email', buyerEmails);
@@ -745,11 +746,11 @@ const enrichProposalBuyerMeta = async (rows = []) => {
 export const vendorApi = {
   auth: {
     me: async () => {
-      const { data: { user }, error: uErr } = await supabase.auth.getUser();
+      const { data: { user }, error: uErr } = await dbClient.auth.getUser();
       if (uErr) throw uErr;
       if (!user) return null;
 
-      const { data: vendor, error } = await supabase
+      const { data: vendor, error } = await dbClient
         .from('vendors')
         .select('*')
         .eq('user_id', user.id)
@@ -763,7 +764,7 @@ export const vendorApi = {
   locations: {
     // --- STATES ---
     getStates: async (includeInactive = false) => {
-      let query = supabase
+      let query = dbClient
         .from('states')
         .select('*')
         .order('name');
@@ -776,7 +777,7 @@ export const vendorApi = {
     },
 
     getState: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('states')
         .select('*')
         .eq('id', id)
@@ -786,7 +787,7 @@ export const vendorApi = {
     },
 
     createState: async (name, slug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('states')
         .insert([{
           name,
@@ -802,7 +803,7 @@ export const vendorApi = {
     },
 
     updateState: async (id, updates) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('states')
         .update({
           ...updates,
@@ -816,12 +817,12 @@ export const vendorApi = {
     },
 
     deleteState: async (id) => {
-      const { error } = await supabase.from('states').delete().eq('id', id);
+      const { error } = await dbClient.from('states').delete().eq('id', id);
       if (error) throw error;
     },
 
     toggleStateActive: async (id, isActive) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('states')
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -834,7 +835,7 @@ export const vendorApi = {
     // --- CITIES ---
     getCities: async (stateId, includeInactive = false) => {
       if (!stateId) return [];
-      let query = supabase
+      let query = dbClient
         .from('cities')
         .select('*')
         .eq('state_id', stateId)
@@ -848,7 +849,7 @@ export const vendorApi = {
     },
 
     getCity: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .select('*')
         .eq('id', id)
@@ -858,7 +859,7 @@ export const vendorApi = {
     },
 
     getCitiesWithState: async (includeInactive = false) => {
-      let query = supabase
+      let query = dbClient
         .from('cities')
         .select('*, state:states(id, name, slug)')
         .order('name');
@@ -871,7 +872,7 @@ export const vendorApi = {
     },
 
     createCity: async (stateId, name, slug) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .insert([{
           state_id: stateId,
@@ -889,7 +890,7 @@ export const vendorApi = {
     },
 
     updateCity: async (id, updates) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .update({
           ...updates,
@@ -903,12 +904,12 @@ export const vendorApi = {
     },
 
     deleteCity: async (id) => {
-      const { error } = await supabase.from('cities').delete().eq('id', id);
+      const { error } = await dbClient.from('cities').delete().eq('id', id);
       if (error) throw error;
     },
 
     toggleCityActive: async (id, isActive) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -919,7 +920,7 @@ export const vendorApi = {
     },
 
     incrementSupplierCount: async (id) => {
-      const { data: city, error: getErr } = await supabase
+      const { data: city, error: getErr } = await dbClient
         .from('cities')
         .select('supplier_count')
         .eq('id', id)
@@ -927,7 +928,7 @@ export const vendorApi = {
       if (getErr) throw getErr;
 
       const newCount = (city?.supplier_count || 0) + 1;
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .update({ supplier_count: newCount })
         .eq('id', id)
@@ -938,7 +939,7 @@ export const vendorApi = {
     },
 
     decrementSupplierCount: async (id) => {
-      const { data: city, error: getErr } = await supabase
+      const { data: city, error: getErr } = await dbClient
         .from('cities')
         .select('supplier_count')
         .eq('id', id)
@@ -946,7 +947,7 @@ export const vendorApi = {
       if (getErr) throw getErr;
 
       const newCount = Math.max(0, (city?.supplier_count || 0) - 1);
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('cities')
         .update({ supplier_count: newCount })
         .eq('id', id)
@@ -975,7 +976,7 @@ export const vendorApi = {
     while (!unique && attempts < 10) {
       newId = generateVendorIdString('', '', phone);
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendors')
         .select('id')
         .eq('vendor_id', newId)
@@ -991,7 +992,7 @@ export const vendorApi = {
   },
 
   getVendorByUserId: async (userId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('vendors')
       .select('*')
       .eq('user_id', userId)
@@ -1003,11 +1004,11 @@ export const vendorApi = {
   // ✅ NEW: Account status fetch for current vendor (for suspended overlay check)
   account: {
     getStatus: async () => {
-      const { data: { user }, error: uErr } = await supabase.auth.getUser();
+      const { data: { user }, error: uErr } = await dbClient.auth.getUser();
       if (uErr) throw uErr;
       if (!user) throw new Error('Not authenticated');
 
-      const { data: vendor, error } = await supabase
+      const { data: vendor, error } = await dbClient
         .from('vendors')
         .select('*')
         .eq('user_id', user.id)
@@ -1037,7 +1038,7 @@ export const vendorApi = {
       createdByUserId
     } = payload;
 
-    let { data: existing, error: exErr } = await supabase
+    let { data: existing, error: exErr } = await dbClient
       .from('vendors')
       .select('id, user_id, vendor_id, slug, assigned_to, created_by_user_id')
       .eq('user_id', userId)
@@ -1046,7 +1047,7 @@ export const vendorApi = {
     if (exErr) throw exErr;
 
     if (!existing && email) {
-      const { data: existingByEmail, error: emailLookupError } = await supabase
+      const { data: existingByEmail, error: emailLookupError } = await dbClient
         .from('vendors')
         .select('id, user_id, vendor_id, slug, assigned_to, created_by_user_id')
         .eq('email', email)
@@ -1069,7 +1070,7 @@ export const vendorApi = {
       while (!unique && attempts < 10) {
         vendorId = generateVendorIdString(ownerName, companyName, phone);
 
-        const { data: already, error } = await supabase
+        const { data: already, error } = await dbClient
           .from('vendors')
           .select('id')
           .eq('vendor_id', vendorId)
@@ -1124,7 +1125,7 @@ export const vendorApi = {
     }
 
     if (existing) {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('vendors')
         .update({
           ...vendorData,
@@ -1135,7 +1136,7 @@ export const vendorApi = {
       if (error) throw error;
     } else {
       const nowIso = new Date().toISOString();
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('vendors')
         .insert([{
           user_id: userId,
@@ -1158,7 +1159,7 @@ export const vendorApi = {
       is_active: isVerified
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('vendors')
       .update(updates)
       .eq('user_id', userId)
@@ -1175,13 +1176,13 @@ export const vendorApi = {
     me: async () => {
       let vendor = await getCurrentVendorProfile({ suppressAuthErrors: true });
 
-      const { data: { user }, error: uErr } = await supabase.auth.getUser();
+      const { data: { user }, error: uErr } = await dbClient.auth.getUser();
       if (uErr) throw uErr;
       if (!vendor && !user) return null;
 
       // Fallback by user_id
       if (!vendor && user?.id) {
-        const { data: byUserId, error: byUserErr } = await supabase
+        const { data: byUserId, error: byUserErr } = await dbClient
           .from('vendors')
           .select('*')
           .eq('user_id', user.id)
@@ -1193,7 +1194,7 @@ export const vendorApi = {
       // Fallback by email (legacy rows can miss user_id link)
       const normalizedEmail = String(user?.email || vendor?.email || '').toLowerCase().trim();
       if (!vendor && normalizedEmail) {
-        const { data: byEmail, error: byEmailErr } = await supabase
+        const { data: byEmail, error: byEmailErr } = await dbClient
           .from('vendors')
           .select('*')
           .ilike('email', normalizedEmail)
@@ -1206,7 +1207,7 @@ export const vendorApi = {
 
       // Best effort relink for future lookups.
       if (vendor?.id && user?.id && vendor?.user_id !== user.id) {
-        supabase
+        dbClient
           .from('vendors')
           .update({ user_id: user.id })
           .eq('id', vendor.id)
@@ -1227,12 +1228,12 @@ export const vendorApi = {
     },
 
     logout: async () => {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await dbClient.auth.signOut();
       if (error) throw error;
     },
 
     updatePassword: async (newPassword) => {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const { error } = await dbClient.auth.updateUser({ password: newPassword });
       if (error) throw error;
     },
 
@@ -1266,7 +1267,7 @@ export const vendorApi = {
       // Try to compute profile completion from existing vendor data (non-blocking)
       try {
         const vendorId = await getVendorId();
-        const { data: currentVendor, error: fetchError } = await supabase
+        const { data: currentVendor, error: fetchError } = await dbClient
           .from('vendors')
           .select('*')
           .eq('id', vendorId)
@@ -1290,35 +1291,42 @@ export const vendorApi = {
 
     uploadImage: async (file, bucket = 'avatars', options = {}) => {
       if (!file) throw new Error('No file provided');
-      const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
-      const PRODUCT_MIN_BYTES = 50 * 1024;
+      const DEFAULT_MAX_BYTES = 50 * 1024 * 1024;
       const PRODUCT_MAX_BYTES = 1024 * 1024;
       const normalizedBucket = String(bucket || '').trim();
       const normalizedUploadPurpose = String(options?.uploadPurpose || '').trim().toUpperCase();
       const isProductImage = normalizedBucket === 'product-images';
       const isKycDocument = normalizedUploadPurpose === 'KYC_DOCUMENT';
       const isImageFile = String(file?.type || '').trim().toLowerCase().startsWith('image/');
+      const optimizePurpose = isKycDocument
+        ? 'kyc'
+        : isProductImage
+          ? 'product'
+          : normalizedBucket === 'avatars'
+            ? 'avatar'
+            : 'general';
+      const uploadFile = isImageFile ? await optimizeMediaFile(file, optimizePurpose) : file;
 
       if (isKycDocument) {
-        validateImageFile(file, {
-          minBytes: 100 * 1024,
+        validateImageFile(uploadFile, {
+          minBytes: MIN_IMAGE_UPLOAD_BYTES,
           maxBytes: 5 * 1024 * 1024,
           label: 'KYC image',
         });
       } else if (isProductImage) {
-        validateImageFile(file, {
-          minBytes: PRODUCT_MIN_BYTES,
+        validateImageFile(uploadFile, {
+          minBytes: MIN_IMAGE_UPLOAD_BYTES,
           maxBytes: PRODUCT_MAX_BYTES,
           label: 'Product image',
         });
       } else if (isImageFile) {
-        validateImageFile(file, {
+        validateImageFile(uploadFile, {
           minBytes: MIN_IMAGE_UPLOAD_BYTES,
           maxBytes: DEFAULT_MAX_BYTES,
           label: 'Image',
         });
-      } else if (Number(file.size || 0) > DEFAULT_MAX_BYTES) {
-        throw new Error('File too large (max 10MB)');
+      } else if (Number(uploadFile.size || 0) > DEFAULT_MAX_BYTES) {
+        throw new Error('File too large (max 50MB)');
       }
 
       const hasCsrfCookie = () =>
@@ -1341,19 +1349,14 @@ export const vendorApi = {
         await refreshAuthCookies();
       }
 
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
+      const dataUrl = await fileToDataUrl(uploadFile);
 
       const payload = {
         bucket: normalizedBucket,
-        file_name: file.name,
-        content_type: file.type,
+        file_name: uploadFile.name,
+        content_type: uploadFile.type,
         data_url: dataUrl,
-        size: file.size,
+        size: uploadFile.size,
       };
       if (options?.uploadPurpose) payload.upload_purpose = options.uploadPurpose;
       if (options?.documentType) payload.document_type = options.documentType;
@@ -1391,10 +1394,10 @@ export const vendorApi = {
   // --- ✅ NOTIFICATIONS API ---
   notifications: {
     list: async (limit = 8, filters = {}) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      let query = supabase
+      let query = dbClient
         .from('notifications')
         .select('*')
         .eq('user_id', user.id);
@@ -1411,7 +1414,7 @@ export const vendorApi = {
     },
 
     get: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('notifications')
         .select('*')
         .eq('id', id)
@@ -1421,10 +1424,10 @@ export const vendorApi = {
     },
 
     create: async (notification) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('notifications')
         .insert([{
           user_id: user.id,
@@ -1439,10 +1442,10 @@ export const vendorApi = {
     },
 
     unreadCount: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) return 0;
 
-      const { count, error } = await supabase
+      const { count, error } = await dbClient
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
@@ -1453,10 +1456,10 @@ export const vendorApi = {
     },
 
     countByType: async (type) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) return 0;
 
-      const { count, error } = await supabase
+      const { count, error } = await dbClient
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
@@ -1467,7 +1470,7 @@ export const vendorApi = {
     },
 
     markAsRead: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('notifications')
         .update({ is_read: true })
         .eq('id', id)
@@ -1479,7 +1482,7 @@ export const vendorApi = {
     },
 
     markAsUnread: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('notifications')
         .update({ is_read: false })
         .eq('id', id)
@@ -1491,10 +1494,10 @@ export const vendorApi = {
     },
 
     markAllAsRead: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id)
@@ -1504,10 +1507,10 @@ export const vendorApi = {
     },
 
     markAllAsUnread: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .update({ is_read: false })
         .eq('user_id', user.id);
@@ -1516,7 +1519,7 @@ export const vendorApi = {
     },
 
     deleteById: async (id) => {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .delete()
         .eq('id', id);
@@ -1524,10 +1527,10 @@ export const vendorApi = {
     },
 
     deleteByType: async (type) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .delete()
         .eq('user_id', user.id)
@@ -1536,10 +1539,10 @@ export const vendorApi = {
     },
 
     deleteAllRead: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .delete()
         .eq('user_id', user.id)
@@ -1548,10 +1551,10 @@ export const vendorApi = {
     },
 
     deleteAll: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('notifications')
         .delete()
         .eq('user_id', user.id);
@@ -1566,7 +1569,7 @@ export const vendorApi = {
     if (backendVendor?.id && String(backendVendor.user_id || '').trim() === String(userId || '').trim()) {
       return buildVendorProfileSnapshot(backendVendor, null);
     }
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('vendors')
       .select('*')
       .eq('user_id', userId)
@@ -1577,7 +1580,7 @@ export const vendorApi = {
   },
 
   updateVendorProfile: async (userId, updates) => {
-    const { data: existingVendor, error: existingError } = await supabase
+    const { data: existingVendor, error: existingError } = await dbClient
       .from('vendors')
       .select('id, slug, company_name, owner_name, email')
       .eq('user_id', userId)
@@ -1607,7 +1610,7 @@ export const vendorApi = {
       );
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('vendors')
       .update(nextUpdates)
       .eq('user_id', userId)
@@ -1626,16 +1629,6 @@ export const vendorApi = {
       const allowedTypes = new Set(['GST', 'PAN', 'AADHAR', 'BANK']);
       if (!allowedTypes.has(normalizedType)) {
         throw new Error('Invalid document type');
-      }
-
-      const minSize = 100 * 1024;
-      const maxSize = 5 * 1024 * 1024;
-      const fileSize = Number(file.size || 0);
-      if (fileSize < minSize) {
-        throw new Error('Image too small (minimum 100KB)');
-      }
-      if (fileSize > maxSize) {
-        throw new Error('Image too large (maximum 5MB)');
       }
 
       const ext = String(file.name || '').toLowerCase().split('.').pop();
@@ -1703,7 +1696,7 @@ export const vendorApi = {
       const validStatuses = ['PENDING', 'VERIFIED', 'REJECTED'];
       if (!validStatuses.includes(status)) throw new Error(`Invalid status: ${status}`);
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_documents')
         .update({ verification_status: status })
         .eq('id', id)
@@ -1735,7 +1728,7 @@ export const vendorApi = {
   contactPersons: {
     list: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_contact_persons')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -1745,7 +1738,7 @@ export const vendorApi = {
     },
 
     get: async (id) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_contact_persons')
         .select('*')
         .eq('id', id)
@@ -1756,7 +1749,7 @@ export const vendorApi = {
 
     getPrimary: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_contact_persons')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -1776,14 +1769,14 @@ export const vendorApi = {
 
       // If this is marked as primary, unset other primary contacts
       if (contactData.is_primary) {
-        const { error: updateErr } = await supabase
+        const { error: updateErr } = await dbClient
           .from('vendor_contact_persons')
           .update({ is_primary: false })
           .eq('vendor_id', vendorId);
         if (updateErr) throw updateErr;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_contact_persons')
         .insert([{
           ...contactData,
@@ -1802,7 +1795,7 @@ export const vendorApi = {
         throw new Error('Invalid email format');
       }
 
-      const { data: contact, error: getErr } = await supabase
+      const { data: contact, error: getErr } = await dbClient
         .from('vendor_contact_persons')
         .select('vendor_id')
         .eq('id', id)
@@ -1811,7 +1804,7 @@ export const vendorApi = {
 
       // If setting as primary, unset other primary contacts
       if (updates.is_primary) {
-        const { error: updateErr } = await supabase
+        const { error: updateErr } = await dbClient
           .from('vendor_contact_persons')
           .update({ is_primary: false })
           .eq('vendor_id', contact.vendor_id)
@@ -1819,7 +1812,7 @@ export const vendorApi = {
         if (updateErr) throw updateErr;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_contact_persons')
         .update(updates)
         .eq('id', id)
@@ -1830,7 +1823,7 @@ export const vendorApi = {
     },
 
     setPrimary: async (id) => {
-      const { data: contact, error: getErr } = await supabase
+      const { data: contact, error: getErr } = await dbClient
         .from('vendor_contact_persons')
         .select('vendor_id')
         .eq('id', id)
@@ -1838,7 +1831,7 @@ export const vendorApi = {
       if (getErr) throw getErr;
 
       // Unset all other primary contacts
-      const { error: updateErr } = await supabase
+      const { error: updateErr } = await dbClient
         .from('vendor_contact_persons')
         .update({ is_primary: false })
         .eq('vendor_id', contact.vendor_id)
@@ -1846,7 +1839,7 @@ export const vendorApi = {
       if (updateErr) throw updateErr;
 
       // Set this one as primary
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_contact_persons')
         .update({ is_primary: true })
         .eq('id', id)
@@ -1857,7 +1850,7 @@ export const vendorApi = {
     },
 
     delete: async (id) => {
-      const { data: contact, error: getErr } = await supabase
+      const { data: contact, error: getErr } = await dbClient
         .from('vendor_contact_persons')
         .select('is_primary, vendor_id')
         .eq('id', id)
@@ -1866,7 +1859,7 @@ export const vendorApi = {
 
       // If deleting primary contact, set another as primary
       if (contact?.is_primary) {
-        const { data: otherContact, error: listErr } = await supabase
+        const { data: otherContact, error: listErr } = await dbClient
           .from('vendor_contact_persons')
           .select('id')
           .eq('vendor_id', contact.vendor_id)
@@ -1876,7 +1869,7 @@ export const vendorApi = {
         if (listErr) throw listErr;
 
         if (otherContact?.id) {
-          const { error: setErr } = await supabase
+          const { error: setErr } = await dbClient
             .from('vendor_contact_persons')
             .update({ is_primary: true })
             .eq('id', otherContact.id);
@@ -1892,7 +1885,7 @@ export const vendorApi = {
   messages: {
     list: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_messages')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -1902,7 +1895,7 @@ export const vendorApi = {
     },
 
     markAsRead: async (id) => {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('vendor_messages')
         .update({ is_read: true })
         .eq('id', id);
@@ -1910,7 +1903,7 @@ export const vendorApi = {
     },
 
     sendReply: async (id) => {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('vendor_messages')
         .update({ is_replied: true })
         .eq('id', id);
@@ -1927,7 +1920,7 @@ export const vendorApi = {
   products: {
     list: async (filters = {}) => {
       const vendorId = await getVendorId();
-      let query = supabase
+      let query = dbClient
         .from('products')
         .select('*')
         .eq('vendor_id', vendorId);
@@ -1942,7 +1935,7 @@ export const vendorApi = {
 
     listByStatus: async (status = 'ACTIVE') => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -1954,7 +1947,7 @@ export const vendorApi = {
 
     get: async (id) => {
       // Avoid broken relationships in cache: select plain columns only
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .select('*')
         .eq('id', id)
@@ -1978,7 +1971,7 @@ export const vendorApi = {
         created_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .insert([insertData])
         .select()
@@ -1990,7 +1983,7 @@ export const vendorApi = {
     update: async (id, updates) => {
       const updateData = { ...updates };
       if (updates.name) {
-        const { data: existingProduct, error: existingProductError } = await supabase
+        const { data: existingProduct, error: existingProductError } = await dbClient
           .from('products')
           .select('slug, metadata')
           .eq('id', id)
@@ -2010,7 +2003,7 @@ export const vendorApi = {
       }
       updateData.updated_at = new Date().toISOString();
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .update(updateData)
         .eq('id', id)
@@ -2036,7 +2029,7 @@ export const vendorApi = {
     addImage: async (productId, file) => {
       const uploadedUrl = await vendorApi.auth.uploadImage(file, 'product-images');
 
-      const { data: product, error: getError } = await supabase
+      const { data: product, error: getError } = await dbClient
         .from('products')
         .select('images')
         .eq('id', productId)
@@ -2047,7 +2040,7 @@ export const vendorApi = {
       const currentImages = product?.images || [];
       const newImages = [...currentImages, { url: uploadedUrl, uploaded_at: new Date().toISOString() }];
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .update({ images: newImages })
         .eq('id', productId)
@@ -2059,7 +2052,7 @@ export const vendorApi = {
     },
 
     removeImage: async (productId, imageUrl) => {
-      const { data: product, error: getError } = await supabase
+      const { data: product, error: getError } = await dbClient
         .from('products')
         .select('images')
         .eq('id', productId)
@@ -2069,7 +2062,7 @@ export const vendorApi = {
 
       const updatedImages = (product?.images || []).filter(img => img.url !== imageUrl);
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('products')
         .update({ images: updatedImages })
         .eq('id', productId)
@@ -2081,7 +2074,7 @@ export const vendorApi = {
     },
 
     incrementViews: async (id) => {
-      const { data: product, error: getError } = await supabase
+      const { data: product, error: getError } = await dbClient
         .from('products')
         .select('views')
         .eq('id', id)
@@ -2090,7 +2083,7 @@ export const vendorApi = {
       if (getError) throw getError;
 
       const newViews = (product?.views || 0) + 1;
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('products')
         .update({ views: newViews })
         .eq('id', id);
@@ -2099,7 +2092,7 @@ export const vendorApi = {
     },
 
     getAllMicroCategories: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('micro_categories')
         .select(`
           id, name, slug, description,
@@ -2126,7 +2119,7 @@ export const vendorApi = {
       const primaryPhrase = keywords.slice(0, 3).join(' ');
       const searchPhrase = primaryPhrase || cleanName;
 
-      const { data: exactMatch, error: e1 } = await supabase
+      const { data: exactMatch, error: e1 } = await dbClient
         .from('micro_categories')
         .select(`
           id, name, slug,
@@ -2155,7 +2148,7 @@ export const vendorApi = {
         let candidates = [];
 
         if (searchPhrase) {
-          const { data: phraseMatch } = await supabase
+          const { data: phraseMatch } = await dbClient
             .from('micro_categories')
             .select(`
               id, name, slug,
@@ -2169,7 +2162,7 @@ export const vendorApi = {
 
         if (!candidates.length && keywords.length) {
           const orFilter = keywords.slice(0, 4).map((k) => `name.ilike.%${k}%`).join(',');
-          const { data: keywordHits } = await supabase
+          const { data: keywordHits } = await dbClient
             .from('micro_categories')
             .select(`
               id, name, slug,
@@ -2182,7 +2175,7 @@ export const vendorApi = {
         }
 
         if (!candidates.length) {
-          const { data: allCategories } = await supabase
+          const { data: allCategories } = await dbClient
             .from('micro_categories')
             .select(`
               id, name, slug,
@@ -2216,7 +2209,7 @@ export const vendorApi = {
         // Sub-category fallback (if micro not found)
         let subCandidates = [];
         if (searchPhrase) {
-          const { data: subPhrase } = await supabase
+          const { data: subPhrase } = await dbClient
             .from('sub_categories')
             .select('id, name, slug, head_categories(id, name, slug)')
             .eq('is_active', true)
@@ -2227,7 +2220,7 @@ export const vendorApi = {
 
         if (!subCandidates.length && keywords.length) {
           const orFilter = keywords.slice(0, 4).map((k) => `name.ilike.%${k}%`).join(',');
-          const { data: subKeywordHits } = await supabase
+          const { data: subKeywordHits } = await dbClient
             .from('sub_categories')
             .select('id, name, slug, head_categories(id, name, slug)')
             .eq('is_active', true)
@@ -2237,7 +2230,7 @@ export const vendorApi = {
         }
 
         if (!subCandidates.length) {
-          const { data: allSubs } = await supabase
+          const { data: allSubs } = await dbClient
             .from('sub_categories')
             .select('id, name, slug, head_categories(id, name, slug)')
             .eq('is_active', true)
@@ -2330,7 +2323,7 @@ export const vendorApi = {
 
       // Client fallback (older installs / temporary backend mismatch).
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('proposals')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -2343,7 +2336,7 @@ export const vendorApi = {
 
     create: async (quotationData) => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('proposals')
         .insert([{
           vendor_id: vendorId,
@@ -2371,14 +2364,14 @@ export const vendorApi = {
       }
 
       const vendorId = await getVendorId();
-      let { data, error } = await supabase
+      let { data, error } = await dbClient
         .from('proposals')
         .select('*, buyers(id, user_id, full_name, email, phone, mobile, company_name, avatar_url, is_active)')
         .eq('vendor_id', vendorId)
         .eq('id', id)
         .maybeSingle();
       if (error) {
-        ({ data, error } = await supabase
+        ({ data, error } = await dbClient
           .from('proposals')
           .select('*')
           .eq('vendor_id', vendorId)
@@ -2398,7 +2391,7 @@ export const vendorApi = {
       }
 
       const vendorIds = await getVendorCandidateIds();
-      const { data: deletedRows, error } = await supabase
+      const { data: deletedRows, error } = await dbClient
         .from('proposals')
         .delete()
         .eq('id', id)
@@ -2416,7 +2409,7 @@ export const vendorApi = {
   leads: {
     getMarketplaceLeads: async () => {
       const vendorId = await getVendorId();
-      const { data: purchased, error: pErr } = await supabase
+      const { data: purchased, error: pErr } = await dbClient
         .from('lead_purchases')
         .select('lead_id')
         .eq('vendor_id', vendorId);
@@ -2425,7 +2418,7 @@ export const vendorApi = {
 
       const purchasedIds = purchased?.map(p => p.lead_id) || [];
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('leads')
         .select('*')
         .eq('status', 'ACTIVE')
@@ -2447,21 +2440,21 @@ export const vendorApi = {
 
       const vendorId = await getVendorId();
 
-      const { data: purchases, error: pError } = await supabase
+      const { data: purchases, error: pError } = await dbClient
         .from('lead_purchases')
         .select('*, lead:leads(*)')
         .eq('vendor_id', vendorId);
 
       if (pError) throw pError;
 
-      const { data: direct, error: dError } = await supabase
+      const { data: direct, error: dError } = await dbClient
         .from('leads')
         .select('*')
         .eq('vendor_id', vendorId);
 
       if (dError) throw dError;
 
-      const { data: proposals, error: propError } = await supabase
+      const { data: proposals, error: propError } = await dbClient
         .from('proposals')
         .select('*, buyer:buyers(full_name, company_name)')
         .eq('vendor_id', vendorId)
@@ -2545,6 +2538,83 @@ export const vendorApi = {
           vendorId: me?.vendorId || me?.vendor_id || me?.id || null,
         };
       }
+    },
+
+    getPerformance7Days: async () => {
+      const vendorIds = await getVendorCandidateIds();
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - 6);
+
+      const days = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(start);
+        date.setDate(start.getDate() + index);
+        const key = date.toISOString().slice(0, 10);
+        return {
+          key,
+          name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          leads: 0,
+          contacts: 0,
+        };
+      });
+
+      const dayByKey = new Map(days.map((day) => [day.key, day]));
+      const bump = (value, field) => {
+        const dt = value ? new Date(value) : null;
+        if (!dt || Number.isNaN(dt.getTime())) return;
+        const key = dt.toISOString().slice(0, 10);
+        const day = dayByKey.get(key);
+        if (day) day[field] += 1;
+      };
+
+      if (!vendorIds.length) return days;
+
+      const startIso = start.toISOString();
+
+      const safeQuery = async (queryBuilder) => {
+        try {
+          const { data, error } = await queryBuilder;
+          if (error) {
+            console.warn('[vendorApi.dashboard.getPerformance7Days] query failed:', error?.message || error);
+            return [];
+          }
+          return Array.isArray(data) ? data : [];
+        } catch (error) {
+          console.warn('[vendorApi.dashboard.getPerformance7Days] query failed:', error?.message || error);
+          return [];
+        }
+      };
+
+      const [directLeads, purchasedLeads, contactedLeads] = await Promise.all([
+        safeQuery(
+          dbClient
+            .from('leads')
+            .select('id, created_at')
+            .in('vendor_id', vendorIds)
+            .gte('created_at', startIso)
+        ),
+        safeQuery(
+          dbClient
+            .from('lead_purchases')
+            .select('id, purchase_datetime, purchase_date')
+            .in('vendor_id', vendorIds)
+            .or(`purchase_datetime.gte.${startIso},purchase_date.gte.${startIso}`)
+        ),
+        safeQuery(
+          dbClient
+            .from('lead_contacts')
+            .select('id, contact_date, created_at')
+            .in('vendor_id', vendorIds)
+            .or(`contact_date.gte.${startIso},created_at.gte.${startIso}`)
+        ),
+      ]);
+
+      directLeads.forEach((row) => bump(row?.created_at, 'leads'));
+      purchasedLeads.forEach((row) => bump(row?.purchase_datetime || row?.purchase_date, 'leads'));
+      contactedLeads.forEach((row) => bump(row?.contact_date || row?.created_at, 'contacts'));
+
+      return days;
     }
   },
 
@@ -2617,7 +2687,7 @@ export const vendorApi = {
   subscriptions: {
     getCurrent: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_plan_subscriptions')
         .select('*, plan:vendor_plans(*)')
         .eq('vendor_id', vendorId)
@@ -2634,7 +2704,7 @@ export const vendorApi = {
 
     getHistory: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_plan_subscriptions')
         .select('*, plan:vendor_plans(*)')
         .eq('vendor_id', vendorId)
@@ -2645,7 +2715,7 @@ export const vendorApi = {
 
     getQuota: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -2655,7 +2725,7 @@ export const vendorApi = {
     },
 
     getAllPlans: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_plans')
         .select('*')
         .eq('is_active', true)
@@ -2666,7 +2736,7 @@ export const vendorApi = {
 
     subscribe: async (planId) => {
       const vendorId = await getVendorId();
-      const { data: plan, error: planErr } = await supabase
+      const { data: plan, error: planErr } = await dbClient
         .from('vendor_plans')
         .select('id')
         .eq('id', planId)
@@ -2678,7 +2748,7 @@ export const vendorApi = {
       const endDate = new Date(today);
       endDate.setDate(endDate.getDate() + 365);
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_plan_subscriptions')
         .insert([{
           vendor_id: vendorId,
@@ -2697,7 +2767,7 @@ export const vendorApi = {
     },
 
     renew: async (subscriptionId) => {
-      const { data: currentSub, error: subErr } = await supabase
+      const { data: currentSub, error: subErr } = await dbClient
         .from('vendor_plan_subscriptions')
         .select('id, end_date')
         .eq('id', subscriptionId)
@@ -2708,7 +2778,7 @@ export const vendorApi = {
       const newEndDate = new Date(endDate);
       newEndDate.setDate(newEndDate.getDate() + 365);
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_plan_subscriptions')
         .update({
           end_date: newEndDate.toISOString(),
@@ -2723,7 +2793,7 @@ export const vendorApi = {
     },
 
     cancel: async (subscriptionId) => {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('vendor_plan_subscriptions')
         .update({ status: 'CANCELLED' })
         .eq('id', subscriptionId);
@@ -2731,7 +2801,7 @@ export const vendorApi = {
     },
 
     updateAutoRenewal: async (subscriptionId, enabled) => {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_plan_subscriptions')
         .update({ auto_renewal_enabled: enabled })
         .eq('id', subscriptionId)
@@ -2746,7 +2816,7 @@ export const vendorApi = {
   leadQuota: {
     get: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -2788,14 +2858,14 @@ export const vendorApi = {
 
     initialize: async (planId) => {
       const vendorId = await getVendorId();
-      const { data: plan, error: planErr } = await supabase
+      const { data: plan, error: planErr } = await dbClient
         .from('vendor_plans')
         .select('daily_limit, weekly_limit, yearly_limit')
         .eq('id', planId)
         .single();
       if (planErr) throw planErr;
 
-      const { data: existing, error: existErr } = await supabase
+      const { data: existing, error: existErr } = await dbClient
         .from('vendor_lead_quota')
         .select('id')
         .eq('vendor_id', vendorId)
@@ -2816,7 +2886,7 @@ export const vendorApi = {
       };
 
       if (existing?.id) {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('vendor_lead_quota')
           .update(quotaData)
           .eq('vendor_id', vendorId)
@@ -2825,7 +2895,7 @@ export const vendorApi = {
         if (error) throw error;
         return data;
       } else {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('vendor_lead_quota')
           .insert([quotaData])
           .select()
@@ -2837,7 +2907,7 @@ export const vendorApi = {
 
     incrementDaily: async () => {
       const vendorId = await getVendorId();
-      const { data: quota, error: getErr } = await supabase
+      const { data: quota, error: getErr } = await dbClient
         .from('vendor_lead_quota')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -2851,7 +2921,7 @@ export const vendorApi = {
         throw new Error(`Daily quota exceeded: ${newUsed}/${quota.daily_limit}`);
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .update({ daily_used: newUsed, updated_at: new Date().toISOString() })
         .eq('vendor_id', vendorId)
@@ -2863,7 +2933,7 @@ export const vendorApi = {
 
     incrementWeekly: async () => {
       const vendorId = await getVendorId();
-      const { data: quota, error: getErr } = await supabase
+      const { data: quota, error: getErr } = await dbClient
         .from('vendor_lead_quota')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -2877,7 +2947,7 @@ export const vendorApi = {
         throw new Error(`Weekly quota exceeded: ${newUsed}/${quota.weekly_limit}`);
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .update({ weekly_used: newUsed, updated_at: new Date().toISOString() })
         .eq('vendor_id', vendorId)
@@ -2889,7 +2959,7 @@ export const vendorApi = {
 
     incrementYearly: async () => {
       const vendorId = await getVendorId();
-      const { data: quota, error: getErr } = await supabase
+      const { data: quota, error: getErr } = await dbClient
         .from('vendor_lead_quota')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -2903,7 +2973,7 @@ export const vendorApi = {
         throw new Error(`Yearly quota exceeded: ${newUsed}/${quota.yearly_limit}`);
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .update({ yearly_used: newUsed, updated_at: new Date().toISOString() })
         .eq('vendor_id', vendorId)
@@ -2915,7 +2985,7 @@ export const vendorApi = {
 
     resetDaily: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .update({ daily_used: 0, updated_at: new Date().toISOString() })
         .eq('vendor_id', vendorId)
@@ -2927,7 +2997,7 @@ export const vendorApi = {
 
     resetWeekly: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .update({ weekly_used: 0, updated_at: new Date().toISOString() })
         .eq('vendor_id', vendorId)
@@ -2939,7 +3009,7 @@ export const vendorApi = {
 
     resetYearly: async () => {
       const vendorId = await getVendorId();
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('vendor_lead_quota')
         .update({ yearly_used: 0, last_reset_date: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq('vendor_id', vendorId)
@@ -2951,7 +3021,7 @@ export const vendorApi = {
 
     canAccessDaily: async () => {
       const vendorId = await getVendorId();
-      const { data: quota, error } = await supabase
+      const { data: quota, error } = await dbClient
         .from('vendor_lead_quota')
         .select('daily_used, daily_limit')
         .eq('vendor_id', vendorId)
@@ -2964,7 +3034,7 @@ export const vendorApi = {
 
     canAccessWeekly: async () => {
       const vendorId = await getVendorId();
-      const { data: quota, error } = await supabase
+      const { data: quota, error } = await dbClient
         .from('vendor_lead_quota')
         .select('weekly_used, weekly_limit')
         .eq('vendor_id', vendorId)
@@ -2977,7 +3047,7 @@ export const vendorApi = {
 
     canAccessYearly: async () => {
       const vendorId = await getVendorId();
-      const { data: quota, error } = await supabase
+      const { data: quota, error } = await dbClient
         .from('vendor_lead_quota')
         .select('yearly_used, yearly_limit')
         .eq('vendor_id', vendorId)
@@ -3076,7 +3146,7 @@ export const vendorApi = {
 
     getStats: async () => {
       const vendorId = await getVendorId();
-      const { data: prefs } = await supabase
+      const { data: prefs } = await dbClient
         .from('vendor_preferences')
         .select('preferred_states, preferred_cities, preferred_micro_categories')
         .eq('vendor_id', vendorId)
@@ -3088,7 +3158,7 @@ export const vendorApi = {
       let vendorsInState = 0;
       if (prefs.preferred_states?.length > 0) {
         const stateIds = prefs.preferred_states;
-        const { count } = await supabase
+        const { count } = await dbClient
           .from('vendor_preferences')
           .select('*', { count: 'exact', head: true })
           .or(stateIds.map((id) => `preferred_states.contains.${JSON.stringify([id])}`).join(','));
@@ -3099,7 +3169,7 @@ export const vendorApi = {
       let vendorsInCity = 0;
       if (prefs.preferred_cities?.length > 0) {
         const cityIds = prefs.preferred_cities;
-        const { count } = await supabase
+        const { count } = await dbClient
           .from('vendor_preferences')
           .select('*', { count: 'exact', head: true })
           .or(cityIds.map((id) => `preferred_cities.contains.${JSON.stringify([id])}`).join(','));
@@ -3110,7 +3180,7 @@ export const vendorApi = {
       let vendorsInCategories = 0;
       if (prefs.preferred_micro_categories?.length > 0) {
         const catIds = prefs.preferred_micro_categories;
-        const { count } = await supabase
+        const { count } = await dbClient
           .from('vendor_preferences')
           .select('*', { count: 'exact', head: true })
           .or(catIds.map((id) => `preferred_micro_categories.contains.${JSON.stringify([id])}`).join(','));
@@ -3200,7 +3270,7 @@ export const vendorApi = {
         }
 
         // Legacy fallback for stale local backend processes that don't have DELETE route yet.
-        const { data: deletedRows, error } = await supabase
+        const { data: deletedRows, error } = await dbClient
           .from('support_tickets')
           .delete()
           .eq('id', id)
@@ -3261,7 +3331,7 @@ export const vendorApi = {
     },
 
     addMessage: async (ticketId, message) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await dbClient.auth.getUser();
       if (!user) throw new Error('Not authenticated');
       const response = await fetchVendorJson(`/api/support/tickets/${ticketId}/messages`, {
         method: 'POST',
@@ -3280,7 +3350,7 @@ export const vendorApi = {
     },
 
     deleteMessage: async (id) => {
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('ticket_messages')
         .delete()
         .eq('id', id);
@@ -3289,24 +3359,24 @@ export const vendorApi = {
 
     getStats: async () => {
       const vendorId = await getVendorId();
-      const { count: totalCount } = await supabase
+      const { count: totalCount } = await dbClient
         .from('support_tickets')
         .select('*', { count: 'exact', head: true })
         .eq('vendor_id', vendorId);
 
-      const { count: openCount } = await supabase
+      const { count: openCount } = await dbClient
         .from('support_tickets')
         .select('*', { count: 'exact', head: true })
         .eq('vendor_id', vendorId)
         .eq('status', 'OPEN');
 
-      const { count: closedCount } = await supabase
+      const { count: closedCount } = await dbClient
         .from('support_tickets')
         .select('*', { count: 'exact', head: true })
         .eq('vendor_id', vendorId)
         .eq('status', 'CLOSED');
 
-      const { count: inProgressCount } = await supabase
+      const { count: inProgressCount } = await dbClient
         .from('support_tickets')
         .select('*', { count: 'exact', head: true })
         .eq('vendor_id', vendorId)
@@ -3355,12 +3425,12 @@ export const vendorApi = {
         documentType: type,
       });
 
-      const { data, error: e1 } = await supabase.from('vendors').select('kyc_docs').eq('id', vendorId).single();
+      const { data, error: e1 } = await dbClient.from('vendors').select('kyc_docs').eq('id', vendorId).single();
       if (e1) throw e1;
 
       const currentDocs = data?.kyc_docs || {};
 
-      const { error: e2 } = await supabase.from('vendors').update({
+      const { error: e2 } = await dbClient.from('vendors').update({
         kyc_docs: { ...currentDocs, [type]: true, [`${type}_url`]: publicUrl }
       }).eq('id', vendorId);
 

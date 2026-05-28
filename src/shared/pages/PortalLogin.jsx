@@ -123,7 +123,7 @@ const PortalLogin = ({ portalName, colorScheme, defaultEmail, icon: Icon }) => {
   return (
     <div className="relative min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <PublicSiteHomeLink tone="light" />
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+      <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center">
         <div className="flex justify-center mb-6">
           <div className="h-16 w-16 rounded-xl flex items-center justify-center shadow-lg bg-white">
             {Icon && <Icon className={`h-8 w-8 ${getColorClass().split(' ').pop()}`} />}
@@ -137,7 +137,7 @@ const PortalLogin = ({ portalName, colorScheme, defaultEmail, icon: Icon }) => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-8 sm:mx-auto w-[92vw] sm:w-[28vw]">
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 rounded-2xl sm:px-10 border border-slate-100">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-2">

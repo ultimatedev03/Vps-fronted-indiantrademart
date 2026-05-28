@@ -62,7 +62,7 @@ const Logistics = () => {
       <div className="absolute bottom-0 right-10 h-80 w-80 rounded-full bg-emerald-200/30 blur-3xl" />
 
       <section className="relative z-10">
-        <div className="container mx-auto px-4 pt-12 pb-8 md:pt-20 md:pb-12">
+        <div className="w-[92vw] mx-auto pt-12 pb-8 md:pt-20 md:pb-12">
           <motion.div
             variants={stagger}
             initial="initial"
@@ -150,7 +150,7 @@ const Logistics = () => {
       </section>
 
       <section className="relative z-10">
-        <div className="container mx-auto px-4 py-10">
+        <div className="w-[92vw] mx-auto py-10">
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {[
               { label: 'Cities Covered', value: '550+' },
@@ -168,7 +168,7 @@ const Logistics = () => {
       </section>
 
       <section className="relative z-10">
-        <div className="container mx-auto px-4 py-12">
+        <div className="w-[92vw] mx-auto py-12">
           <div className="flex items-end justify-between gap-6">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900 md:text-3xl" style={{ fontFamily: '"Epilogue", sans-serif' }}>
@@ -238,7 +238,7 @@ const Logistics = () => {
       </section>
 
       <section className="relative z-10">
-        <div className="container mx-auto px-4 py-12">
+        <div className="w-[92vw] mx-auto py-12">
           <div className="rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-lg">
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
               <div>
@@ -273,7 +273,7 @@ const Logistics = () => {
       </section>
 
       <section className="relative z-10">
-        <div className="container mx-auto px-4 pb-16">
+        <div className="w-[92vw] mx-auto pb-16">
           <div className="rounded-3xl bg-slate-900 p-8 text-white md:p-12">
             <div className="grid grid-cols-1 gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
               <div>

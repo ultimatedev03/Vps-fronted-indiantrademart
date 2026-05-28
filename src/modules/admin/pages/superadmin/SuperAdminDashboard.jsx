@@ -1367,7 +1367,7 @@ export default function SuperAdminDashboard() {
         </div>
       </header>
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <main className="mx-auto w-full min-w-0 space-y-6 p-6">
         <Tabs defaultValue="system" className="space-y-6">
           <TabsList className="bg-neutral-800 border border-neutral-700 p-1 flex flex-wrap">
             <TabsTrigger value="system" className="data-[state=active]:bg-neutral-700">
@@ -2695,7 +2695,7 @@ export default function SuperAdminDashboard() {
                 }
               }}
             >
-              <DialogContent className="bg-neutral-900 border-neutral-700 text-white max-w-lg">
+              <DialogContent className="bg-neutral-900 border-neutral-700 text-white w-[32vw]">
                 <DialogHeader>
                   <DialogTitle>Edit States Scope</DialogTitle>
                   <DialogDescription className="text-neutral-400">
@@ -2880,7 +2880,7 @@ export default function SuperAdminDashboard() {
                               {log.entity_type}
                               {log.entity_id ? `#${String(log.entity_id).slice(0, 8)}` : ''}
                             </TableCell>
-                            <TableCell className="text-neutral-500 text-xs max-w-[360px]">
+                            <TableCell className="text-neutral-500 text-xs w-[22vw]">
                               {log.details ? JSON.stringify(log.details).slice(0, 180) : '—'}
                             </TableCell>
                           </TableRow>
@@ -2894,7 +2894,7 @@ export default function SuperAdminDashboard() {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">
-            <Card className="bg-neutral-900 border-neutral-800 max-w-xl">
+            <Card className="bg-neutral-900 border-neutral-800 w-[36vw]">
               <CardHeader>
                 <CardTitle className="text-white">Super Admin Credentials</CardTitle>
                 <CardDescription className="text-neutral-400">
@@ -3133,7 +3133,7 @@ export default function SuperAdminDashboard() {
           <DialogHeader>
             <DialogTitle>Create Employee</DialogTitle>
             <DialogDescription className="text-neutral-400">
-              This creates a Supabase auth user and an employees table record.
+              This creates a MySQL auth user and an employees table record.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={submitEmployee} className="space-y-4 mt-4">
@@ -3262,7 +3262,7 @@ export default function SuperAdminDashboard() {
       </Dialog>
 
       <Dialog open={planCreateOpen} onOpenChange={setPlanCreateOpen}>
-        <DialogContent className="bg-neutral-900 border-neutral-800 text-white max-w-[96vw] sm:max-w-3xl max-h-[88vh] overflow-y-auto">
+        <DialogContent className="bg-neutral-900 border-neutral-800 text-white w-[96vw] sm:w-[52vw] max-h-[88vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Subscription Plan</DialogTitle>
             <DialogDescription className="text-neutral-400">

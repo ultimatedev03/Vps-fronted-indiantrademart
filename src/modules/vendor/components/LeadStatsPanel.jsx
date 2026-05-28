@@ -37,7 +37,7 @@ const LeadStatsPanel = ({ stats }) => {
   if (!stats) return null;
 
   return (
-    <div className="space-y-3 w-full max-w-[260px]">
+    <div className="space-y-3 w-full w-[16vw]">
       <Card className="border shadow-sm w-full">
         <CardHeader className="p-4 pb-2">
           <CardTitle className="text-[13px] flex items-center gap-2">

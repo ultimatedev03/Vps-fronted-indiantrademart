@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { urlParser } from '@/shared/utils/urlParser';
 
 const slugify = (value) => {
@@ -70,7 +70,7 @@ const resolveLocationSlugs = async (locationText = '') => {
 
   // 1) Try state first
   try {
-    const { data: sData } = await supabase
+    const { data: sData } = await dbClient
       .from('states')
       .select('id, slug, name')
       .eq('slug', maybeSlug)
@@ -85,14 +85,14 @@ const resolveLocationSlugs = async (locationText = '') => {
 
   // 2) Try city and fetch its state
   try {
-    const { data: cData } = await supabase
+    const { data: cData } = await dbClient
       .from('cities')
       .select('slug, state_id, name')
       .eq('slug', maybeSlug)
       .maybeSingle();
 
     if (cData?.slug && cData?.state_id) {
-      const { data: sData } = await supabase
+      const { data: sData } = await dbClient
         .from('states')
         .select('slug')
         .eq('id', cData.state_id)
@@ -108,7 +108,7 @@ const resolveLocationSlugs = async (locationText = '') => {
 
   // 3) Try state by name
   try {
-    const { data: sData } = await supabase
+    const { data: sData } = await dbClient
       .from('states')
       .select('id, slug, name')
       .ilike('name', raw)
@@ -124,7 +124,7 @@ const resolveLocationSlugs = async (locationText = '') => {
 
   // 4) Try city by name and resolve its state
   try {
-    const { data: cData } = await supabase
+    const { data: cData } = await dbClient
       .from('cities')
       .select('slug, state_id, name')
       .ilike('name', raw)
@@ -132,7 +132,7 @@ const resolveLocationSlugs = async (locationText = '') => {
       .maybeSingle();
 
     if (cData?.slug && cData?.state_id) {
-      const { data: sData } = await supabase
+      const { data: sData } = await dbClient
         .from('states')
         .select('slug')
         .eq('id', cData.state_id)
@@ -218,7 +218,7 @@ const HeroSection = () => {
         className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-[#8A2BE2] opacity-10 blur-[100px]"
       />
 
-      <div className="container mx-auto px-4 relative z-10 text-center">
+      <div className="w-[92vw] mx-auto relative z-10 text-center">
         <motion.div 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -245,7 +245,7 @@ const HeroSection = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="text-lg md:text-xl text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed"
+          className="text-lg md:text-xl text-slate-300 mb-10 w-[90vw] md:w-[52vw] mx-auto leading-relaxed"
         >
           Discover verified business partners, source quality products, and grow your network with confidence on our
           secure platform.
@@ -255,7 +255,7 @@ const HeroSection = () => {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="max-w-4xl mx-auto"
+          className="w-[90vw] md:w-[72vw] mx-auto"
         >
           {/* Glassmorphism search form */}
           <form onSubmit={handleSearch} className="bg-[#082a59]/80 backdrop-blur-xl border border-cyan-200/20 p-2 rounded-2xl shadow-[0_18px_45px_rgba(0,18,48,0.35)] flex flex-col md:flex-row gap-2">

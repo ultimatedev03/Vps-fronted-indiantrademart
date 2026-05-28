@@ -13,7 +13,7 @@ const ManagementPortal = () => {
         <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-purple-600 blur-[120px]"></div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 flex-1 flex flex-col">
+      <div className="w-[92vw] mx-auto py-8 flex-1 flex flex-col">
         {/* Header */}
         <header className="flex justify-between items-center mb-12 relative z-10">
           <Link to="/">
@@ -110,7 +110,7 @@ const PortalCard = ({ title, icon: Icon, color, description, children }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="group relative w-full max-w-sm"
+      className="group relative w-full w-[24vw]"
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${color} rounded-2xl blur-lg opacity-20 group-hover:opacity-40 transition-opacity duration-500`}></div>
       

@@ -1,9 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
-import { setDefaultResultOrder } from 'dns';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-import WebSocket from 'ws';
+import { db, FRONTEND_DIR } from './mysqlToolClient.js';
 
 const resolveFrontendDir = () => {
   const override = String(process.env.FRONTEND_DIR || '').trim();
@@ -19,24 +17,10 @@ const resolveFrontendDir = () => {
   );
 };
 
-const FRONTEND_DIR = resolveFrontendDir();
 dotenv.config({ path: path.join(FRONTEND_DIR, '.env.local') });
 dotenv.config({ path: '.env.local' });
 
-const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL ||
-  process.env.SUPABASE_URL ||
-  process.env.UPABASE_URL;
-const SUPABASE_ANON_KEY =
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.SUPABASE_ANON_KEY;
 const BASE_URL = process.env.VITE_SITE_URL || 'https://indiantrademart.com';
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('Missing Supabase credentials in environment variables');
-  process.exit(1);
-}
 
 const distDir = path.join(FRONTEND_DIR, 'dist');
 const templatePath = path.join(distDir, 'index.html');
@@ -48,78 +32,16 @@ if (!fs.existsSync(templatePath)) {
 
 const templateHtml = fs.readFileSync(templatePath, 'utf8');
 
-try {
-  // Helps in environments where IPv6 handshake intermittently fails.
-  setDefaultResultOrder('ipv4first');
-} catch {
-  // ignore for older runtimes
-}
-
-const RETRYABLE_HTTP_STATUS = new Set([408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
-const MAX_FETCH_RETRIES = Math.max(1, Number(process.env.SUPABASE_FETCH_RETRIES || 3));
-const FETCH_RETRY_DELAY_MS = Math.max(50, Number(process.env.SUPABASE_FETCH_RETRY_DELAY_MS || 250));
+const MAX_FETCH_RETRIES = Math.max(1, Number(process.env.MYSQL_FETCH_RETRIES || 3));
+const FETCH_RETRY_DELAY_MS = Math.max(50, Number(process.env.MYSQL_FETCH_RETRY_DELAY_MS || 250));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const isRetryableNetworkError = (error) => {
-  const message = String(error?.message || error || '').toLowerCase();
-  const code = String(error?.code || error?.cause?.code || '').toUpperCase();
-  if (['ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ENOTFOUND', 'ECONNREFUSED'].includes(code)) {
-    return true;
-  }
-  return (
-    message.includes('fetch failed') ||
-    message.includes('socket hang up') ||
-    message.includes('network error') ||
-    message.includes('tls') ||
-    message.includes('ssl') ||
-    message.includes('handshake') ||
-    message.includes('terminated')
-  );
-};
-
-const resilientFetch = async (input, init) => {
-  let lastError = null;
-  for (let attempt = 1; attempt <= MAX_FETCH_RETRIES; attempt += 1) {
-    try {
-      const response = await fetch(input, init);
-      if (!RETRYABLE_HTTP_STATUS.has(response.status) || attempt >= MAX_FETCH_RETRIES) {
-        return response;
-      }
-      try {
-        response.body?.cancel?.();
-      } catch {
-        // no-op
-      }
-    } catch (error) {
-      lastError = error;
-      if (!isRetryableNetworkError(error) || attempt >= MAX_FETCH_RETRIES) throw error;
-    }
-
-    await sleep(FETCH_RETRY_DELAY_MS * attempt);
-  }
-  throw lastError || new Error('Supabase fetch failed');
-};
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  global: {
-    fetch: resilientFetch,
-  },
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-  realtime: {
-    transport: WebSocket,
-  },
-});
 
 const isMissingColumnError = (err) => {
   if (!err) return false;
-  return err.code === '42703' || /column .* does not exist/i.test(err.message || '');
+  return err.code === '42703' || err.code === 'ER_BAD_FIELD_ERROR' || /column .*does not exist|unknown column/i.test(err.message || '');
 };
 
-const isTransientSupabaseError = (err) => {
+const isTransientDbError = (err) => {
   const blob = String(
     [err?.message, err?.details, err?.hint, err?.code].filter(Boolean).join(' ')
   ).toLowerCase();
@@ -136,13 +58,13 @@ const isTransientSupabaseError = (err) => {
   );
 };
 
-const withSupabaseRetry = async (label, runner, maxAttempts = Math.max(2, MAX_FETCH_RETRIES)) => {
+const withDbRetry = async (label, runner, maxAttempts = Math.max(2, MAX_FETCH_RETRIES)) => {
   let lastRes = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const res = await runner();
     lastRes = res;
     if (!res?.error) return res;
-    if (!isTransientSupabaseError(res.error) || attempt >= maxAttempts) return res;
+    if (!isTransientDbError(res.error) || attempt >= maxAttempts) return res;
     await sleep(FETCH_RETRY_DELAY_MS * attempt);
   }
   return lastRes;
@@ -213,7 +135,7 @@ const PUBLIC_FALLBACK_STYLE_BLOCK = `
 
   .itm-public-fallback-nav,
   .itm-public-fallback-main {
-    max-width: 1120px;
+    width: 92vw;
     margin: 0 auto;
     padding-left: 16px;
     padding-right: 16px;
@@ -265,13 +187,13 @@ const PUBLIC_FALLBACK_STYLE_BLOCK = `
 
   .itm-public-fallback-hero h1 {
     margin: 0;
-    max-width: 880px;
+    width: 64vw;
     font-size: clamp(2rem, 5vw, 3.6rem);
     line-height: 1.05;
   }
 
   .itm-public-fallback-hero p {
-    max-width: 760px;
+    width: 54vw;
     margin: 20px 0 0;
     font-size: 18px;
     line-height: 1.7;
@@ -342,7 +264,7 @@ const PUBLIC_FALLBACK_STYLE_BLOCK = `
     margin-top: 12px;
   }
 
-  @media (max-width: 860px) {
+  @media (width <= 860px) {
     .itm-public-fallback-grid {
       grid-template-columns: 1fr;
     }
@@ -492,23 +414,23 @@ const DIRECTORY_SEO = {
 };
 
 const fetchHeads = async () => {
-  let res = await withSupabaseRetry('head_categories/full', () =>
-    supabase
+  let res = await withDbRetry('head_categories/full', () =>
+    db
       .from('head_categories')
       .select('id, name, slug, description, meta_tags, keywords')
   );
 
   if (res.error && isMissingColumnError(res.error)) {
-    res = await withSupabaseRetry('head_categories/description', () =>
-      supabase
+    res = await withDbRetry('head_categories/description', () =>
+      db
         .from('head_categories')
         .select('id, name, slug, description')
     );
   }
 
   if (res.error && isMissingColumnError(res.error)) {
-    res = await withSupabaseRetry('head_categories/basic', () =>
-      supabase
+    res = await withDbRetry('head_categories/basic', () =>
+      db
         .from('head_categories')
         .select('id, name, slug')
     );
@@ -523,25 +445,25 @@ const fetchHeads = async () => {
 };
 
 const fetchSubs = async () => {
-  let res = await withSupabaseRetry('sub_categories/full', () =>
-    supabase
+  let res = await withDbRetry('sub_categories/full', () =>
+    db
       .from('sub_categories')
-      .select('id, name, slug, description, meta_tags, keywords, head_categories!inner(id, name, slug)')
+      .select('id, name, slug, description, meta_tags, keywords, head_category_id')
   );
 
   if (res.error && isMissingColumnError(res.error)) {
-    res = await withSupabaseRetry('sub_categories/description', () =>
-      supabase
+    res = await withDbRetry('sub_categories/description', () =>
+      db
         .from('sub_categories')
-        .select('id, name, slug, description, head_categories!inner(id, name, slug)')
+        .select('id, name, slug, description, head_category_id')
     );
   }
 
   if (res.error && isMissingColumnError(res.error)) {
-    res = await withSupabaseRetry('sub_categories/basic', () =>
-      supabase
+    res = await withDbRetry('sub_categories/basic', () =>
+      db
         .from('sub_categories')
-        .select('id, name, slug, head_categories!inner(id, name, slug)')
+        .select('id, name, slug, head_category_id')
     );
   }
 
@@ -550,16 +472,27 @@ const fetchSubs = async () => {
     return [];
   }
 
-  return res.data || [];
+  const subs = res.data || [];
+  const headIds = Array.from(new Set(subs.map((sub) => sub.head_category_id).filter(Boolean)));
+  const headsById = new Map();
+  if (headIds.length) {
+    const headRes = await withDbRetry('sub_categories/heads', () =>
+      db.from('head_categories').select('id, name, slug').in('id', headIds)
+    );
+    (headRes.data || []).forEach((head) => headsById.set(head.id, head));
+  }
+
+  return subs.map((sub) => ({
+    ...sub,
+    head_categories: headsById.get(sub.head_category_id) || null,
+  }));
 };
 
 const fetchMicros = async () => {
-  const res = await withSupabaseRetry('micro_categories/basic', () =>
-    supabase
+  const res = await withDbRetry('micro_categories/basic', () =>
+    db
       .from('micro_categories')
-      .select(
-        'id, name, slug, sub_categories!inner(id, name, slug, head_categories!inner(id, name, slug))'
-      )
+      .select('id, name, slug, sub_category_id')
   );
 
   if (res.error) {
@@ -567,7 +500,34 @@ const fetchMicros = async () => {
     return [];
   }
 
-  return res.data || [];
+  const micros = res.data || [];
+  const subIds = Array.from(new Set(micros.map((micro) => micro.sub_category_id).filter(Boolean)));
+  const subsById = new Map();
+  if (subIds.length) {
+    const subRes = await withDbRetry('micro_categories/subs', () =>
+      db.from('sub_categories').select('id, name, slug, head_category_id').in('id', subIds)
+    );
+    const subs = subRes.data || [];
+    const headIds = Array.from(new Set(subs.map((sub) => sub.head_category_id).filter(Boolean)));
+    const headsById = new Map();
+    if (headIds.length) {
+      const headRes = await withDbRetry('micro_categories/heads', () =>
+        db.from('head_categories').select('id, name, slug').in('id', headIds)
+      );
+      (headRes.data || []).forEach((head) => headsById.set(head.id, head));
+    }
+    subs.forEach((sub) => {
+      subsById.set(sub.id, {
+        ...sub,
+        head_categories: headsById.get(sub.head_category_id) || null,
+      });
+    });
+  }
+
+  return micros.map((micro) => ({
+    ...micro,
+    sub_categories: subsById.get(micro.sub_category_id) || null,
+  }));
 };
 
 const fetchMicroMetaMap = async (ids) => {
@@ -575,16 +535,16 @@ const fetchMicroMetaMap = async (ids) => {
   const chunks = chunkArray(ids, 100);
 
   for (const chunk of chunks) {
-    let res = await withSupabaseRetry('micro_category_meta/full', () =>
-      supabase
+    let res = await withDbRetry('micro_category_meta/full', () =>
+      db
         .from('micro_category_meta')
         .select('micro_categories, meta_tags, description, keywords')
         .in('micro_categories', chunk)
     );
 
     if (res.error && isMissingColumnError(res.error)) {
-      res = await withSupabaseRetry('micro_category_meta/description', () =>
-        supabase
+      res = await withDbRetry('micro_category_meta/description', () =>
+        db
           .from('micro_category_meta')
           .select('micro_categories, meta_tags, description')
           .in('micro_categories', chunk)
@@ -697,7 +657,9 @@ const run = async () => {
   console.log(`✅ SEO prerender complete. Generated ${heads.length} head, ${subs.length} sub, ${micros.length} micro pages.`);
 };
 
-run().catch((err) => {
-  console.error('SEO prerender failed:', err);
-  process.exit(1);
-});
+run()
+  .catch((err) => {
+    console.error('SEO prerender failed:', err);
+    process.exitCode = 1;
+  })
+  .finally(() => db.close());

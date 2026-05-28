@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useEmployeeAuth } from '@/modules/employee/context/EmployeeAuthContext';
 import { dataEntryApi } from '@/modules/employee/services/dataEntryApi';
 import { notificationService } from '@/modules/employee/services/notificationService';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -115,7 +115,7 @@ const KycApprovals = () => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
+    const channel = dbClient
       .channel(`kyc-status-map-sync:${user?.id || user?.email || 'employee'}`)
       .on(
         'postgres_changes',
@@ -136,7 +136,7 @@ const KycApprovals = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      dbClient.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.email, selectedVendor?.id]);
@@ -179,7 +179,7 @@ const KycApprovals = () => {
   const loadVendors = async () => {
     setLoading(true);
     try {
-      const { data: vendors, error: vendorsError } = await supabase
+      const { data: vendors, error: vendorsError } = await dbClient
         .from('vendors')
         .select('id, vendor_id, company_name, owner_name, kyc_status, created_at, updated_at, rejection_reason, email, phone, address, registered_address')
         .order('created_at', { ascending: false });
@@ -308,7 +308,7 @@ const KycApprovals = () => {
     const config = configs[mode];
     if (!config) throw new Error('Invalid ticket mode');
 
-    const { data: existingOpen } = await supabase
+    const { data: existingOpen } = await dbClient
       .from('support_tickets')
       .select('id, ticket_display_id, status')
       .eq('vendor_id', vendor.id)
@@ -698,7 +698,7 @@ const KycApprovals = () => {
       />
 
       <Dialog open={!!selectedVendor} onOpenChange={(open) => !open && setSelectedVendor(null)}>
-        <DialogContent className="max-w-4xl max-h-[86vh] overflow-y-auto">
+        <DialogContent className="w-[60vw] max-h-[86vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review KYC: {selectedVendor?.company_name}</DialogTitle>
           </DialogHeader>

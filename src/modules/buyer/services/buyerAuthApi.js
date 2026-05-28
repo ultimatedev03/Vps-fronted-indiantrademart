@@ -1,10 +1,10 @@
 
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 export const buyerAuthApi = {
   register: async (data) => {
-    // 1. Sign up with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1. Sign up with MySQL Auth
+    const { data: authData, error: authError } = await dbClient.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
@@ -19,7 +19,7 @@ export const buyerAuthApi = {
 
     if (authData.user) {
       // 2. Create Buyer Profile entry
-      const { error: profileError } = await supabase
+      const { error: profileError } = await dbClient
         .from('buyers')
         .insert([{
           user_id: authData.user.id,
@@ -47,7 +47,7 @@ export const buyerAuthApi = {
   },
 
   login: async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await dbClient.auth.signInWithPassword({
       email,
       password,
     });
@@ -57,15 +57,15 @@ export const buyerAuthApi = {
   },
 
   logout: async () => {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await dbClient.auth.signOut();
     if (error) throw error;
   },
 
   me: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await dbClient.auth.getUser();
     if (!user) return null;
 
-    const { data: profile, error } = await supabase
+    const { data: profile, error } = await dbClient
       .from('buyers')
       .select('*')
       .eq('user_id', user.id)

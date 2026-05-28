@@ -1,12 +1,12 @@
 
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { resolveBuyerId } from '@/modules/buyer/services/buyerSession';
 
 export const buyerFavoritesApi = {
   list: async () => {
     const buyerId = await resolveBuyerId({ required: true });
     
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('favorites')
       .select('*, vendor:vendors(*)')
       .eq('buyer_id', buyerId);
@@ -18,7 +18,7 @@ export const buyerFavoritesApi = {
   add: async (vendorId) => {
     const buyerId = await resolveBuyerId({ required: true });
     
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('favorites')
       .insert([{ buyer_id: buyerId, vendor_id: vendorId }])
       .select()
@@ -31,7 +31,7 @@ export const buyerFavoritesApi = {
   remove: async (vendorId) => {
     const buyerId = await resolveBuyerId({ required: true });
     
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('favorites')
       .delete()
       .match({ buyer_id: buyerId, vendor_id: vendorId });

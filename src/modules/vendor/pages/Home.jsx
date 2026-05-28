@@ -31,7 +31,7 @@ const VendorHome = () => {
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-[#003D82] to-[#00254E] text-white py-20 lg:py-32">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -76,7 +76,7 @@ const VendorHome = () => {
 
       {/* Stats Section */}
       <section className="py-12 bg-neutral-50 border-b border-neutral-200">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
               <p className="text-4xl font-bold text-[#003D82] mb-2">50k+</p>
@@ -100,10 +100,10 @@ const VendorHome = () => {
 
       {/* Features Section */}
       <section className="py-20">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-neutral-800 mb-4">Why Sell on IndianTradeMart?</h2>
-            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">We provide the tools and exposure you need to scale your business efficiently.</p>
+            <p className="text-lg text-neutral-600 w-[44vw] mx-auto">We provide the tools and exposure you need to scale your business efficiently.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -134,7 +134,7 @@ const VendorHome = () => {
 
       {/* Testimonials */}
       <section className="py-20 bg-neutral-900 text-white">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <h2 className="text-3xl font-bold text-center mb-16">Success Stories</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonialVendors.map((vendor, idx) => (
@@ -160,9 +160,9 @@ const VendorHome = () => {
 
       {/* CTA */}
       <section className="py-20 bg-[#00A699]">
-        <div className="container mx-auto px-4 text-center text-white">
+        <div className="w-[92vw] mx-auto text-center text-white">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Grow?</h2>
-          <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">Join the thousands of smart businesses already selling on IndianTradeMart.</p>
+          <p className="text-xl mb-8 w-[44vw] mx-auto opacity-90">Join the thousands of smart businesses already selling on IndianTradeMart.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/vendor/register">
               <Button size="lg" className="bg-white text-[#00A699] hover:bg-neutral-100 font-bold h-14 px-8">

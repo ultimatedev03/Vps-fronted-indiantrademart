@@ -91,7 +91,7 @@ const DataEntryRecords = () => {
             <Card>
                 <CardHeader className="space-y-4">
                     <CardTitle>Submission History</CardTitle>
-                    <div className="relative max-w-md">
+                    <div className="relative w-[28vw]">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <Input
                             value={searchTerm}

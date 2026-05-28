@@ -752,7 +752,7 @@ const Leads = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+        <TabsList className="grid w-full grid-cols-2 w-[25vw]">
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
           <TabsTrigger value="my_leads">My Leads</TabsTrigger>
         </TabsList>
@@ -762,7 +762,7 @@ const Leads = () => {
           <CardContent className="p-2">
             {activeTab === "marketplace" ? (
               <div className="flex flex-col lg:flex-row gap-3 lg:items-start">
-                <div className="relative w-full lg:max-w-sm">
+                <div className="relative w-full lg:w-[24vw]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     placeholder="Search product / location..."
@@ -1283,7 +1283,7 @@ const Leads = () => {
           }))
         }
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[28vw]">
           <DialogHeader>
             <DialogTitle>Included Quota Exhausted</DialogTitle>
             <DialogDescription>

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const QuoteModal = ({ triggerText = "Get a Quote", serviceName = "", defaultOpen = false, onClose }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -27,7 +27,7 @@ const QuoteModal = ({ triggerText = "Get a Quote", serviceName = "", defaultOpen
     };
 
     try {
-      const { error } = await supabase.from('quotes').insert([data]);
+      const { error } = await dbClient.from('quotes').insert([data]);
       
       if (error) throw error;
 
@@ -59,7 +59,7 @@ const QuoteModal = ({ triggerText = "Get a Quote", serviceName = "", defaultOpen
           {triggerText}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] bg-white">
+      <DialogContent className="sm:w-[32vw] bg-white">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-900">Get a Quote</DialogTitle>
           <p className="text-sm text-gray-500">Tell us what you need, and we'll help you get quotes</p>

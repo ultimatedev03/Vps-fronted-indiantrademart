@@ -42,7 +42,7 @@ const CreateProposal = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
+    <div className="w-[44vw] mx-auto py-8">
       <Button variant="ghost" className="mb-4" onClick={() => navigate(-1)}>
         <ArrowLeft className="h-4 w-4 mr-2" /> Back
       </Button>

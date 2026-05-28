@@ -25,7 +25,8 @@ const AdminDashboard = () => {
     totalBuyers: 0,
     totalProducts: 0,
     pendingKyc: 0,
-    openTickets: 0
+    openTickets: 0,
+    trends: {},
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [recentTickets, setRecentTickets] = useState([]);
@@ -107,14 +108,14 @@ const AdminDashboard = () => {
     };
   }, [internalLoading, internalUser?.role]);
 
-  const handleExpandCreator = async (creatorId) => {
+  const handleExpandCreator = async (creatorId, creatorEmployeeId = '') => {
     if (expandedCreator === creatorId) {
       setExpandedCreator(null);
       return;
     }
     setExpandedCreator(creatorId);
     if (!creatorVendors[creatorId]) {
-      const vendors = await adminApi.getVendorsByCreator(creatorId);
+      const vendors = await adminApi.getVendorsByCreator(creatorId, creatorEmployeeId);
       setCreatorVendors(prev => ({ ...prev, [creatorId]: vendors }));
     }
   };
@@ -143,6 +144,13 @@ const AdminDashboard = () => {
   const ticketsPath = resolvePath('tickets', 'admin');
   const vendorsPath = resolvePath('vendors', 'admin');
   const buyersPath = resolvePath('buyers', 'admin');
+  const getTrend = (key) => {
+    const trend = stats?.trends?.[key] || {};
+    return {
+      label: trend?.label || '',
+      trendUp: typeof trend?.trendUp === 'boolean' ? trend.trendUp : null,
+    };
+  };
 
   if (loading) {
     return (
@@ -167,29 +175,29 @@ const AdminDashboard = () => {
           title="Total Revenue" 
           value={`₹${stats.totalRevenue.toLocaleString()}`} 
           icon={DollarSign} 
-          trend="+8% this month" 
-          trendUp={true} 
+          trend={getTrend('totalRevenue').label} 
+          trendUp={getTrend('totalRevenue').trendUp} 
         />
         <StatsCard 
           title="Active Vendors" 
           value={stats.activeVendors} 
           icon={ShoppingBag} 
-          trend="+12% this week" 
-          trendUp={true} 
+          trend={getTrend('activeVendors').label} 
+          trendUp={getTrend('activeVendors').trendUp} 
         />
         <StatsCard 
           title="Total Buyers" 
           value={stats.totalBuyers} 
           icon={Users} 
-          trend="+5% this week" 
-          trendUp={true} 
+          trend={getTrend('totalBuyers').label} 
+          trendUp={getTrend('totalBuyers').trendUp} 
         />
         <StatsCard 
           title="Total Products" 
           value={stats.totalProducts} 
           icon={Package} 
-          trend="+15 today" 
-          trendUp={true} 
+          trend={getTrend('totalProducts').label} 
+          trendUp={getTrend('totalProducts').trendUp} 
         />
       </div>
 
@@ -375,7 +383,7 @@ const AdminDashboard = () => {
                 <TableBody>
                   {dataEntryPerf.map(emp => (
                     <React.Fragment key={emp.id}>
-                      <TableRow className="cursor-pointer hover:bg-gray-50" onClick={() => handleExpandCreator(emp.id)}>
+                      <TableRow className="cursor-pointer hover:bg-gray-50" onClick={() => handleExpandCreator(emp.id, emp.employeeId)}>
                         <TableCell>
                           {expandedCreator === emp.id ? <ChevronDown className="w-4 h-4"/> : <ChevronRight className="w-4 h-4"/>}
                         </TableCell>
@@ -394,7 +402,7 @@ const AdminDashboard = () => {
                                   {creatorVendors[emp.id].map(v => (
                                     <div key={v.id} className="flex justify-between text-sm border-b pb-1">
                                       <span>{v.company_name}</span>
-                                      <span className="text-gray-500">{v.products?.length || 0} products</span>
+                                      <span className="text-gray-500">{Number(v.product_count ?? v.products?.length ?? 0) || 0} products</span>
                                     </div>
                                   ))}
                                   {creatorVendors[emp.id].length === 0 && <p className="text-xs text-gray-400">No vendors created yet.</p>}

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, MessageSquare, Filter, Loader2 } from 'lucide-react';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import { buyerApi } from '@/modules/buyer/services/buyerApi';
 import { toast } from '@/components/ui/use-toast';
 import { mapStatusToValid } from '@/shared/constants/ticketStatusMapping';
@@ -193,7 +193,7 @@ const Tickets = () => {
               <Plus className="mr-2 h-4 w-4" /> New Ticket
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:w-[32vw]">
             <DialogHeader>
               <DialogTitle>Raise Support Ticket</DialogTitle>
             </DialogHeader>
@@ -265,7 +265,7 @@ const Tickets = () => {
             }
           }}
         >
-          <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
+          <DialogContent className="sm:w-[42vw] max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Ticket Details</DialogTitle>
             </DialogHeader>

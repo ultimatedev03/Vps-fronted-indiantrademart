@@ -12,7 +12,7 @@ import {
   Ban,
 } from "lucide-react";
 
-import { useAuth } from "@/contexts/SupabaseAuthContext";
+import { useAuth } from "@/contexts/AppAuthContext";
 import { useBuyerAuth } from "@/modules/buyer/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation, Link } from "react-router-dom";

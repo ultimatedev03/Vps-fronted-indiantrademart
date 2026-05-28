@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -324,13 +324,13 @@ const Services = () => {
       try {
         const {
           data: { user: authUser },
-        } = await supabase.auth.getUser();
+        } = await dbClient.auth.getUser();
         if (!authUser) {
           setLoading(false);
           return;
         }
 
-        const { data: vendor, error } = await supabase
+        const { data: vendor, error } = await dbClient
           .from('vendors')
           .select('id')
           .eq('user_id', authUser.id)
@@ -355,7 +355,7 @@ const Services = () => {
 
   const ensureTrialActive = async () => {
     try {
-      const { data: active, error: actErr } = await supabase
+      const { data: active, error: actErr } = await dbClient
         .from('vendor_plan_subscriptions')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -366,7 +366,7 @@ const Services = () => {
       // Activate trial automatically
       const start = new Date();
       const end = new Date(start.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
-      const { data: trial, error: trialErr } = await supabase
+      const { data: trial, error: trialErr } = await dbClient
         .from('vendor_plan_subscriptions')
         .insert([{
           vendor_id: vendorId,
@@ -393,8 +393,8 @@ const Services = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Force fresh data from Supabase (no cache)
-      const { data: plansData, error: plansErr } = await supabase
+      // Force fresh data from MySQL (no cache)
+      const { data: plansData, error: plansErr } = await dbClient
         .from('vendor_plans')
         .select('*')
         .eq('is_active', true)
@@ -428,7 +428,7 @@ const Services = () => {
       }
 
       // Query for ACTIVE subscription - this will get the latest one
-      const { data: subs, error: subsErr } = await supabase
+      const { data: subs, error: subsErr } = await dbClient
         .from('vendor_plan_subscriptions')
         .select('*, plan:vendor_plans(*)')
         .eq('vendor_id', vendorId)
@@ -447,7 +447,7 @@ const Services = () => {
       }
       setCurrentSub(currentActive);
 
-      const { data: q, error: qErr } = await supabase
+      const { data: q, error: qErr } = await dbClient
         .from('vendor_lead_quota')
         .select('*')
         .eq('vendor_id', vendorId)
@@ -475,7 +475,7 @@ const Services = () => {
       toast({ title: 'Processing...', description: `Subscribing to ${plan.name}` });
       try {
         if (currentSub && currentSub.id) {
-          await supabase
+          await dbClient
             .from('vendor_plan_subscriptions')
             .update({ status: 'INACTIVE' })
             .eq('id', currentSub.id);
@@ -485,7 +485,7 @@ const Services = () => {
         const startDate = new Date();
         const endDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
-        await supabase.from('vendor_plan_subscriptions').insert({
+        await dbClient.from('vendor_plan_subscriptions').insert({
           vendor_id: vendorId,
           plan_id: plan.id,
           start_date: startDate.toISOString(),
@@ -509,19 +509,19 @@ const Services = () => {
           updated_at: startDate.toISOString(),
         };
 
-        const { data: existingQuota } = await supabase
+        const { data: existingQuota } = await dbClient
           .from('vendor_lead_quota')
           .select('id')
           .eq('vendor_id', vendorId)
           .maybeSingle();
 
         if (existingQuota?.id) {
-          await supabase
+          await dbClient
             .from('vendor_lead_quota')
             .update(quotaPayload)
             .eq('vendor_id', vendorId);
         } else {
-          await supabase.from('vendor_lead_quota').insert(quotaPayload);
+          await dbClient.from('vendor_lead_quota').insert(quotaPayload);
         }
 
         toast({ title: 'Success!', description: 'Plan activated.' });
@@ -820,7 +820,7 @@ const Services = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto w-full min-w-0 space-y-6">
       {/* Header */}
       <div className="rounded-2xl border bg-white p-6 md:p-8 shadow-sm">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1085,7 +1085,7 @@ const Services = () => {
 
       {/* ✅ Plan Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="mx-auto max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto p-0 sm:w-[86vw] md:max-w-[1100px] md:w-[76vw] lg:w-[66vw]">
+        <DialogContent className="mx-auto max-h-[90vh] w-[calc(100vw-1.5rem)] w-[44vw] overflow-y-auto p-0 sm:w-[86vw] md:w-[72vw] md:w-[76vw] lg:w-[66vw]">
           {!selectedPlan ? null : (
             <div className="space-y-3">
               <DialogHeader className="border-b bg-white px-3 pb-3 pt-3">
@@ -1371,7 +1371,7 @@ const Services = () => {
 
       {/* Payment History Dialog */}
       <Dialog open={showPaymentHistory} onOpenChange={setShowPaymentHistory}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[44vw]">
           <DialogHeader>
             <DialogTitle>Payment & Invoice History</DialogTitle>
             <DialogDescription>View your past payments and download invoices</DialogDescription>

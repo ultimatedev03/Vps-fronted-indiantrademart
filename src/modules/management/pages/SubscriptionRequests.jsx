@@ -117,8 +117,8 @@ export default function SubscriptionRequests({ role: propRole }) {
                     <td className="px-4 py-3 font-medium text-gray-900">{r.vendor_name}</td>
                     <td className="px-4 py-3 text-gray-500">{r.vendor_state || '—'}</td>
                     <td className="px-4 py-3 text-gray-700">{r.extension_days}d</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={r.reason}>{r.reason}</td>
-                    <td className="px-4 py-3 text-gray-500 max-w-xs truncate" title={r.sales_note}>
+                    <td className="px-4 py-3 text-gray-600 w-[20vw] truncate" title={r.reason}>{r.reason}</td>
+                    <td className="px-4 py-3 text-gray-500 w-[20vw] truncate" title={r.sales_note}>
                       {r.sales_note || '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -152,7 +152,7 @@ export default function SubscriptionRequests({ role: propRole }) {
       {/* Note modal for forwarding */}
       {noteModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-[92vw] sm:w-[28vw] space-y-4">
             <h3 className="text-base font-semibold text-gray-900">
               {forwardLabel} — {noteModal.vendor_name}
             </h3>

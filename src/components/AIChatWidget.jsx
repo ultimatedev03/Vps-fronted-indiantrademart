@@ -321,7 +321,7 @@ const AIChatWidget = () => {
                   )}
                   <div
                     className={cn(
-                      'px-3 py-2 rounded-2xl max-w-[75%] text-xs leading-relaxed shadow-sm',
+                      'px-3 py-2 rounded-2xl w-[75vw] text-xs leading-relaxed shadow-sm',
                       m.role === 'user'
                         ? 'rounded-tr-md text-white'
                         : 'rounded-tl-md bg-white text-gray-800 border border-gray-200'

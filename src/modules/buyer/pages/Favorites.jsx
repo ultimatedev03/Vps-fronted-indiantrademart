@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/shared/components/Card';
 import { Star, MapPin, ExternalLink, Loader2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AppAuthContext';
 import {
   productFavorites,
   PRODUCT_FAVORITES_UPDATED_EVENT,
@@ -72,7 +72,7 @@ const Favorites = () => {
               <Star className="h-8 w-8 text-gray-400" />
            </div>
            <h3 className="text-lg font-semibold text-gray-900">No Favorites Yet</h3>
-           <p className="text-gray-500 mb-6 max-w-sm">Open any service detail page and click Add to Favorites to save that exact item here.</p>
+           <p className="text-gray-500 mb-6 w-[24vw]">Open any service detail page and click Add to Favorites to save that exact item here.</p>
            <Link to="/directory">
               <Button>Browse Directory</Button>
            </Link>

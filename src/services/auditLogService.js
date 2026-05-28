@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 /**
  * Service for logging superadmin actions to audit_logs table
@@ -15,7 +15,7 @@ export const auditLogService = {
    */
   async logAction(superAdminId, action, entityType, entityId, details = {}) {
     try {
-      const { error } = await supabase.from('audit_logs').insert([
+      const { error } = await dbClient.from('audit_logs').insert([
         {
           user_id: superAdminId,
           action: action,
@@ -50,7 +50,7 @@ export const auditLogService = {
     try {
       const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('audit_logs')
         .select('*')
         .gte('created_at', cutoffTime)
@@ -77,7 +77,7 @@ export const auditLogService = {
    */
   async getAuditLogsByUser(userId, limit = 100) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('audit_logs')
         .select('*')
         .eq('user_id', userId)
@@ -105,7 +105,7 @@ export const auditLogService = {
    */
   async getAuditLogsByEntity(entityType, entityId, limit = 50) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('audit_logs')
         .select('*')
         .eq('entity_type', entityType)

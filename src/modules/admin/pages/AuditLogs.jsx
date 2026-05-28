@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -35,9 +35,9 @@ const AuditLogs = () => {
         if (!data?.success) throw new Error(data?.error || 'Failed to fetch audit logs');
         setLogs(data.logs || []);
       } catch (error) {
-        console.warn('[AuditLogs] Backend fetch failed, falling back to direct Supabase:', error);
+        console.warn('[AuditLogs] Backend fetch failed, falling back to direct MySQL:', error);
         try {
-          const { data, error: supaError } = await supabase
+          const { data, error: supaError } = await dbClient
             .from('audit_logs')
             .select('*')
             .order('created_at', { ascending: false })

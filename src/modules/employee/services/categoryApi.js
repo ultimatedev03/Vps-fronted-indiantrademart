@@ -1,10 +1,11 @@
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
+import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
 
 // NOTE:
-// In Supabase/PostgREST, `.single()` throws:
+// In MySQL/PostgREST, `.single()` throws:
 // "Cannot coerce the result to a single JSON object" when the query returns 0 rows.
 // This usually happens when:
 // 1) the filter doesn't match any row (wrong/undefined id), OR
@@ -18,7 +19,7 @@ const ensureRowExists = async (table, id, notFoundMessage) => {
   const categoryId = String(id || '').trim();
   if (!categoryId) throw new Error(notFoundMessage);
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from(table)
     .select('id')
     .eq('id', categoryId)
@@ -223,34 +224,28 @@ const safeSlug = (v) =>
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
-const fileToDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Failed to read image file'));
-    reader.readAsDataURL(file);
-  });
-
 const uploadCategoryImage = async ({ level, slug, file }) => {
   if (!file) return null;
 
-  validateImageFile(file, {
+  const uploadFile = await optimizeMediaFile(file, 'category');
+
+  validateImageFile(uploadFile, {
     minBytes: MIN_IMAGE_UPLOAD_BYTES,
     maxBytes: CATEGORY_IMAGE_MAX_BYTES,
     label: 'Image',
   });
 
-  const fileType = String(file?.type || '').trim().toLowerCase();
+  const fileType = String(uploadFile?.type || '').trim().toLowerCase();
 
   const safe = safeSlug(slug) || 'category';
-  const dataUrl = await fileToDataUrl(file);
+  const dataUrl = await fileToDataUrl(uploadFile);
 
   const response = await fetchWithCsrf(apiUrl('/api/employee/category-image-upload'), {
     method: 'POST',
     body: JSON.stringify({
       level,
       slug: safe,
-      file_name: file.name || 'category-image',
+      file_name: uploadFile.name || 'category-image',
       content_type: fileType,
       data_url: dataUrl,
     }),
@@ -300,7 +295,7 @@ const updateCategoryViaServer = async ({ level, id, payload }) => {
 // HEAD CATEGORIES
 export const headCategoryApi = {
   getAll: async () => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('head_categories')
       .select('*')
       .order('name');
@@ -309,7 +304,7 @@ export const headCategoryApi = {
   },
 
   getActive: async () => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('head_categories')
       .select('*')
       .eq('is_active', true)
@@ -327,7 +322,7 @@ export const headCategoryApi = {
     }
     if (removeImage) finalImageUrl = null;
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('head_categories')
       .insert([{
         name: name.trim(),
@@ -355,7 +350,7 @@ export const headCategoryApi = {
     }
     if (removeImage) finalImageUrl = null;
 
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('head_categories')
       .update({
         name: name.trim(),
@@ -372,7 +367,7 @@ export const headCategoryApi = {
 
   delete: async (id) => {
     // Check if has sub categories
-    const { data: subCats, error: countError } = await supabase
+    const { data: subCats, error: countError } = await dbClient
       .from('sub_categories')
       .select('id', { count: 'exact' })
       .eq('head_category_id', id);
@@ -383,7 +378,7 @@ export const headCategoryApi = {
       throw new Error(`Cannot delete. This head category has ${subCats.length} sub-categories.`);
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('head_categories')
       .delete()
       .eq('id', id)
@@ -397,7 +392,7 @@ export const headCategoryApi = {
 
   // Get count of child categories
   getChildCount: async (id) => {
-    const { count, error } = await supabase
+    const { count, error } = await dbClient
       .from('sub_categories')
       .select('id', { count: 'exact' })
       .eq('head_category_id', id);
@@ -410,7 +405,7 @@ export const headCategoryApi = {
 // SUB CATEGORIES
 export const subCategoryApi = {
   getByHeadCategory: async (headCategoryId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('sub_categories')
       .select('*')
       .eq('head_category_id', headCategoryId)
@@ -421,7 +416,7 @@ export const subCategoryApi = {
   },
 
   getActiveByHeadCategory: async (headCategoryId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('sub_categories')
       .select('*')
       .eq('head_category_id', headCategoryId)
@@ -456,7 +451,7 @@ export const subCategoryApi = {
 
     let recoverableError = null;
     for (const payload of candidatePayloads) {
-      const response = await supabase
+      const response = await dbClient
         .from('sub_categories')
         .insert([payload])
         .select()
@@ -504,7 +499,7 @@ export const subCategoryApi = {
 
     let recoverableError = null;
     for (const payload of candidatePayloads) {
-      const response = await supabase
+      const response = await dbClient
         .from('sub_categories')
         .update(payload)
         .eq('id', categoryId)
@@ -554,7 +549,7 @@ export const subCategoryApi = {
 
   delete: async (id) => {
     // Check if has micro categories
-    const { data: microCats, error: countError } = await supabase
+    const { data: microCats, error: countError } = await dbClient
       .from('micro_categories')
       .select('id', { count: 'exact' })
       .eq('sub_category_id', id);
@@ -565,7 +560,7 @@ export const subCategoryApi = {
       throw new Error(`Cannot delete. This sub-category has ${microCats.length} micro-categories.`);
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('sub_categories')
       .delete()
       .eq('id', id)
@@ -579,7 +574,7 @@ export const subCategoryApi = {
 
   // Get count of child categories
   getChildCount: async (id) => {
-    const { count, error } = await supabase
+    const { count, error } = await dbClient
       .from('micro_categories')
       .select('id', { count: 'exact' })
       .eq('sub_category_id', id);
@@ -592,7 +587,7 @@ export const subCategoryApi = {
 // MICRO CATEGORIES
 export const microCategoryApi = {
   getBySubCategory: async (subCategoryId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('micro_categories')
       .select('*')
       .eq('sub_category_id', subCategoryId)
@@ -603,7 +598,7 @@ export const microCategoryApi = {
   },
 
   getActiveBySubCategory: async (subCategoryId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('micro_categories')
       .select('*')
       .eq('sub_category_id', subCategoryId)
@@ -633,7 +628,7 @@ export const microCategoryApi = {
 
     let recoverableError = null;
     for (const payload of candidatePayloads) {
-      const response = await supabase
+      const response = await dbClient
         .from('micro_categories')
         .insert([payload])
         .select()
@@ -677,7 +672,7 @@ export const microCategoryApi = {
 
     let recoverableError = null;
     for (const payload of candidatePayloads) {
-      const response = await supabase
+      const response = await dbClient
         .from('micro_categories')
         .update(payload)
         .eq('id', categoryId)
@@ -728,19 +723,19 @@ export const microCategoryApi = {
   delete: async (id) => {
     // If meta exists, it can block deletion due to FK constraint.
     // So delete meta first (safe even if there is no meta row).
-    let metaRes = await supabase
+    let metaRes = await dbClient
       .from('micro_category_meta')
       .delete()
       .eq('micro_categories', id);
     if (metaRes.error && (metaRes.error.code === '42703' || /column .* does not exist/i.test(metaRes.error.message || ''))) {
-      metaRes = await supabase
+      metaRes = await dbClient
         .from('micro_category_meta')
         .delete()
         .eq('micro_category_id', id);
     }
     if (metaRes.error) throw metaRes.error;
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('micro_categories')
       .delete()
       .eq('id', id)

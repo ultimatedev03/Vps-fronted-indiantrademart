@@ -11,7 +11,7 @@ const Modal = ({ isOpen, onClose, title, children, className }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div 
         className={cn(
-          "bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200",
+          "bg-white rounded-lg shadow-xl w-[92vw] sm:w-[28vw] overflow-hidden animate-in zoom-in-95 duration-200",
           className
         )}
       >

@@ -1,5 +1,5 @@
 // Lead Marketplace API - Comprehensive lead discovery and purchase system
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { vendorApi } from './vendorApi';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
@@ -71,7 +71,7 @@ const resetQuota = async (vendorId, quota) => {
   
   // Update database if reset needed
   if (needsUpdate) {
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('vendor_lead_quota')
       .update({
         daily_used: updated.daily_used,
@@ -133,7 +133,7 @@ export const leadsMarketplaceApi = {
     const preferences = await leadsMarketplaceApi.getPreferences();
     
     // Get vendor's quota
-    let { data: quota } = await supabase
+    let { data: quota } = await dbClient
       .from('vendor_lead_quota')
       .select('*')
       .eq('vendor_id', vendor.id)
@@ -145,7 +145,7 @@ export const leadsMarketplaceApi = {
     }
 
     // ✅ Check active subscription and plan expiry
-    const { data: allSubscriptions } = await supabase
+    const { data: allSubscriptions } = await dbClient
       .from('vendor_plan_subscriptions')
       .select('*')
       .eq('vendor_id', vendor.id);
@@ -159,7 +159,7 @@ export const leadsMarketplaceApi = {
     // Fetch plan separately if subscription exists
     let subscription = null;
     if (subData && subData.plan_id) {
-      const { data: planData } = await supabase
+      const { data: planData } = await dbClient
         .from('vendor_plans')
         .select('*')
         .eq('id', subData.plan_id)
@@ -199,7 +199,7 @@ export const leadsMarketplaceApi = {
     }
 
     // Build filter query
-    let query = supabase
+    let query = dbClient
       .from('leads')
       .select(`
         id, title, product_name, budget, quantity, 
@@ -246,7 +246,7 @@ export const leadsMarketplaceApi = {
 
   // Get lead summary (before purchase)
   getLeadSummary: async (leadId) => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('leads')
       .select(`
         id, title, product_name, budget, quantity, location,
@@ -300,7 +300,7 @@ export const leadsMarketplaceApi = {
     if (!vendor?.id) throw new Error('Vendor not found');
 
     // Verify purchase
-    const { data: purchase, error: purchaseError } = await supabase
+    const { data: purchase, error: purchaseError } = await dbClient
       .from('lead_purchases')
       .select('*')
       .eq('vendor_id', vendor.id)
@@ -311,7 +311,7 @@ export const leadsMarketplaceApi = {
     if (!purchase) throw new Error('You have not purchased this lead');
 
     // Get full lead details
-    const { data: lead, error: leadError } = await supabase
+    const { data: lead, error: leadError } = await dbClient
       .from('leads')
       .select('*')
       .eq('id', leadId)
@@ -320,7 +320,7 @@ export const leadsMarketplaceApi = {
     if (leadError) throw leadError;
 
     // Get contact history
-    const { data: contacts } = await supabase
+    const { data: contacts } = await dbClient
       .from('lead_contacts')
       .select('*')
       .eq('vendor_id', vendor.id)
@@ -362,7 +362,7 @@ export const leadsMarketplaceApi = {
       const vendor = await vendorApi.auth.me();
       if (!vendor?.id) throw new Error('Vendor not found');
 
-      const { data: leadRow } = await supabase
+      const { data: leadRow } = await dbClient
         .from('leads')
         .select('vendor_id')
         .eq('id', normalizedLeadId)
@@ -372,7 +372,7 @@ export const leadsMarketplaceApi = {
 
       let purchase = null;
       if (!isOwner) {
-        const { data: purchaseRow, error: purchaseError } = await supabase
+        const { data: purchaseRow, error: purchaseError } = await dbClient
           .from('lead_purchases')
           .select('id')
           .eq('vendor_id', vendor.id)
@@ -386,7 +386,7 @@ export const leadsMarketplaceApi = {
         throw new Error('You have not purchased this lead');
       }
 
-      const { data: fallbackContact, error } = await supabase
+      const { data: fallbackContact, error } = await dbClient
         .from('lead_contacts')
         .insert([{
           vendor_id: vendor.id,
@@ -418,7 +418,7 @@ export const leadsMarketplaceApi = {
 
   // Update contact status
   updateContactStatus: async (contactId, status, notes = '') => {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('lead_contacts')
       .update({
         status,
@@ -442,7 +442,7 @@ export const leadsMarketplaceApi = {
       const response = await fetchVendorJson(`/api/vendors/me/leads/${encodeURIComponent(normalizedLeadId)}/contacts`);
       return response?.contacts || [];
     } catch (backendError) {
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('lead_contacts')
         .select('*')
         .eq('lead_id', normalizedLeadId)
@@ -460,7 +460,7 @@ export const leadsMarketplaceApi = {
     const vendor = await vendorApi.auth.me();
     if (!vendor?.id) throw new Error('Vendor not found');
 
-    let query = supabase
+    let query = dbClient
       .from('lead_purchases')
       .select(`
         id, lead_id, purchase_date, amount,
@@ -504,14 +504,14 @@ export const leadsMarketplaceApi = {
     if (!vendor?.id) throw new Error('Vendor not found');
 
     // Get lead details
-    const { data: lead } = await supabase
+    const { data: lead } = await dbClient
       .from('leads')
       .select('*')
       .eq('id', leadId)
       .single();
 
     // Get contacts
-    const { data: contacts } = await supabase
+    const { data: contacts } = await dbClient
       .from('lead_contacts')
       .select('*')
       .eq('vendor_id', vendor.id)
@@ -546,47 +546,47 @@ export const leadsMarketplaceApi = {
     const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString();
 
     // Daily purchased leads
-    const { count: dailyPurchased } = await supabase
+    const { count: dailyPurchased } = await dbClient
       .from('lead_purchases')
       .select('*', { count: 'exact', head: true })
       .eq('vendor_id', vendor.id)
       .gte('purchase_date', today);
 
     // Weekly purchased leads
-    const { count: weeklyPurchased } = await supabase
+    const { count: weeklyPurchased } = await dbClient
       .from('lead_purchases')
       .select('*', { count: 'exact', head: true })
       .eq('vendor_id', vendor.id)
       .gte('purchase_date', sevenDaysAgo);
 
     // Yearly purchased leads
-    const { count: yearlyPurchased } = await supabase
+    const { count: yearlyPurchased } = await dbClient
       .from('lead_purchases')
       .select('*', { count: 'exact', head: true })
       .eq('vendor_id', vendor.id)
       .gte('purchase_date', oneYearAgo);
 
     // Total purchased
-    const { count: totalPurchased, data: allPurchases } = await supabase
+    const { count: totalPurchased, data: allPurchases } = await dbClient
       .from('lead_purchases')
       .select('amount', { count: 'exact' })
       .eq('vendor_id', vendor.id);
 
     // Direct leads from buyer proposals
-    const { count: directLeads } = await supabase
+    const { count: directLeads } = await dbClient
       .from('proposals')
       .select('*', { count: 'exact', head: true })
       .eq('vendor_id', vendor.id)
       .eq('status', 'SENT');
 
     // Total contacted
-    const { count: totalContacted } = await supabase
+    const { count: totalContacted } = await dbClient
       .from('lead_contacts')
       .select('*', { count: 'exact', head: true })
       .eq('vendor_id', vendor.id);
 
     // Converted
-    const { count: converted } = await supabase
+    const { count: converted } = await dbClient
       .from('lead_contacts')
       .select('*', { count: 'exact', head: true })
       .eq('vendor_id', vendor.id)
@@ -596,7 +596,7 @@ export const leadsMarketplaceApi = {
     const totalAmount = (allPurchases || []).reduce((sum, p) => sum + (p.amount || 0), 0);
 
     // Get quota
-    const { data: quota } = await supabase
+    const { data: quota } = await dbClient
       .from('vendor_lead_quota')
       .select('*')
       .eq('vendor_id', vendor.id)

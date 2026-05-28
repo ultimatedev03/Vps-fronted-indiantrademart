@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 
@@ -32,7 +32,7 @@ const canonicalizeRole = (value) => {
 
 const fetchProfileByIdentity = async (table, userId, userEmail) => {
   if (userId) {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from(table)
       .select('*')
       .eq('user_id', userId)
@@ -43,7 +43,7 @@ const fetchProfileByIdentity = async (table, userId, userEmail) => {
   const normalizedEmail = String(userEmail || '').trim().toLowerCase();
   if (!normalizedEmail) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from(table)
     .select('*')
     .ilike('email', normalizedEmail)
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     // 1. Check active session
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await dbClient.auth.getSession();
         if (session) {
           await fetchProfile(session.user);
         } else {
@@ -110,7 +110,7 @@ export const AuthProvider = ({ children }) => {
     checkSession();
 
     // 2. Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = dbClient.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           await fetchProfile(session.user);
@@ -210,7 +210,7 @@ export const AuthProvider = ({ children }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await dbClient.auth.signInWithPassword({
         email: normalizedEmail,
         password,
         options: { data: metadata || {} },
@@ -240,7 +240,7 @@ export const AuthProvider = ({ children }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await dbClient.auth.signUp({
         email: normalizedEmail,
         password,
         options: { data: metadata },
@@ -266,7 +266,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await dbClient.auth.signOut();
     setUser(null);
     setProfile(null);
   };

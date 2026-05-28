@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 import { leadApi } from '@/modules/lead/services/leadApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/Card';
 import { TrendingUp, Eye, ShoppingCart, Users, Mail, Phone } from 'lucide-react';
@@ -44,7 +44,7 @@ const resolveVendor = async (sessionUser) => {
   const userEmail = String(sessionUser?.email || '').trim().toLowerCase();
 
   if (userId) {
-    const { data: vendorByUserId, error: byUserErr } = await supabase
+    const { data: vendorByUserId, error: byUserErr } = await dbClient
       .from('vendors')
       .select('id, trust_score')
       .eq('user_id', userId)
@@ -54,7 +54,7 @@ const resolveVendor = async (sessionUser) => {
   }
 
   if (userEmail) {
-    const { data: vendorByEmailRows, error: byEmailErr } = await supabase
+    const { data: vendorByEmailRows, error: byEmailErr } = await dbClient
       .from('vendors')
       .select('id, trust_score')
       .ilike('email', userEmail)
@@ -82,7 +82,7 @@ const Analytics = () => {
 
         const {
           data: { session },
-        } = await supabase.auth.getSession();
+        } = await dbClient.auth.getSession();
 
         if (!session?.user) {
           if (alive) setStats(null);
@@ -96,7 +96,7 @@ const Analytics = () => {
         }
 
         // Products + views
-        const { data: products, count: productCount, error: productErr } = await supabase
+        const { data: products, count: productCount, error: productErr } = await dbClient
           .from('products')
           .select('views', { count: 'exact' })
           .eq('vendor_id', vendor.id);
@@ -152,7 +152,7 @@ const Analytics = () => {
         });
 
         // Contacts (distinct leads contacted)
-        const { data: contacts, error: contactErr } = await supabase
+        const { data: contacts, error: contactErr } = await dbClient
           .from('lead_contacts')
           .select('lead_id, contact_type, contact_date')
           .eq('vendor_id', vendor.id);
@@ -192,7 +192,7 @@ const Analytics = () => {
         }
 
         // Proposals sent
-        const { count: proposalsSent, error: proposalErr } = await supabase
+        const { count: proposalsSent, error: proposalErr } = await dbClient
           .from('proposals')
           .select('*', { count: 'exact' })
           .eq('vendor_id', vendor.id);

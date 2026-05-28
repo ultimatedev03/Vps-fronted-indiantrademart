@@ -668,7 +668,7 @@ const AdminFinance = () => {
       {/* Reject reason modal */}
       {rejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full w-[24vw] space-y-4">
             <h3 className="font-semibold text-lg">Reject Coupon: {rejectModal.code}</h3>
             <div className="space-y-1">
               <label className="text-sm font-medium">Reason (required)</label>

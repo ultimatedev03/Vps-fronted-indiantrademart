@@ -244,14 +244,14 @@ const EmployeeLayout = ({ allowedRole }) => {
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:block min-w-0">
-                <p className="max-w-[160px] truncate text-sm font-medium text-slate-900">{user?.name}</p>
+                <p className="w-[10vw] truncate text-sm font-medium text-slate-900">{user?.name}</p>
                 <p className="truncate text-xs text-slate-500">{user?.role?.replace('_', ' ')}</p>
               </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 min-h-0 p-4 lg:p-8 overflow-y-auto">
+        <main className="min-w-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 lg:p-8">
           <Outlet />
         </main>
       </div>

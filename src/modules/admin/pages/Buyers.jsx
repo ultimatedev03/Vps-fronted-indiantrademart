@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
 import { Eye, Edit, Loader2, Search, Ban, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/lib/customSupabaseClient";
+import { dbClient } from "@/lib/dbClient";
 import { fetchWithCsrf } from "@/lib/fetchWithCsrf";
 import { apiUrl } from "@/lib/apiBase";
 import { filterRecordsBySearch } from "@/modules/admin/lib/search";
@@ -143,7 +143,7 @@ export default function Buyers() {
   const load = async () => {
     setLoading(true);
     try {
-      // Try server endpoints first (bypass Supabase RLS)
+      // Try server endpoints first (bypass MySQL RLS)
       const tryUrls = [
         `${ADMIN_API_BASE}/buyers?limit=500`,
         `${ADMIN_API_BASE}/buyers/list?limit=500`,
@@ -169,9 +169,9 @@ export default function Buyers() {
         }
       }
 
-      // Fallback to Supabase (may be empty if RLS blocks)
+      // Fallback to MySQL (may be empty if RLS blocks)
       if (!Array.isArray(list)) {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from("buyers")
           .select("*")
           .order("created_at", { ascending: false });
@@ -406,7 +406,7 @@ export default function Buyers() {
 
       // Fallback for environments where admin backend route is unavailable.
       if (!saved) {
-        let query = supabase
+        let query = dbClient
           .from("buyers")
           .update({
             ...payload,
@@ -457,11 +457,11 @@ export default function Buyers() {
       </div>
 
       {/* Search */}
-      <div className="p-4 bg-white border rounded">
+      <div className="rounded-lg border bg-white p-3 shadow-sm">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <Input
-            className="pl-9"
+            className="h-11 pl-10"
             placeholder="Search by ID, email, phone, name or company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -470,18 +470,18 @@ export default function Buyers() {
       </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
+      <Card className="overflow-hidden">
+        <CardContent className="overflow-x-auto p-0">
+          <Table className="min-w-[1120px]">
             <TableHeader>
-              <TableRow>
-                <TableHead>Buyer</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow className="bg-slate-50/70">
+                <TableHead className="w-[220px]">Buyer</TableHead>
+                <TableHead className="w-[270px]">Contact</TableHead>
+                <TableHead className="w-[220px]">Company</TableHead>
+                <TableHead className="w-[230px]">Location</TableHead>
+                <TableHead className="w-[120px]">Joined</TableHead>
+                <TableHead className="w-[120px]">Status</TableHead>
+                <TableHead className="w-[150px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -502,14 +502,20 @@ export default function Buyers() {
                 buyers.map((b) => {
                   const active = isBuyerActive(b);
                   return (
-                    <TableRow key={getBuyerIdentifier(b) || `${b.email}-${b.full_name}`}>
-                      <TableCell className="font-medium">{b.full_name}</TableCell>
-                      <TableCell>{b.email}</TableCell>
-                      <TableCell>{b.company_name || "Individual"}</TableCell>
-                      <TableCell>
+                    <TableRow key={getBuyerIdentifier(b) || `${b.email}-${b.full_name}`} className="h-16">
+                      <TableCell className="max-w-[220px] truncate font-semibold text-slate-950">
+                        {b.full_name || "—"}
+                      </TableCell>
+                      <TableCell className="max-w-[270px] truncate text-slate-700">
+                        {b.email || "—"}
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-slate-700">
+                        {b.company_name || "Individual"}
+                      </TableCell>
+                      <TableCell className="max-w-[230px] truncate text-slate-700">
                         {[b.city, b.state].filter(Boolean).join(", ") || "—"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap text-slate-700">
                         {b.created_at ? new Date(b.created_at).toLocaleDateString() : "—"}
                       </TableCell>
 
@@ -526,36 +532,54 @@ export default function Buyers() {
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="text-right space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => openView(b)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-
-                        <Button size="sm" variant="outline" onClick={() => openEdit(b)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-
-                        {active ? (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                           <Button
-                            size="sm"
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                            onClick={() => openTerminate(b)}
-                            disabled={processing}
-                            title="Terminate Buyer"
+                            size="icon"
+                            variant="outline"
+                            className="h-9 w-9"
+                            onClick={() => openView(b)}
+                            title="View Buyer"
+                            aria-label="View buyer"
                           >
-                            <Ban className="w-4 h-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
-                        ) : (
+
                           <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                            onClick={() => activateBuyer(b)}
-                            disabled={processing}
-                            title="Activate Buyer"
+                            size="icon"
+                            variant="outline"
+                            className="h-9 w-9"
+                            onClick={() => openEdit(b)}
+                            title="Edit Buyer"
+                            aria-label="Edit buyer"
                           >
-                            <CheckCircle2 className="w-4 h-4" />
+                            <Edit className="h-4 w-4" />
                           </Button>
-                        )}
+
+                          {active ? (
+                            <Button
+                              size="icon"
+                              className="h-9 w-9 bg-red-600 text-white hover:bg-red-700"
+                              onClick={() => openTerminate(b)}
+                              disabled={processing}
+                              title="Terminate Buyer"
+                              aria-label="Terminate buyer"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="icon"
+                              className="h-9 w-9 bg-emerald-600 text-white hover:bg-emerald-700"
+                              onClick={() => activateBuyer(b)}
+                              disabled={processing}
+                              title="Activate Buyer"
+                              aria-label="Activate buyer"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -568,7 +592,7 @@ export default function Buyers() {
 
       {/* VIEW MODAL */}
       <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[32vw]">
           <DialogHeader>
             <DialogTitle>Buyer Details</DialogTitle>
           </DialogHeader>
@@ -601,7 +625,7 @@ export default function Buyers() {
 
       {/* EDIT MODAL */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="w-[92vw] max-w-md p-4 sm:p-5">
+        <DialogContent className="w-[92vw] w-[28vw] p-4 sm:p-5">
           <DialogHeader>
             <DialogTitle>Edit Buyer</DialogTitle>
           </DialogHeader>
@@ -726,7 +750,7 @@ export default function Buyers() {
           if (!open) setTerminateReason("");
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[32vw]">
           <DialogHeader>
             <DialogTitle>Terminate Buyer Account</DialogTitle>
           </DialogHeader>

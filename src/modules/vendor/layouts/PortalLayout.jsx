@@ -451,8 +451,8 @@ const PortalLayout = () => {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto bg-gray-50/50 p-4 sm:p-6 scroll-smooth">
-            <div className="max-w-[1600px] mx-auto min-h-full">
+          <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-gray-50/50 p-4 sm:p-6 scroll-smooth">
+            <div className="mx-auto min-h-full w-full min-w-0">
               <Outlet />
             </div>
           </main>
@@ -509,7 +509,7 @@ const PortalLayout = () => {
       {/* ✅ Suspended Overlay (will NOT disappear now) */}
       {showOverlay && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-2xl shadow-2xl border w-full max-w-md p-8 text-center">
+          <div className="relative bg-white rounded-2xl shadow-2xl border w-[92vw] sm:w-[28vw] p-8 text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Ban className="h-8 w-8 text-red-600" />
             </div>

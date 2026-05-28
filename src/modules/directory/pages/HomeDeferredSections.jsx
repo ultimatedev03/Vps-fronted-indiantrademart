@@ -144,7 +144,7 @@ const HomeDeferredSections = () => {
       )}
 
       <section className="bg-white py-12 shadow-sm relative z-10 -mt-8 rounded-t-3xl border-t border-slate-100 mx-4 lg:mx-0">
-        <div className="container mx-auto px-4">
+        <div className="w-[92vw] mx-auto">
           <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
             <div>
               <h2 className="text-3xl font-extrabold text-slate-900 mb-1">Browse by Category</h2>
@@ -199,7 +199,7 @@ const HomeDeferredSections = () => {
       <TopCitiesSection />
       <PremiumBrandsSection />
 
-      <section className="bg-slate-50 container mx-auto px-4 py-16">
+      <section className="bg-slate-50 w-[92vw] mx-auto py-16">
         <div className="flex justify-between items-end mb-8">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 mb-2">Featured Suppliers</h2>
@@ -273,7 +273,7 @@ const HomeDeferredSections = () => {
         )}
       </section>
 
-      <section className="container mx-auto px-4 pb-16">
+      <section className="w-[92vw] mx-auto pb-16">
         <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-gradient-to-br from-slate-950 via-[#0b3c7c] to-sky-700 px-6 py-10 shadow-xl md:px-10">
           <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-4">
@@ -281,10 +281,10 @@ const HomeDeferredSections = () => {
                 Quick Requirement Desk
               </span>
               <div className="space-y-3">
-                <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-white md:text-4xl">
+                <h2 className="w-[44vw] text-3xl font-extrabold tracking-tight text-white md:text-4xl">
                   Tell us your requirement and let verified suppliers come to you.
                 </h2>
-                <p className="max-w-2xl text-sm leading-6 text-sky-100/85 md:text-base">
+                <p className="w-[44vw] text-sm leading-6 text-sky-100/85 md:text-base">
                   Share your product, quantity, and location once. The marketplace team can route your enquiry to relevant suppliers without making you browse page by page.
                 </p>
               </div>

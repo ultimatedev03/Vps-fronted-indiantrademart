@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 const Unauthorized = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-6">
-      <div className="max-w-md w-full text-center">
+      <div className="w-[28vw] w-full text-center">
         <h1 className="text-2xl font-bold text-gray-900">Access Denied</h1>
         <p className="mt-2 text-sm text-gray-500">
           You do not have permission to access this page. Please login with the correct role.

@@ -269,7 +269,7 @@ const VendorOnboarding = () => {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 lg:p-6">
+    <div className="mx-auto w-full min-w-0 p-4 lg:p-6">
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Internal Vendor Onboarding</CardTitle>

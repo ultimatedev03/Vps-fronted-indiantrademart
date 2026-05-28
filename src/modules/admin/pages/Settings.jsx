@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
+import { apiUrl } from '@/lib/apiBase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/Card';
 import { toast } from '@/components/ui/use-toast';
-
-const MAINTENANCE_KEY = 'maintenance_mode';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -22,16 +21,13 @@ const Settings = () => {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('system_config')
-        .select(
-          'config_key, maintenance_mode, allow_vendor_registration, commission_rate, max_upload_size_mb'
-        )
-        .eq('config_key', MAINTENANCE_KEY)
-        .maybeSingle();
+      const response = await fetchWithCsrf(apiUrl('/api/admin/system-config'));
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.error || 'Failed to load system settings');
+      }
 
-      if (error) throw error;
-
+      const data = payload?.config || null;
       if (data) {
         setSettings((prev) => ({
           ...prev,
@@ -51,7 +47,7 @@ const Settings = () => {
         }));
       } else {
         // Row not found -> keep defaults
-        console.log('[Admin Settings] No system_config row found for', MAINTENANCE_KEY);
+        console.log('[Admin Settings] No system config row found');
       }
     } catch (err) {
       console.error('[Admin Settings] Failed to fetch settings:', err);
@@ -77,27 +73,25 @@ const Settings = () => {
   };
 
   const handleSave = async () => {
-    console.log('[Admin Settings] SAVE CLICKED', settings);
     setSaving(true);
 
     try {
-      // ✅ Upsert = row missing ho to create, exist ho to update
       const payload = {
-        config_key: MAINTENANCE_KEY,
         maintenance_mode: settings.maintenanceMode === true,
         allow_vendor_registration: settings.allowVendorRegistration === true,
         commission_rate: Number(settings.commissionRate) || 0,
         max_upload_size_mb: Number(settings.maxUploadSize) || 0,
-        updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('system_config')
-        .upsert(payload, { onConflict: 'config_key' });
+      const response = await fetchWithCsrf(apiUrl('/api/admin/system-config'), {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json?.success === false) {
+        throw new Error(json?.error || 'Failed to save settings');
+      }
 
-      if (error) throw error;
-
-      // ✅ Save ke baad DB se re-fetch so refresh jaisa exact sync ho
       await fetchSettings();
 
       toast({

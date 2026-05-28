@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { locationService } from '@/shared/services/locationService';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { urlParser } from '@/shared/utils/urlParser';
-import { supabase } from '@/lib/customSupabaseClient';
+import { dbClient } from '@/lib/dbClient';
 
 const slugify = (value) => {
   if (!value) return '';
@@ -27,14 +27,14 @@ const resolveLocationSlugs = async (locText) => {
   const locSlug = slugify(clean);
 
   try {
-    const { data: cityBySlug } = await supabase
+    const { data: cityBySlug } = await dbClient
       .from('cities')
       .select('slug, state_id, name')
       .eq('slug', locSlug)
       .maybeSingle();
 
     if (cityBySlug?.slug && cityBySlug?.state_id) {
-      const { data: st } = await supabase
+      const { data: st } = await dbClient
         .from('states')
         .select('slug, name')
         .eq('id', cityBySlug.state_id)
@@ -47,7 +47,7 @@ const resolveLocationSlugs = async (locText) => {
   }
 
   try {
-    const { data: stateBySlug } = await supabase
+    const { data: stateBySlug } = await dbClient
       .from('states')
       .select('slug, name')
       .eq('slug', locSlug)
@@ -61,7 +61,7 @@ const resolveLocationSlugs = async (locText) => {
   }
 
   try {
-    const { data: cities } = await supabase
+    const { data: cities } = await dbClient
       .from('cities')
       .select('slug, state_id, name')
       .ilike('name', `%${clean}%`)
@@ -69,7 +69,7 @@ const resolveLocationSlugs = async (locText) => {
 
     const city = cities?.[0];
     if (city?.slug && city?.state_id) {
-      const { data: st } = await supabase
+      const { data: st } = await dbClient
         .from('states')
         .select('slug, name')
         .eq('id', city.state_id)
@@ -82,7 +82,7 @@ const resolveLocationSlugs = async (locText) => {
   }
 
   try {
-    const { data: states } = await supabase
+    const { data: states } = await dbClient
       .from('states')
       .select('slug, name')
       .ilike('name', `%${clean}%`)
