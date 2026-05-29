@@ -55,6 +55,35 @@ import { getProductDetailPath, getProductDetailUrl } from '@/shared/utils/produc
 import { stripLegacyRandomSlugSuffix } from '@/shared/utils/slugUtils';
 import { getVendorProfilePath } from '@/shared/utils/vendorRoutes';
 
+const normalizeProductImageUrl = (image) => {
+  const raw =
+    typeof image === 'string'
+      ? image
+      : image?.url || image?.image_url || image?.src || '';
+  const clean = String(raw || '').trim();
+  if (!clean) return '';
+  if (clean.startsWith('/uploads/') || clean.startsWith('uploads/')) {
+    return apiUrl(clean);
+  }
+  return clean;
+};
+
+const normalizeProductImages = (images) => {
+  const rawImages = typeof images === 'string'
+    ? (() => {
+        try {
+          const parsed = JSON.parse(images);
+          return Array.isArray(parsed) ? parsed : [images];
+        } catch {
+          return [images];
+        }
+      })()
+    : images;
+
+  if (!Array.isArray(rawImages)) return [];
+  return rawImages.map(normalizeProductImageUrl).filter(Boolean);
+};
+
 const ProductDetail = () => {
   const { productSlug } = useParams();
   const navigate = useNavigate();
@@ -716,7 +745,7 @@ const ProductDetail = () => {
   if (!data) return <div className="p-10 text-center">Product not found</div>;
 
   const { vendors: vendor, micro_categories: cat } = data;
-  const images = data.images || [];
+  const images = normalizeProductImages(data.images);
   const categoryPathParts = (() => {
     if (cat?.sub_categories || cat?.name) {
       const headName = cat?.sub_categories?.head_categories?.name || '';
