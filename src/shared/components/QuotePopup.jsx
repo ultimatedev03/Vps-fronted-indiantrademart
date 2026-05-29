@@ -137,6 +137,17 @@ const QuotePopup = () => {
     return () => clearTimers();
   }, [user, location.pathname]);
 
+  useEffect(() => {
+    if (!isVisible || typeof document === 'undefined') return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isVisible]);
+
   const clearTimers = () => {
     if (showTimerRef.current) clearTimeout(showTimerRef.current);
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -258,7 +269,7 @@ const QuotePopup = () => {
   return (
     <AnimatePresence>
       {isVisible && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-3 sm:p-4">
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-3 sm:p-5">
             {/* Backdrop */}
             <motion.div 
                 initial={{ opacity: 0 }}
@@ -274,7 +285,7 @@ const QuotePopup = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ duration: 0.2 }}
-                className="relative z-[9999] flex max-h-[calc(100vh-1.5rem)] w-full w-[32vw] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+                className="relative z-[9999] flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-[640px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
             >
                 <button 
                     onClick={handleClose}
@@ -283,8 +294,8 @@ const QuotePopup = () => {
                     <X className="h-5 w-5" />
                 </button>
 
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                    <div className="mb-6">
+                <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+                    <div className="mb-5 pr-8">
                         <h2 className="text-2xl font-bold text-gray-900">Get a Quote</h2>
                         <p className="text-gray-500 mt-2 text-sm">Tell us what you need, and we'll help you get quotes</p>
                     </div>
