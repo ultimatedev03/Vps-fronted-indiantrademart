@@ -1080,8 +1080,8 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <div className="w-[92vw] mx-auto py-8">
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[300px_minmax(0,1fr)_300px] xl:grid-cols-[330px_minmax(0,1fr)_310px]">
+      <div className="mx-auto w-[92vw] max-w-[1500px] py-8">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[280px_minmax(0,1fr)_300px] xl:grid-cols-[320px_minmax(0,1fr)_320px]">
           <aside className="lg:sticky lg:top-24">
             <div className="aspect-square overflow-hidden bg-slate-50">
               {images[activeImage] ? (
@@ -1113,7 +1113,7 @@ const ProductDetail = () => {
             )}
           </aside>
 
-          <main className="min-w-0">
+          <main className="min-w-0 overflow-hidden">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1128,7 +1128,7 @@ const ProductDetail = () => {
                     </Badge>
                   ) : null}
                 </div>
-                <h1 className="w-[60vw] break-words text-[1.65rem] font-semibold leading-[1.22] text-slate-950 sm:text-[2rem] lg:text-[2.25rem]">
+                <h1 className="w-full break-words text-[1.65rem] font-semibold leading-[1.22] text-slate-950 sm:text-[2rem] lg:text-[2.25rem]">
                   {productName}
                 </h1>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
@@ -1208,7 +1208,7 @@ const ProductDetail = () => {
             <div className="mt-8 space-y-8">
               <section className="border-b border-slate-200 pb-8">
                 <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Overview</h2>
-                <p className="mt-3 w-[52vw] whitespace-pre-line break-words text-[15px] leading-8 text-slate-700">
+                <p className="mt-3 w-full whitespace-pre-line break-words text-[15px] leading-8 text-slate-700">
                   {visibleOverview}
                 </p>
                 {isOverviewLong && (
@@ -1224,9 +1224,9 @@ const ProductDetail = () => {
 
               <section className="border-b border-slate-200 pb-8">
                 <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Product Details</h2>
-                <div className="mt-3 grid gap-x-5 gap-y-2 text-sm sm:grid-cols-2">
+                <div className="mt-3 grid min-w-0 gap-x-5 gap-y-2 text-sm sm:grid-cols-2">
                   {detailRows.map((item) => (
-                    <div key={item.label} className="flex gap-3 border-b border-slate-100 py-2">
+                    <div key={item.label} className="flex min-w-0 gap-3 border-b border-slate-100 py-2">
                       <span className="w-28 shrink-0 text-slate-500">{item.label}</span>
                       <span className="min-w-0 break-words font-medium text-slate-900">{item.value}</span>
                     </div>
@@ -1314,7 +1314,7 @@ const ProductDetail = () => {
             </div>
           </main>
 
-          <aside className="border-t border-slate-200 pt-6 lg:sticky lg:top-24 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <aside className="min-w-0 border-t border-slate-200 pt-6 lg:sticky lg:top-24 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Supplier</div>
             <div className="mt-4 flex items-start gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
@@ -1331,21 +1331,21 @@ const ProductDetail = () => {
                 >
                   {vendor.company_name}
                 </h3>
-                <div className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                  <MapPin className="h-3.5 w-3.5 shrink-0" /> <span className="break-words">{vendorLocation}</span>
+                <div className="mt-1 flex min-w-0 items-start gap-1 text-sm text-slate-500">
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> <span className="min-w-0 break-words">{vendorLocation}</span>
                 </div>
               </div>
             </div>
 
             <div className="mt-5 space-y-3 border-y border-slate-100 py-4">
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-[#003D82]" />
-                <span className="break-words font-medium text-slate-900">{phoneUtils.maskPhone(vendor.phone)}</span>
+              <div className="flex min-w-0 items-center gap-2 text-sm">
+                <Phone className="h-4 w-4 shrink-0 text-[#003D82]" />
+                <span className="min-w-0 break-words font-medium text-slate-900">{phoneUtils.maskPhone(vendor.phone)}</span>
               </div>
               {vendor.email && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-[#003D82]" />
-                  <span className="break-words font-medium text-slate-900">{maskEmail(vendor.email)}</span>
+                <div className="flex min-w-0 items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 shrink-0 text-[#003D82]" />
+                  <span className="min-w-0 break-words font-medium text-slate-900">{maskEmail(vendor.email)}</span>
                 </div>
               )}
             </div>
