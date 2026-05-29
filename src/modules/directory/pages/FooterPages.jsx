@@ -1337,27 +1337,60 @@ export const ProductsPage = () => {
       return;
     }
 
-    setGeoStatus('loading');
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setUserCoords({ lat: coords.latitude, lng: coords.longitude });
-        setGeoStatus('ready');
-        setLocationMode('nearby');
-      },
-      () => {
-        setGeoStatus('blocked');
-        setLocationMode('all');
-      },
-      {
-        enableHighAccuracy: false,
-        maximumAge: 10 * 60 * 1000,
-        timeout: 8000,
-      }
-    );
+    const readLocation = () => {
+      setGeoStatus('loading');
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          setUserCoords({ lat: coords.latitude, lng: coords.longitude });
+          setGeoStatus('ready');
+          setLocationMode('nearby');
+        },
+        () => {
+          setGeoStatus('blocked');
+          setLocationMode('all');
+        },
+        {
+          enableHighAccuracy: false,
+          maximumAge: 10 * 60 * 1000,
+          timeout: 8000,
+        }
+      );
+    };
+
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((permission) => {
+          if (permission.state === 'denied') {
+            setGeoStatus('blocked');
+            setLocationMode('all');
+            return;
+          }
+          readLocation();
+        })
+        .catch(readLocation);
+      return;
+    }
+
+    readLocation();
   };
 
   useEffect(() => {
-    requestUserLocation();
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+    let active = true;
+    navigator.permissions
+      .query({ name: 'geolocation' })
+      .then((permission) => {
+        if (!active) return;
+        if (permission.state === 'denied') {
+          setGeoStatus('blocked');
+          setLocationMode('all');
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
