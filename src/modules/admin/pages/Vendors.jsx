@@ -94,6 +94,23 @@ const formatVendorJoinedDate = (value) => {
   return parsed.toLocaleDateString("en-GB", { timeZone: INDIA_TIMEZONE });
 };
 
+const isVendorActive = (vendor) => {
+  if (vendor?.terminated_at) return false;
+
+  const normalizedStatus = String(vendor?.status || "").trim().toUpperCase();
+  if (["TERMINATED", "SUSPENDED", "INACTIVE"].includes(normalizedStatus)) return false;
+  if (normalizedStatus === "ACTIVE") return true;
+
+  if (typeof vendor?.is_active === "boolean") return vendor.is_active;
+  if (typeof vendor?.is_active === "number") return vendor.is_active !== 0;
+
+  const normalizedActive = String(vendor?.is_active ?? "").trim().toLowerCase();
+  if (["0", "false", "no"].includes(normalizedActive)) return false;
+  if (["1", "true", "yes"].includes(normalizedActive)) return true;
+
+  return true;
+};
+
 const getVendorDocumentPriority = (vendor) => {
   const documentCount = Number(vendor?.document_count || 0);
   const normalizedKycStatus = norm(vendor?.kyc_status || "");
@@ -740,7 +757,7 @@ export default function Vendors() {
                     </TableRow>
                   ) : (
                     vendors.map((v) => {
-                      const active = v.is_active !== false;
+                      const active = isVendorActive(v);
                       const planName = v.package?.plan_name || "FREE";
                       const planPrice = Number(v.package?.price || 0);
 
@@ -983,12 +1000,12 @@ export default function Vendors() {
                 Status:{" "}
                 <Badge
                   className={
-                    selectedVendor.is_active !== false
+                    isVendorActive(selectedVendor)
                       ? "bg-emerald-100 text-emerald-800"
                       : "bg-red-100 text-red-800"
                   }
                 >
-                  {selectedVendor.is_active !== false ? "ACTIVE" : "TERMINATED"}
+                  {isVendorActive(selectedVendor) ? "ACTIVE" : "TERMINATED"}
                 </Badge>
               </div>
             </div>

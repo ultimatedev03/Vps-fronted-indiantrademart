@@ -80,9 +80,13 @@ const getAdminBase = () => {
 
 /* ================= STATUS HELPERS ================= */
 const isBuyerActive = (b) => {
-  if (typeof b?.is_active === "boolean") return b.is_active;
-  if (typeof b?.status === "string") return b.status.toUpperCase() === "ACTIVE";
   if (b?.terminated_at) return false;
+  if (typeof b?.is_active === "boolean") return b.is_active;
+  if (typeof b?.is_active === "number") return b.is_active !== 0;
+  const normalizedActive = String(b?.is_active ?? "").trim().toLowerCase();
+  if (["0", "false", "no"].includes(normalizedActive)) return false;
+  if (["1", "true", "yes"].includes(normalizedActive)) return true;
+  if (typeof b?.status === "string") return b.status.toUpperCase() === "ACTIVE";
   return true;
 };
 
