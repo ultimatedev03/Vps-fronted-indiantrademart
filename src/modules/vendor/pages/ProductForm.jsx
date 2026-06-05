@@ -989,7 +989,7 @@ const ProductForm = () => {
 
   return (
     <div className="mx-auto w-full min-w-0 space-y-4 p-4 pb-24">
-      <div className="flex items-center justify-between bg-white border rounded-md px-4 py-3 shadow-sm">
+      <div className="flex flex-col gap-3 bg-white border rounded-md px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm text-slate-500">
             {formProductId ? 'Edit Product' : 'Add New Product'}
@@ -1003,7 +1003,7 @@ const ProductForm = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_280px] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_280px] gap-6">
         {/* LEFT: Media */}
         <div className="space-y-4">
           <Card>
@@ -1154,7 +1154,7 @@ const ProductForm = () => {
         </div>
 
         {/* CENTER: Form */}
-        <form onSubmit={handleSave} className="space-y-6">
+        <form onSubmit={handleSave} className="min-w-0 space-y-6">
           <Tabs value={step} onValueChange={(v) => setParams({ step: v })}>
             <TabsList className="w-full grid grid-cols-2">
               <TabsTrigger value="basic">Basic Details</TabsTrigger>
@@ -1241,7 +1241,7 @@ const ProductForm = () => {
 
                   <div className="space-y-2">
                     <Label>Add Keywords (Max 2)</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <CategoryTypeahead
                         onSelect={setExtraCatInput}
                         placeholder="Search keyword..."
@@ -1420,7 +1420,7 @@ const ProductForm = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {formData.specifications.map((spec, i) => (
-                    <div key={i} className="flex gap-2">
+                    <div key={i} className="flex flex-col gap-2 md:flex-row">
                       <Input
                         placeholder="Attribute (e.g. Color)"
                         value={spec.key}
@@ -1711,7 +1711,7 @@ const ProductForm = () => {
         </form>
 
         {/* RIGHT: Score */}
-        <div className="space-y-4">
+        <div className="space-y-4 xl:sticky xl:top-20 self-start">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Product Score</CardTitle>

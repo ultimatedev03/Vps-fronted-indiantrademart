@@ -14,6 +14,17 @@ import { Link, useNavigate } from 'react-router-dom';
 
 const BUYER_CREDENTIAL_MESSAGE = 'This email is not registered as buyer';
 
+const readBuyerAccountIsActive = (buyer) => {
+  if (!buyer || typeof buyer !== 'object') return null;
+  if (buyer.terminated_at || buyer.suspended_at) return false;
+
+  const normalizedStatus = String(buyer.status || '').trim().toUpperCase();
+  if (['TERMINATED', 'SUSPENDED', 'INACTIVE'].includes(normalizedStatus)) return false;
+  if (normalizedStatus === 'ACTIVE') return true;
+  if (typeof buyer.is_active === 'boolean') return buyer.is_active;
+  return null;
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
@@ -78,6 +89,19 @@ const Login = () => {
         captcha_action: 'auth_login',
       });
       if (error) throw error;
+
+      const { data: buyerRow } = await dbClient
+        .from('buyers')
+        .select('*')
+        .ilike('email', normalizedEmail)
+        .limit(1)
+        .maybeSingle();
+
+      if (readBuyerAccountIsActive(buyerRow) === false) {
+        await dbClient.auth.signOut().catch(() => {});
+        throw new Error('Your buyer account is suspended or terminated. Please contact support.');
+      }
+
       toast({ title: "Welcome back!", description: "Successfully logged in." });
       navigate('/buyer/dashboard', { replace: true });
     } catch (error) {

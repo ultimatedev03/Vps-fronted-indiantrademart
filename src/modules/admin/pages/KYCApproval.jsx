@@ -11,10 +11,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { Search, CheckCircle, XCircle, Eye, FileText, Loader2, ShieldAlert, Building2, Mail, Phone, Filter, Download } from 'lucide-react';
-import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const KYC_VENDOR_BATCH_SIZE = 5000;
+const KYC_PAGE_SIZE = 25;
 const MIN_VALID_JOIN_DATE_MS = Date.UTC(2000, 0, 1);
 
 const looksLikePdf = (v = '') => String(v || '').toLowerCase().includes('.pdf');
@@ -138,6 +137,7 @@ const isRejectedKycStatus = (status = '') => normalizeKycStatus(status) === 'REJ
 const KYCApproval = () => {
   const [vendors, setVendors] = useState([]);
   const [totalVendors, setTotalVendors] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,48 +158,35 @@ const KYCApproval = () => {
   const loadVendors = useCallback(async () => {
     setLoading(true);
     try {
-      const collectedVendors = [];
-      let expectedTotal = 0;
-      let offset = 0;
       const statusMap = { pending: 'PENDING', approved: 'APPROVED', rejected: 'REJECTED', submitted: 'SUBMITTED' };
       const normalizedStatus = statusMap[filterStatus] || null;
-
-      while (true) {
-        const params = new URLSearchParams({
-          limit: String(KYC_VENDOR_BATCH_SIZE),
-          offset: String(offset),
-        });
-        if (normalizedStatus) {
-          params.set('kyc', normalizedStatus);
-        }
-
-        const response = await fetchWithCsrf(`${ADMIN_API_BASE}/vendors?${params.toString()}`);
-        const payload = await safeReadJson(response);
-        if (!payload?.success) {
-          throw new Error(payload?.error || 'Failed to load vendors');
-        }
-
-        const batch = (Array.isArray(payload.vendors) ? payload.vendors : []).map((vendor) => ({
-          ...vendor,
-          joined_on: resolveVendorJoinedOn(vendor),
-          product_count:
-            Number(vendor?.product_count ?? vendor?.products?.[0]?.count ?? vendor?.products_count ?? 0) || 0,
-        }));
-        if (offset === 0) {
-          expectedTotal = Number(payload.total) || batch.length;
-        }
-
-        collectedVendors.push(...batch);
-
-        if (batch.length < KYC_VENDOR_BATCH_SIZE || collectedVendors.length >= expectedTotal) {
-          break;
-        }
-
-        offset += KYC_VENDOR_BATCH_SIZE;
+      const trimmedSearch = String(searchTerm || '').trim();
+      const params = new URLSearchParams({
+        limit: String(KYC_PAGE_SIZE),
+        offset: String((Math.max(currentPage, 1) - 1) * KYC_PAGE_SIZE),
+      });
+      if (normalizedStatus) {
+        params.set('kyc', normalizedStatus);
+      }
+      if (trimmedSearch) {
+        params.set('search', trimmedSearch);
       }
 
-      setVendors(collectedVendors);
-      setTotalVendors(expectedTotal || collectedVendors.length);
+      const response = await fetchWithCsrf(`${ADMIN_API_BASE}/vendors?${params.toString()}`);
+      const payload = await safeReadJson(response);
+      if (!payload?.success) {
+        throw new Error(payload?.error || 'Failed to load vendors');
+      }
+
+      const batch = (Array.isArray(payload.vendors) ? payload.vendors : []).map((vendor) => ({
+        ...vendor,
+        joined_on: resolveVendorJoinedOn(vendor),
+        product_count:
+          Number(vendor?.product_count ?? vendor?.products?.[0]?.count ?? vendor?.products_count ?? 0) || 0,
+      }));
+
+      setVendors(batch);
+      setTotalVendors(Number(payload.total) || batch.length);
     } catch (error) {
       console.error(error);
       setVendors([]);
@@ -208,23 +195,24 @@ const KYCApproval = () => {
     } finally {
       setLoading(false);
     }
-  }, [ADMIN_API_BASE, filterStatus, toast]);
-
-  const filteredVendors = useMemo(() => {
-    if (!String(searchTerm || '').trim()) return vendors;
-    return filterRecordsBySearch(vendors, searchTerm, {
-      exactIdKeys: ['id', 'vendor_id'],
-      exactEmailKeys: ['email'],
-      broadKeys: ['id', 'vendor_id', 'company_name', 'owner_name', 'email', 'phone'],
-    });
-  }, [searchTerm, vendors]);
+  }, [ADMIN_API_BASE, currentPage, filterStatus, searchTerm, toast]);
 
   const hasSearchTerm = Boolean(String(searchTerm || '').trim());
-  const summaryCount = hasSearchTerm ? filteredVendors.length : (totalVendors || vendors.length);
+  const summaryCount = totalVendors || vendors.length;
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil((totalVendors || 0) / KYC_PAGE_SIZE)),
+    [totalVendors]
+  );
+  const pageStart = totalVendors === 0 ? 0 : (currentPage - 1) * KYC_PAGE_SIZE + 1;
+  const pageEnd = totalVendors === 0 ? 0 : Math.min(currentPage * KYC_PAGE_SIZE, totalVendors);
 
   useEffect(() => {
     void loadVendors();
   }, [loadVendors]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, searchTerm]);
 
   useEffect(() => {
     const channel = dbClient
@@ -406,7 +394,7 @@ const KYCApproval = () => {
                     <Loader2 className="animate-spin mx-auto h-6 w-6 text-gray-400" />
                   </TableCell>
                 </TableRow>
-              ) : filteredVendors.length === 0 ? (
+              ) : vendors.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     <Building2 className="h-12 w-12 mx-auto mb-2 opacity-30" />
@@ -414,7 +402,7 @@ const KYCApproval = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredVendors.map((vendor) => (
+                vendors.map((vendor) => (
                   <TableRow key={vendor.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -491,6 +479,33 @@ const KYCApproval = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-gray-500">
+          Showing {pageStart}-{pageEnd} of {summaryCount}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage <= 1 || loading}
+          >
+            Previous
+          </Button>
+          <Badge variant="secondary" className="text-sm">
+            Page {currentPage} of {totalPages}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage >= totalPages || loading}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
 
       <Dialog open={showDocsModal} onOpenChange={setShowDocsModal}>
         <DialogContent className="w-[60vw] max-h-[80vh] overflow-y-auto">

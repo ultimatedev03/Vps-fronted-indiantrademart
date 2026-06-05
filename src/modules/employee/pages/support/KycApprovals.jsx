@@ -16,12 +16,26 @@ import { Loader2, FileText, AlertCircle, Check, X, Eye, BellRing, Mail, Search }
 
 const normalizeStatus = (status) => String(status || 'PENDING').trim().toUpperCase();
 const MIN_VALID_JOIN_DATE_MS = Date.UTC(2000, 0, 1);
+const INDIA_TIMEZONE = 'Asia/Kolkata';
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const formatDate = (value) => {
   if (!value) return '-';
-  const d = new Date(value);
+  if (value instanceof Date) {
+    const time = value.getTime();
+    if (Number.isNaN(time) || time < MIN_VALID_JOIN_DATE_MS) return '-';
+    return value.toLocaleDateString('en-IN', { timeZone: INDIA_TIMEZONE });
+  }
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  if (DATE_ONLY_RE.test(raw)) {
+    const [year, month, day] = raw.split('-').map((part) => Number(part));
+    const safeDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return safeDate.toLocaleDateString('en-IN', { timeZone: INDIA_TIMEZONE });
+  }
+  const d = new Date(raw);
   const time = d.getTime();
   if (Number.isNaN(time) || time < MIN_VALID_JOIN_DATE_MS) return '-';
-  return d.toLocaleDateString('en-IN');
+  return d.toLocaleDateString('en-IN', { timeZone: INDIA_TIMEZONE });
 };
 const prettyLabel = (value = '') => {
   const text = String(value || '').replaceAll('_', ' ').trim();
@@ -86,6 +100,14 @@ const matchesVendorSearch = (vendor, searchTerm) => {
     .filter(Boolean)
     .some((value) => matchesSearchValue(value, query));
 };
+
+const getVendorJoinedDate = (vendor) =>
+  vendor?.joined_on ||
+  vendor?.joined_at ||
+  vendor?.registration_date ||
+  vendor?.registered_at ||
+  vendor?.created_at ||
+  null;
 
 const KycApprovals = () => {
   const { user } = useEmployeeAuth();
@@ -181,7 +203,7 @@ const KycApprovals = () => {
     try {
       const { data: vendors, error: vendorsError } = await dbClient
         .from('vendors')
-        .select('id, vendor_id, company_name, owner_name, kyc_status, created_at, updated_at, rejection_reason, email, phone, address, registered_address')
+        .select('id, vendor_id, company_name, owner_name, kyc_status, created_at, updated_at, rejection_reason, email, phone, address, registered_address, joined_on, joined_at, registration_date, registered_at')
         .order('created_at', { ascending: false });
 
       if (vendorsError) throw vendorsError;
@@ -557,7 +579,7 @@ const KycApprovals = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>{rowDocCount}</TableCell>
-                      <TableCell>{formatDate(vendor.created_at)}</TableCell>
+                      <TableCell>{formatDate(getVendorJoinedDate(vendor))}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button size="sm" variant="outline" onClick={() => handleViewDocs(vendor)}>

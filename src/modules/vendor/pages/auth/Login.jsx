@@ -14,6 +14,21 @@ import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 
+const readVendorAccountIsActive = (vendor) => {
+  if (!vendor || typeof vendor !== 'object') return null;
+  if (vendor.terminated_at || vendor.terminatedAt || vendor.suspended_at || vendor.suspension_at) return false;
+
+  const normalizedStatus = String(
+    vendor.status || vendor.account_status || vendor.accountStatus || ''
+  ).trim().toUpperCase();
+
+  if (['TERMINATED', 'SUSPENDED', 'INACTIVE'].includes(normalizedStatus)) return false;
+  if (normalizedStatus === 'ACTIVE') return true;
+  if (typeof vendor.is_active === 'boolean') return vendor.is_active;
+  if (typeof vendor.isActive === 'boolean') return vendor.isActive;
+  return null;
+};
+
 const VendorLogin = () => {
   const navigate = useNavigate();
   const { resolvePath } = useSubdomain();
@@ -76,12 +91,22 @@ const VendorLogin = () => {
         return;
       }
 
+      if (readVendorAccountIsActive(vendor) === false) {
+        await dbClient.auth.signOut().catch(() => {});
+        toast({
+          title: "Account Suspended",
+          description: "Your vendor account is suspended or terminated. Please contact support.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const isVendorExplicitlyUnverified =
         vendor?.is_verified === false || vendor?.isVerified === false;
       if (isVendorExplicitlyUnverified) {
         try {
           await vendorApi.updateVendorVerification(authData.user.id, true);
-          vendor = { ...vendor, is_verified: true, isVerified: true, is_active: true, isActive: true };
+          vendor = { ...vendor, is_verified: true, isVerified: true };
         } catch {
           try {
             // Fallback for legacy rows where user_id linkage is stale.
@@ -90,11 +115,10 @@ const VendorLogin = () => {
               .from('vendors')
               .update({
                 is_verified: true,
-                is_active: true,
                 verified_at: new Date().toISOString(),
               })
               .ilike('email', normalizedEmail);
-            vendor = { ...vendor, is_verified: true, isVerified: true, is_active: true, isActive: true };
+            vendor = { ...vendor, is_verified: true, isVerified: true };
           } catch {
             // If self-heal fails, continue login without OTP redirect.
           }

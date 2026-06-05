@@ -1,6 +1,7 @@
 import React, { lazy } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import VendorPortalLayout from '@/modules/vendor/layouts/PortalLayout';
+import { useAuth as useVendorAuth } from '@/modules/vendor/context/AuthContext';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 
 const VendorDashboard = lazy(() => import('@/modules/vendor/pages/Dashboard'));
@@ -39,6 +40,41 @@ const StripPrefixRedirect = ({ prefix, fallback }) => {
   return <Navigate to={`${normalizedPath}${location.search || ''}${location.hash || ''}`} replace />;
 };
 
+const isVendorSuspended = (vendor) => {
+  if (!vendor || typeof vendor !== 'object') return false;
+  if (vendor.terminated_at || vendor.terminatedAt || vendor.suspended_at || vendor.suspension_at) return true;
+
+  const normalizedStatus = String(
+    vendor.account_status || vendor.accountStatus || vendor.status || ''
+  ).trim().toUpperCase();
+  if (['TERMINATED', 'SUSPENDED', 'INACTIVE'].includes(normalizedStatus)) return true;
+  if (typeof vendor.is_active === 'boolean') return vendor.is_active === false;
+  if (typeof vendor.isActive === 'boolean') return vendor.isActive === false;
+  return false;
+};
+
+const VendorSuspensionGuard = () => {
+  const location = useLocation();
+  const { user, loading, isAuthenticated } = useVendorAuth();
+  const { resolvePath } = useSubdomain();
+  const supportPath = resolvePath('support', 'vendor');
+  const loginPath = resolvePath('login', 'vendor');
+  const currentPath = location.pathname || '';
+  const isSupportRoute = currentPath === supportPath || currentPath.startsWith(`${supportPath}/`);
+
+  if (loading) return null;
+
+  if (!isAuthenticated) {
+    return <Navigate to={loginPath} replace state={{ from: location }} />;
+  }
+
+  if (isVendorSuspended(user) && !isSupportRoute) {
+    return <Navigate to={supportPath} replace />;
+  }
+
+  return <Outlet />;
+};
+
 export const VendorRoutes = () => {
   const { appType, resolvePath } = useSubdomain();
   const vendorLoginPath = resolvePath('login', 'vendor');
@@ -61,40 +97,42 @@ export const VendorRoutes = () => {
 
       {/* Protected Portal Routes */}
       <Route element={<ProtectedRoute allowedRoles={['VENDOR']} redirectTo={vendorLoginPath} />}>
-        <Route
-          element={
-            <PageStatusWrapper pageRoute="/vendor">
-              <VendorPortalLayout />
-            </PageStatusWrapper>
-          }
-        >
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<VendorDashboard />} />
-          <Route path=":vendorId/dashboard" element={<VendorDashboard />} />
+        <Route element={<VendorSuspensionGuard />}>
+          <Route
+            element={
+              <PageStatusWrapper pageRoute="/vendor">
+                <VendorPortalLayout />
+              </PageStatusWrapper>
+            }
+          >
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<VendorDashboard />} />
+            <Route path=":vendorId/dashboard" element={<VendorDashboard />} />
 
-          <Route path="products" element={<VendorProducts />} />
-          <Route path="products/add" element={<VendorProductForm />} />
-          <Route path="products/:id/edit" element={<VendorProductForm />} />
+            <Route path="products" element={<VendorProducts />} />
+            <Route path="products/add" element={<VendorProductForm />} />
+            <Route path="products/:id/edit" element={<VendorProductForm />} />
 
-          <Route path="leads" element={<Leads />} />
-          <Route path="leads/:id" element={<LeadDetail />} />
+            <Route path="leads" element={<Leads />} />
+            <Route path="leads/:id" element={<LeadDetail />} />
 
-          <Route path="proposals" element={<Proposals />} />
-          <Route path="messages" element={<VendorMessages />} />
-          <Route path="proposals/send" element={<SendQuotation />} />
+            <Route path="proposals" element={<Proposals />} />
+            <Route path="messages" element={<VendorMessages />} />
+            <Route path="proposals/send" element={<SendQuotation />} />
 
-          <Route path="kyc" element={<Navigate to={vendorProfilePath} replace />} />
+            <Route path="kyc" element={<Navigate to={vendorProfilePath} replace />} />
 
-          <Route path="support" element={<VendorSupport />} />
-          <Route path="support/:id" element={<VendorSupportTicket />} />
-          <Route path="profile" element={<VendorProfile />} />
-          <Route path="settings" element={<VendorSettings />} />
-          <Route path="photos-docs" element={<PhotosDocs />} />
-          <Route path="analytics" element={<VendorAnalytics />} />
-          <Route path="subscriptions" element={<VendorServices />} />
-          <Route path="referrals" element={<VendorReferrals />} />
-          <Route path="coverage" element={<CoverageSettings />} />
-          <Route path="collections" element={<Collections />} />
+            <Route path="support" element={<VendorSupport />} />
+            <Route path="support/:id" element={<VendorSupportTicket />} />
+            <Route path="profile" element={<VendorProfile />} />
+            <Route path="settings" element={<VendorSettings />} />
+            <Route path="photos-docs" element={<PhotosDocs />} />
+            <Route path="analytics" element={<VendorAnalytics />} />
+            <Route path="subscriptions" element={<VendorServices />} />
+            <Route path="referrals" element={<VendorReferrals />} />
+            <Route path="coverage" element={<CoverageSettings />} />
+            <Route path="collections" element={<Collections />} />
+          </Route>
         </Route>
       </Route>
 

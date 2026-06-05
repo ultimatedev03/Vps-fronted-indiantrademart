@@ -250,9 +250,10 @@ const Staff = () => {
         description: `${employee.full_name || employee.name || "Employee"} is now ${nextStatus}.`,
       });
     } catch (error) {
+      console.error("Staff status update failed:", error);
       toast({
         title: "Status update failed",
-        description: error?.message || "Something went wrong",
+        description: "Unable to update staff status. Please try again later.",
         variant: "destructive",
       });
     } finally {

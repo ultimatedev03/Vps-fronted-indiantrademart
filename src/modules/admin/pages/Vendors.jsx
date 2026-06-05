@@ -69,6 +69,30 @@ const norm = (v) => String(v || "").toUpperCase();
 const VENDOR_PAGE_SIZE = 10;
 const VENDOR_EXPORT_BATCH_SIZE = 1000;
 const REQUIRED_VENDOR_DOCUMENT_COUNT = 4;
+const INDIA_TIMEZONE = "Asia/Kolkata";
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const formatVendorJoinedDate = (value) => {
+  if (!value) return "—";
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "—";
+    return value.toLocaleDateString("en-GB", { timeZone: INDIA_TIMEZONE });
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) return "—";
+
+  if (DATE_ONLY_RE.test(raw)) {
+    const [year, month, day] = raw.split("-").map((part) => Number(part));
+    const safeDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return safeDate.toLocaleDateString("en-GB", { timeZone: INDIA_TIMEZONE });
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString("en-GB", { timeZone: INDIA_TIMEZONE });
+};
 
 const getVendorDocumentPriority = (vendor) => {
   const documentCount = Number(vendor?.document_count || 0);
@@ -155,6 +179,18 @@ const getJoinedDateRange = (filterValue, now = new Date()) => {
   return null;
 };
 
+const createCustomJoinedDateRange = (fromValue, toValue) => {
+  const from = DATE_ONLY_RE.test(String(fromValue || "").trim())
+    ? new Date(`${String(fromValue).trim()}T00:00:00+05:30`)
+    : null;
+  const to = DATE_ONLY_RE.test(String(toValue || "").trim())
+    ? new Date(`${String(toValue).trim()}T23:59:59.999+05:30`)
+    : null;
+
+  if (!from && !to) return null;
+  return { from, to };
+};
+
 export default function Vendors() {
   const { toast } = useToast();
   const { resolvePath } = useSubdomain();
@@ -171,6 +207,8 @@ export default function Vendors() {
   const [filterKyc, setFilterKyc] = useState("all");
   const [filterActive, setFilterActive] = useState("all");
   const [filterJoined, setFilterJoined] = useState("all");
+  const [customJoinedFrom, setCustomJoinedFrom] = useState("");
+  const [customJoinedTo, setCustomJoinedTo] = useState("");
 
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showVendorModal, setShowVendorModal] = useState(false);
@@ -193,14 +231,17 @@ export default function Vendors() {
       if (trimmedSearch) params.set("search", trimmedSearch);
       if (filterKyc !== "all") params.set("kyc", filterKyc);
       if (filterActive !== "all") params.set("active", filterActive);
-      const joinedRange = getJoinedDateRange(filterJoined);
+      const joinedRange =
+        filterJoined === "custom"
+          ? createCustomJoinedDateRange(customJoinedFrom, customJoinedTo)
+          : getJoinedDateRange(filterJoined);
       if (joinedRange?.from) params.set("joined_from", joinedRange.from.toISOString());
       if (joinedRange?.to) params.set("joined_to", joinedRange.to.toISOString());
       params.set("limit", String(limit));
       params.set("offset", String(Math.max(offset, 0)));
       return params;
     },
-    [filterActive, filterJoined, filterKyc, searchTerm]
+    [customJoinedFrom, customJoinedTo, filterActive, filterJoined, filterKyc, searchTerm]
   );
 
   const fetchVendorPage = useCallback(
@@ -268,7 +309,7 @@ export default function Vendors() {
   useEffect(() => {
     loadRequestIdRef.current += 1;
     abortControllerRef.current?.abort();
-  }, [currentPage, filterActive, filterJoined, filterKyc, searchTerm]);
+  }, [currentPage, customJoinedFrom, customJoinedTo, filterActive, filterJoined, filterKyc, searchTerm]);
 
   useEffect(() => {
     return () => {
@@ -304,8 +345,9 @@ export default function Vendors() {
       Boolean(searchTerm.trim()) ||
       filterKyc !== "all" ||
       filterActive !== "all" ||
-      filterJoined !== "all",
-    [filterActive, filterJoined, filterKyc, searchTerm]
+      filterJoined !== "all" ||
+      (filterJoined === "custom" && (Boolean(customJoinedFrom) || Boolean(customJoinedTo))),
+    [customJoinedFrom, customJoinedTo, filterActive, filterJoined, filterKyc, searchTerm]
   );
 
   useEffect(() => {
@@ -376,7 +418,7 @@ export default function Vendors() {
           vendor?.package?.plan_name || "FREE",
           vendor?.product_count || 0,
           vendor?.joined_on || vendor?.created_at
-            ? new Date(vendor.joined_on || vendor.created_at).toLocaleDateString("en-GB")
+            ? formatVendorJoinedDate(vendor.joined_on || vendor.created_at)
             : "",
           vendor?.is_active !== false ? "ACTIVE" : "TERMINATED",
         ]
@@ -461,6 +503,19 @@ export default function Vendors() {
       );
       const data = await safeReadJson(res);
       if (!data?.success) throw new Error(data?.error || "Terminate failed");
+      const updatedVendor =
+        data?.vendor || {
+          ...selectedVendor,
+          is_active: false,
+          status: "TERMINATED",
+          terminated_at: new Date().toISOString(),
+        };
+      setVendors((prev) =>
+        (prev || []).map((entry) =>
+          String(entry?.id || "") === String(updatedVendor?.id || "") ? { ...entry, ...updatedVendor } : entry
+        )
+      );
+      setSelectedVendor(updatedVendor);
       toast({ title: "Success", description: "Vendor terminated" });
       setShowTerminateModal(false);
       setTerminationReason("");
@@ -485,6 +540,21 @@ export default function Vendors() {
       });
       const data = await safeReadJson(res);
       if (!data?.success) throw new Error(data?.error || "Activate failed");
+      const updatedVendor =
+        data?.vendor || {
+          id: vendorId,
+          is_active: true,
+          status: "ACTIVE",
+          terminated_at: null,
+        };
+      setVendors((prev) =>
+        (prev || []).map((entry) =>
+          String(entry?.id || "") === String(updatedVendor?.id || "") ? { ...entry, ...updatedVendor } : entry
+        )
+      );
+      setSelectedVendor((prev) =>
+        String(prev?.id || "") === String(updatedVendor?.id || "") ? { ...prev, ...updatedVendor } : prev
+      );
       toast({ title: "Success", description: "Vendor activated" });
       await load();
     } catch (e) {
@@ -604,9 +674,30 @@ export default function Vendors() {
               <SelectItem value="week">This Week</SelectItem>
               <SelectItem value="month">This Month</SelectItem>
               <SelectItem value="year">This Year</SelectItem>
+              <SelectItem value="custom">Custom Date</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        {filterJoined === "custom" ? (
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+            <Input
+              type="date"
+              value={customJoinedFrom}
+              onChange={(e) => {
+                setCustomJoinedFrom(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+            <Input
+              type="date"
+              value={customJoinedTo}
+              onChange={(e) => {
+                setCustomJoinedTo(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        ) : null}
         {filterJoined !== "all" ? (
           <p className="mt-2 text-xs text-amber-700">
             Time filters use the vendor joined date. Vendors without a joined date are excluded.
@@ -715,9 +806,7 @@ export default function Vendors() {
                           </TableCell>
 
                           <TableCell className="px-2 py-2 text-sm text-gray-500">
-                            {v.joined_on || v.created_at
-                              ? new Date(v.joined_on || v.created_at).toLocaleDateString("en-GB")
-                              : "—"}
+                            {formatVendorJoinedDate(v.joined_on || v.created_at)}
                           </TableCell>
 
                           <TableCell className="px-2 py-2">

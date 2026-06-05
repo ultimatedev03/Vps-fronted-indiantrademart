@@ -1156,7 +1156,6 @@ export const vendorApi = {
     const updates = {
       is_verified: isVerified,
       verified_at: isVerified ? new Date().toISOString() : null,
-      is_active: isVerified
     };
 
     const { data, error } = await dbClient

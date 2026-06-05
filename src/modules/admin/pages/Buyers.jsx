@@ -251,6 +251,24 @@ export default function Buyers() {
         throw new Error(data?.error || `${nextActive ? "Activate" : "Terminate"} failed`);
       }
 
+      const updatedBuyer =
+        data?.buyer || {
+          ...(selectedBuyer || {}),
+          id: buyerId,
+          is_active: nextActive,
+          status: nextActive ? "ACTIVE" : "TERMINATED",
+          terminated_at: nextActive ? null : new Date().toISOString(),
+        };
+
+      setAllBuyers((prev) =>
+        (prev || []).map((entry) =>
+          String(getBuyerIdentifier(entry) || "") === String(buyerId || "") ? { ...entry, ...updatedBuyer } : entry
+        )
+      );
+      setSelectedBuyer((prev) =>
+        String(getBuyerIdentifier(prev) || "") === String(buyerId || "") ? { ...prev, ...updatedBuyer } : prev
+      );
+
       toast({
         title: "Success",
         description: nextActive

@@ -150,8 +150,9 @@ const buildVendorSessionFallback = (sessionUser = null) => {
     role: 'VENDOR',
     name: fullName,
     ownerName: fullName,
-    isVerified: true,
-    isActive: true,
+    isVerified: null,
+    isActive: null,
+    accountStatus: 'UNKNOWN',
   };
 };
 
