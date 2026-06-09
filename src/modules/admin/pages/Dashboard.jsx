@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { useInternalAuth } from '@/modules/admin/context/InternalAuthContext';
 import { useSubdomain } from '@/contexts/SubdomainContext';
-import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
 
 const AdminDashboard = () => {
   const { user: internalUser, isLoading: internalLoading } = useInternalAuth();
@@ -33,8 +32,6 @@ const AdminDashboard = () => {
   const [recentTickets, setRecentTickets] = useState([]);
   const [recentVendors, setRecentVendors] = useState([]);
   const [dataEntryPerf, setDataEntryPerf] = useState([]);
-  const [visitorActivity, setVisitorActivity] = useState({ stats: {}, events: [] });
-  const [visitorActivityLoading, setVisitorActivityLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expandedCreator, setExpandedCreator] = useState(null);
   const [creatorVendors, setCreatorVendors] = useState({});
@@ -54,13 +51,12 @@ const AdminDashboard = () => {
 
     const load = async () => {
       try {
-        const [overviewResult, ordersResult, performanceResult, ticketsResult, vendorsResult, visitorResult] = await Promise.allSettled([
+        const [overviewResult, ordersResult, performanceResult, ticketsResult, vendorsResult] = await Promise.allSettled([
           adminApi.getDashboardOverview(),
           adminApi.getRecentLeadPurchases(5),
           adminApi.getDataEntryPerformance(),
           adminApi.getRecentTickets(5),
           adminApi.getRecentVendors(5),
-          adminApi.getVisitorActivity({ days: 7, limit: 20 }),
         ]);
 
         if (cancelled) return;
@@ -99,12 +95,6 @@ const AdminDashboard = () => {
           setRecentVendors([]);
         }
 
-        if (visitorResult.status === 'fulfilled') {
-          setVisitorActivity(visitorResult.value || { stats: {}, events: [] });
-        } else {
-          console.warn('[AdminDashboard] Failed to load visitor activity:', visitorResult.reason);
-          setVisitorActivity({ stats: {}, events: [] });
-        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -128,18 +118,6 @@ const AdminDashboard = () => {
     if (!creatorVendors[creatorId]) {
       const vendors = await adminApi.getVendorsByCreator(creatorId, creatorEmployeeId);
       setCreatorVendors(prev => ({ ...prev, [creatorId]: vendors }));
-    }
-  };
-
-  const loadVisitorActivity = async () => {
-    setVisitorActivityLoading(true);
-    try {
-      const data = await adminApi.getVisitorActivity({ days: 7, limit: 20 });
-      setVisitorActivity(data || { stats: {}, events: [] });
-    } catch (error) {
-      console.warn('[AdminDashboard] Failed to refresh visitor activity:', error);
-    } finally {
-      setVisitorActivityLoading(false);
     }
   };
 
@@ -274,15 +252,6 @@ const AdminDashboard = () => {
           </Card>
         </Link>
       </div>
-
-      <WebsiteVisitorActivityCard
-        events={visitorActivity.events || []}
-        stats={visitorActivity.stats || {}}
-        loading={visitorActivityLoading}
-        onRefresh={loadVisitorActivity}
-        title="Website Visitor Intelligence"
-        description="Visitor searches, product views, and submitted contact context for admin monitoring."
-      />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
