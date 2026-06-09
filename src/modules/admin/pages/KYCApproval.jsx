@@ -14,6 +14,7 @@ import { Search, CheckCircle, XCircle, Eye, FileText, Loader2, ShieldAlert, Buil
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const KYC_PAGE_SIZE = 25;
+const REQUIRED_KYC_DOCUMENT_COUNT = 4;
 const MIN_VALID_JOIN_DATE_MS = Date.UTC(2000, 0, 1);
 
 const looksLikePdf = (v = '') => String(v || '').toLowerCase().includes('.pdf');
@@ -133,6 +134,14 @@ const normalizeKycStatus = (status = '') => {
 const isPendingKycStatus = (status = '') => ['PENDING', 'SUBMITTED'].includes(normalizeKycStatus(status));
 const isApprovedKycStatus = (status = '') => normalizeKycStatus(status) === 'APPROVED';
 const isRejectedKycStatus = (status = '') => normalizeKycStatus(status) === 'REJECTED';
+const getDocumentCount = (vendor = null) =>
+  Number(
+    vendor?.document_count ??
+    vendor?.documents_count ??
+    vendor?.kyc_document_count ??
+    vendor?.kyc_documents_count ??
+    0
+  ) || 0;
 
 const KYCApproval = () => {
   const [vendors, setVendors] = useState([]);
@@ -154,6 +163,35 @@ const KYCApproval = () => {
 
   const KYC_API_BASE = getKycBase();
   const ADMIN_API_BASE = getAdminBase();
+
+  const fetchVendorDocCounts = useCallback(async (vendorIds = []) => {
+    const safeVendorIds = Array.from(
+      new Set((vendorIds || []).map((id) => String(id || '').trim()).filter(Boolean))
+    );
+    if (!safeVendorIds.length) return {};
+
+    try {
+      const response = await fetchWithCsrf(`${KYC_API_BASE}/vendors/document-counts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendorIds: safeVendorIds }),
+      });
+      const payload = await safeReadJson(response);
+      if (!payload?.success || typeof payload?.counts !== 'object') {
+        throw new Error(payload?.error || payload?.details || 'Failed to load document counts');
+      }
+
+      return Object.entries(payload.counts || {}).reduce((acc, [vendorId, count]) => {
+        const key = String(vendorId || '').trim();
+        if (!key) return acc;
+        acc[key] = Number(count) || 0;
+        return acc;
+      }, {});
+    } catch (error) {
+      console.warn('[KYCApproval] Failed to load document counts:', error?.message || error);
+      return {};
+    }
+  }, [KYC_API_BASE]);
 
   const loadVendors = useCallback(async () => {
     setLoading(true);
@@ -178,9 +216,13 @@ const KYCApproval = () => {
         throw new Error(payload?.error || 'Failed to load vendors');
       }
 
-      const batch = (Array.isArray(payload.vendors) ? payload.vendors : []).map((vendor) => ({
+      const rawVendors = Array.isArray(payload.vendors) ? payload.vendors : [];
+      const docCounts = await fetchVendorDocCounts(rawVendors.map((vendor) => vendor?.id));
+
+      const batch = rawVendors.map((vendor) => ({
         ...vendor,
         joined_on: resolveVendorJoinedOn(vendor),
+        document_count: Math.max(getDocumentCount(vendor), Number(docCounts[String(vendor?.id || '')] || 0)),
         product_count:
           Number(vendor?.product_count ?? vendor?.products?.[0]?.count ?? vendor?.products_count ?? 0) || 0,
       }));
@@ -195,7 +237,7 @@ const KYCApproval = () => {
     } finally {
       setLoading(false);
     }
-  }, [ADMIN_API_BASE, currentPage, filterStatus, searchTerm, toast]);
+  }, [ADMIN_API_BASE, currentPage, fetchVendorDocCounts, filterStatus, searchTerm, toast]);
 
   const hasSearchTerm = Boolean(String(searchTerm || '').trim());
   const summaryCount = totalVendors || vendors.length;
@@ -311,6 +353,10 @@ const KYCApproval = () => {
       }));
 
       setVendorDocs(normalized);
+      setSelectedVendor((prev) => ({
+        ...(prev || {}),
+        document_count: Math.max(getDocumentCount(prev), normalized.length),
+      }));
     } catch (e) {
       console.error(e);
       toast({ title: 'Error', description: e.message || 'Could not load documents', variant: 'destructive' });
@@ -381,6 +427,7 @@ const KYCApproval = () => {
                 <TableHead>Company</TableHead>
                 <TableHead>Owner / Contact</TableHead>
                 <TableHead>KYC Status</TableHead>
+                <TableHead>Docs</TableHead>
                 <TableHead>Products</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -390,19 +437,23 @@ const KYCApproval = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <Loader2 className="animate-spin mx-auto h-6 w-6 text-gray-400" />
                   </TableCell>
                 </TableRow>
               ) : vendors.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                     <Building2 className="h-12 w-12 mx-auto mb-2 opacity-30" />
                     No vendors found
                   </TableCell>
                 </TableRow>
               ) : (
-                vendors.map((vendor) => (
+                vendors.map((vendor) => {
+                  const documentCount = getDocumentCount(vendor);
+                  const hasAllDocuments = documentCount >= REQUIRED_KYC_DOCUMENT_COUNT;
+
+                  return (
                   <TableRow key={vendor.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -433,6 +484,22 @@ const KYCApproval = () => {
                     <TableCell>
                       <Badge className={getKycBadgeStyle(vendor.kyc_status)}>
                         {normalizeKycStatus(vendor.kyc_status)}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          hasAllDocuments
+                            ? 'border-green-200 bg-green-50 text-green-700'
+                            : documentCount > 0
+                              ? 'border-amber-200 bg-amber-50 text-amber-700'
+                              : 'border-gray-200 bg-gray-50 text-gray-600'
+                        }
+                      >
+                        <FileText className="mr-1 h-3.5 w-3.5" />
+                        {documentCount}/{REQUIRED_KYC_DOCUMENT_COUNT}
                       </Badge>
                     </TableCell>
 
@@ -473,7 +540,8 @@ const KYCApproval = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -530,7 +598,7 @@ const KYCApproval = () => {
                     {normalizeKycStatus(selectedVendor.kyc_status)}
                   </Badge>
                   <Badge variant="outline" className="text-xs">
-                    {vendorDocs?.length || 0} Docs
+                    {Math.max(getDocumentCount(selectedVendor), vendorDocs?.length || 0)}/{REQUIRED_KYC_DOCUMENT_COUNT} Docs
                   </Badge>
                 </div>
               </div>
