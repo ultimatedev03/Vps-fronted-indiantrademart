@@ -14,6 +14,7 @@ import { toast } from '@/components/ui/use-toast';
 import { getVendorProfilePath } from '@/shared/utils/vendorRoutes';
 import { getProductDetailPath } from '@/shared/utils/productRoutes';
 import { phoneUtils } from '@/shared/utils/phoneUtils';
+import { productRatings, PRODUCT_RATINGS_UPDATED_EVENT } from '@/shared/services/productRatings';
 import {
   getPremiumBrandBySlug,
   getPremiumBrandByVendorSlug,
@@ -21,6 +22,20 @@ import {
   getPremiumBrandProfileSlug,
   shouldUsePremiumBrandFallbackContent,
 } from '@/modules/directory/lib/premiumBrands';
+
+const VENDOR_FAVORITES_UPDATED_EVENT = 'itm:favorite-vendors:updated';
+
+const aggregateRatingSummaries = (summaryMap = {}) => {
+  const summaries = Object.values(summaryMap || {}).filter((item) => Number(item?.count || 0) > 0);
+  const count = summaries.reduce((sum, item) => sum + Number(item.count || 0), 0);
+  if (!count) return { average: 0, count: 0 };
+
+  const weighted = summaries.reduce(
+    (sum, item) => sum + (Number(item.average || 0) * Number(item.count || 0)),
+    0
+  );
+  return { average: Math.round((weighted / count) * 10) / 10, count };
+};
 
 const normalizeEstablishedYear = (value) => {
   const year = Number(value);
@@ -211,6 +226,7 @@ const VendorProfileContent = () => {
   const [services, setServices] = useState([]);
   const [serviceCategories, setServiceCategories] = useState([]);
   const [leads, setLeads] = useState([]);
+  const [productRatingSummary, setProductRatingSummary] = useState({ average: 0, count: 0 });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'products');
   const [showAllProducts, setShowAllProducts] = useState(false);
@@ -347,6 +363,9 @@ const VendorProfileContent = () => {
         if (!res.ok) throw new Error('Failed to remove favorite');
 
         setIsFavorite(false);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent(VENDOR_FAVORITES_UPDATED_EVENT));
+        }
         toast({ title: 'Removed from Favorites' });
       } else {
         const res = await fetchWithCsrf(apiUrl(`/api/vendors/${vendorRecordId}/favorite`), {
@@ -355,6 +374,9 @@ const VendorProfileContent = () => {
         if (!res.ok) throw new Error('Failed to add favorite');
 
         setIsFavorite(true);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent(VENDOR_FAVORITES_UPDATED_EVENT));
+        }
         toast({ title: 'Added to Favorites' });
       }
     } catch (e) {
@@ -383,9 +405,49 @@ const VendorProfileContent = () => {
     loadLeads();
   }, [vendorRecordId, isBuyer, user]);
 
+  useEffect(() => {
+    const productIds = (Array.isArray(products) ? products : [])
+      .map((product) => String(product?.id || '').trim())
+      .filter(Boolean);
+
+    if (!productIds.length) {
+      setProductRatingSummary({ average: 0, count: 0 });
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadProductRatings = async () => {
+      const summaryMap = await productRatings.getSummaryMap(productIds);
+      if (!cancelled) setProductRatingSummary(aggregateRatingSummaries(summaryMap));
+    };
+
+    loadProductRatings();
+    if (typeof window !== 'undefined') {
+      window.addEventListener(PRODUCT_RATINGS_UPDATED_EVENT, loadProductRatings);
+      window.addEventListener('focus', loadProductRatings);
+    }
+
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(PRODUCT_RATINGS_UPDATED_EVENT, loadProductRatings);
+        window.removeEventListener('focus', loadProductRatings);
+      }
+    };
+  }, [products]);
+
   const displayVendor = useMemo(
-    () => vendor || buildPremiumBrandFallbackVendor(requestedPremiumBrand),
-    [vendor, requestedPremiumBrand]
+    () => {
+      const baseVendor = vendor || buildPremiumBrandFallbackVendor(requestedPremiumBrand);
+      if (!baseVendor || productRatingSummary.count <= 0) return baseVendor;
+
+      return {
+        ...baseVendor,
+        rating: productRatingSummary.average,
+        reviews: productRatingSummary.count,
+      };
+    },
+    [productRatingSummary.average, productRatingSummary.count, requestedPremiumBrand, vendor]
   );
   const displayProducts =
     Array.isArray(products) && products.length ? products : premiumBrandFallbackOfferings;
@@ -901,8 +963,17 @@ const VendorProfileContent = () => {
             <TabsContent value="reviews" className="pt-6">
               <Card>
                 <Card.Content className="p-6 text-center text-gray-500">
-                  <Star className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                  <p>No detailed reviews available yet.</p>
+                  <Star className={`h-12 w-12 mx-auto mb-3 ${displayVendor.reviews > 0 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                  {displayVendor.reviews > 0 ? (
+                    <>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {Number(displayVendor.rating || 0).toFixed(1)} / 5
+                      </p>
+                      <p>{displayVendor.reviews} buyer {displayVendor.reviews === 1 ? 'rating' : 'ratings'} across listed services.</p>
+                    </>
+                  ) : (
+                    <p>No detailed reviews available yet.</p>
+                  )}
                 </Card.Content>
               </Card>
             </TabsContent>

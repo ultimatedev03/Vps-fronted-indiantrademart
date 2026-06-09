@@ -119,7 +119,7 @@ const Header = () => {
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[300px] sm:w-[400px]">
                   <SheetHeader className="text-left border-b pb-4 mb-4">
-                    <Logo className="h-14 w-auto" lockup />
+                    <Logo className="h-12 w-auto" lockup />
                   </SheetHeader>
                   <nav className="flex flex-col gap-2">
                     <NavLinks mobile onClick={() => {}} />
@@ -169,7 +169,7 @@ const Header = () => {
             </div>
 
             <div className="flex-shrink-0 flex items-center">
-               <Logo variant="light" className="h-12 sm:h-14 w-auto" lockup /> 
+               <Logo variant="light" className="h-9 sm:h-10 w-auto" lockup /> 
             </div>
             
             <nav className="hidden md:flex space-x-1">

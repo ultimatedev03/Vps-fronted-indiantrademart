@@ -11,6 +11,8 @@ import { useAuth } from '@/contexts/AppAuthContext';
 import { buyerApi } from '@/modules/buyer/services/buyerApi';
 import { productFavorites, PRODUCT_FAVORITES_UPDATED_EVENT } from '@/modules/buyer/services/productFavorites';
 
+const VENDOR_FAVORITES_UPDATED_EVENT = 'itm:favorite-vendors:updated';
+
 const Dashboard = () => {
   const { user, profile, buyerId } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,11 @@ const Dashboard = () => {
 
   const fetchDashboardData = useCallback(async ({ silent = false } = {}) => {
     const currentUserId = user?.id || null;
+    const getFavoriteCount = (statData = {}) => {
+      const productCount = currentUserId ? productFavorites.listForKeys(favoriteKeys).length : 0;
+      const vendorCount = Number(statData?.favoriteVendors || 0);
+      return productCount + vendorCount;
+    };
 
     try {
       if (!silent) {
@@ -45,7 +52,7 @@ const Dashboard = () => {
           ...prev,
           activeTickets: statData?.openTickets || 0,
           pendingProposals: statData?.activeProposals || 0,
-          favorites: currentUserId ? productFavorites.listForKeys(favoriteKeys).length : (statData?.favoriteVendors || 0),
+          favorites: getFavoriteCount(statData),
           unreadMessages: statData?.unreadMessages || 0,
         }));
         return;
@@ -59,7 +66,7 @@ const Dashboard = () => {
       setStats({
         activeTickets: statData?.openTickets || 0,
         pendingProposals: statData?.activeProposals || 0,
-        favorites: currentUserId ? productFavorites.listForKeys(favoriteKeys).length : (statData?.favoriteVendors || 0),
+        favorites: getFavoriteCount(statData),
         unreadMessages: statData?.unreadMessages || 0,
       });
 
@@ -97,18 +104,17 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user?.id || typeof window === 'undefined') return undefined;
 
-    const syncFavorites = () => {
-      const nextFavorites = productFavorites.listForKeys(favoriteKeys).length;
-      setStats((prev) => ({ ...prev, favorites: nextFavorites }));
-    };
+    const syncFavorites = () => fetchDashboardData({ silent: true });
 
     window.addEventListener(PRODUCT_FAVORITES_UPDATED_EVENT, syncFavorites);
+    window.addEventListener(VENDOR_FAVORITES_UPDATED_EVENT, syncFavorites);
     window.addEventListener('focus', syncFavorites);
     return () => {
       window.removeEventListener(PRODUCT_FAVORITES_UPDATED_EVENT, syncFavorites);
+      window.removeEventListener(VENDOR_FAVORITES_UPDATED_EVENT, syncFavorites);
       window.removeEventListener('focus', syncFavorites);
     };
-  }, [favoriteKeys, user?.id]);
+  }, [fetchDashboardData, user?.id]);
 
   if (loading) return <div className="flex h-96 justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-gray-300" /></div>;
   if (error) return <div className="flex h-96 justify-center items-center text-red-500 gap-2"><AlertCircle /> {error}</div>;
@@ -138,7 +144,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard label="Pending Proposals" value={stats.pendingProposals} icon={FileText} color="text-blue-600" bg="bg-blue-50" link="/buyer/proposals" />
         <StatCard label="Active Tickets" value={stats.activeTickets} icon={Ticket} color="text-orange-600" bg="bg-orange-50" link="/buyer/tickets" />
-        <StatCard label="Favorite Services" value={stats.favorites} icon={Star} color="text-yellow-600" bg="bg-yellow-50" link="/buyer/favorites" />
+        <StatCard label="Favorites" value={stats.favorites} icon={Star} color="text-yellow-600" bg="bg-yellow-50" link="/buyer/favorites" />
         <StatCard label="Unread Messages" value={stats.unreadMessages} icon={MessageSquare} color="text-green-600" bg="bg-green-50" link="/buyer/messages" />
       </div>
 

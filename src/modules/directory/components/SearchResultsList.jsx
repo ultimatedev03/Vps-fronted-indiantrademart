@@ -13,6 +13,7 @@ const SearchResultsList = ({ products, query, city, category }) => {
   const displayProducts = Array.isArray(products) ? products : [];
   const isUsingMock = false;
   const [ratingsVersion, setRatingsVersion] = useState(0);
+  const [ratingSummaryMap, setRatingSummaryMap] = useState({});
 
   const productIds = useMemo(
     () =>
@@ -36,10 +37,19 @@ const SearchResultsList = ({ products, query, city, category }) => {
     };
   }, []);
 
-  const ratingSummaryMap = useMemo(
-    () => productRatings.getSummaryMap(productIds),
-    [productIds, ratingsVersion]
-  );
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSummaries = async () => {
+      const summaries = await productRatings.getSummaryMap(productIds);
+      if (!cancelled) setRatingSummaryMap(summaries || {});
+    };
+
+    loadSummaries();
+    return () => {
+      cancelled = true;
+    };
+  }, [productIds, ratingsVersion]);
 
   const safeFirstImage = (product) => {
     const raw = product?.images;

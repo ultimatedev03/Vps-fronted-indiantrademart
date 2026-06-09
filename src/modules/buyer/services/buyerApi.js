@@ -348,7 +348,13 @@ export const buyerApi = {
         : 0;
     const favorites =
       favoritesRes.status === 'fulfilled'
-        ? (Array.isArray(favoritesRes.value) ? favoritesRes.value.length : 0)
+        ? (Array.isArray(favoritesRes.value)
+            ? new Set(
+                favoritesRes.value
+                  .map((fav) => String(fav?.vendor_id || fav?.vendors?.id || '').trim())
+                  .filter(Boolean)
+              ).size
+            : 0)
         : 0;
     const unreadMessages =
       unreadMessagesRes.status === 'fulfilled'
@@ -1230,7 +1236,7 @@ export const buyerApi = {
 
     const { data, error } = await dbClient
       .from('favorites')
-      .select('*, vendors(id, user_id, company_name, email, phone, profile_image, verification_badge, seller_rating)')
+      .select('*, vendors(id, user_id, vendor_id, slug, company_name, owner_name, email, phone, profile_image, avatar_url, verification_badge, seller_rating, city, state)')
       .eq('buyer_id', buyerId)
       .order('created_at', { ascending: false });
 

@@ -468,19 +468,18 @@ const ProductDetail = () => {
       return;
     }
 
-    const refreshRatings = () => {
-      const summary = productRatings.getProductSummary(productId);
-      const mine = buyerIdentityKeys.length
-        ? productRatings.getUserRatingForKeys(productId, buyerIdentityKeys)
-        : null;
-      const feedbackList = productRatings
-        .getProductRatings(productId)
+    let cancelled = false;
+    const refreshRatings = async () => {
+      const state = await productRatings.getProductRatingState(productId, buyerIdentityKeys);
+      if (cancelled) return;
+
+      const feedbackList = (state.ratings || [])
         .filter((row) => String(row?.feedback || '').trim())
         .slice(0, 3);
 
-      setRatingSummary(summary);
-      setMyRating(mine?.rating || 0);
-      setMyRatingUpdatedAt(mine?.updated_at || mine?.created_at || '');
+      setRatingSummary(state.summary || { average: 0, count: 0 });
+      setMyRating(state.myRating?.rating || 0);
+      setMyRatingUpdatedAt(state.myRating?.updated_at || state.myRating?.created_at || '');
       setRecentFeedback(feedbackList);
     };
 
@@ -491,6 +490,7 @@ const ProductDetail = () => {
     }
 
     return () => {
+      cancelled = true;
       if (typeof window !== 'undefined') {
         window.removeEventListener(PRODUCT_RATINGS_UPDATED_EVENT, refreshRatings);
         window.removeEventListener('focus', refreshRatings);
@@ -498,7 +498,7 @@ const ProductDetail = () => {
     };
   }, [buyerIdentityKeys, data?.id]);
 
-  const openRatingDialog = () => {
+  const openRatingDialog = async () => {
     if (!data?.id) return;
 
     if (!user) {
@@ -512,7 +512,7 @@ const ProductDetail = () => {
       return;
     }
 
-    const mine = productRatings.getUserRatingForKeys(data.id, buyerIdentityKeys);
+    const mine = await productRatings.getUserRatingForKeys(data.id, buyerIdentityKeys);
     setRatingDraft(mine?.rating || 0);
     setFeedbackDraft(mine?.feedback || '');
     setRatingDialogOpen(true);
@@ -535,7 +535,7 @@ const ProductDetail = () => {
         user?.email ||
         'Buyer';
 
-      const { summary, entry } = productRatings.upsertRatingForKeys({
+      const { summary, entry, ratings } = await productRatings.upsertRatingForKeys({
         productId: data.id,
         primaryUserId: user.id,
         userIds: buyerIdentityKeys,
@@ -547,6 +547,7 @@ const ProductDetail = () => {
       setRatingSummary(summary || { average: 0, count: 0 });
       setMyRating(entry?.rating || ratingDraft);
       setMyRatingUpdatedAt(entry?.updated_at || '');
+      setRecentFeedback((ratings || []).filter((row) => String(row?.feedback || '').trim()).slice(0, 3));
       setRatingDialogOpen(false);
       toast({ title: 'Thanks', description: 'Your rating and feedback are saved.' });
     } catch (error) {
@@ -562,7 +563,7 @@ const ProductDetail = () => {
 
     setSavingRating(true);
     try {
-      const { removed, summary } = productRatings.deleteRatingForKeys({
+      const { removed, summary, ratings } = await productRatings.deleteRatingForKeys({
         productId: data.id,
         userIds: buyerIdentityKeys,
       });
@@ -577,6 +578,7 @@ const ProductDetail = () => {
       setMyRatingUpdatedAt('');
       setRatingDraft(0);
       setFeedbackDraft('');
+      setRecentFeedback((ratings || []).filter((row) => String(row?.feedback || '').trim()).slice(0, 3));
       setRatingDialogOpen(false);
       toast({ title: 'Deleted', description: 'Your rating and feedback were removed.' });
     } catch (error) {
