@@ -155,10 +155,53 @@ export const superAdminServerApi = {
     overview: () => request('/monitoring/overview'),
     adminActivity: (days = 7) => request(`/monitoring/admin-activity?days=${encodeURIComponent(days)}`),
     revenueByState: () => request('/monitoring/revenue-by-state'),
+    visitorActivity: ({ days = 7, limit = 30 } = {}) =>
+      request(`/visitor-activity?days=${encodeURIComponent(days)}&limit=${encodeURIComponent(limit)}`),
     updateStatesScope: (employeeId, state_scope_ids) =>
       request(`/employees/${employeeId}/states-scope`, {
         method: 'PUT',
         body: JSON.stringify({ state_scope_ids }),
+      }),
+  },
+
+  search360: {
+    search: ({ query = '', limit = 25, offset = 0, stateId = '' } = {}) => {
+      const qs = new URLSearchParams();
+      if (query) qs.set('q', query);
+      if (stateId) qs.set('stateId', stateId);
+      qs.set('limit', String(limit));
+      qs.set('offset', String(offset));
+      return request(`/search360/vendors?${qs.toString()}`);
+    },
+    escalate: (payload) =>
+      request('/search360/escalations', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    updateCaseStatus: (caseId, payload) =>
+      request(`/search360/cases/${caseId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+  },
+
+  impersonation: {
+    targets: ({ target_type = 'BUYER', query = '', limit = 20 } = {}) => {
+      const qs = new URLSearchParams();
+      qs.set('target_type', String(target_type || 'BUYER'));
+      if (query) qs.set('q', query);
+      qs.set('limit', String(limit));
+      return request(`/impersonation/targets?${qs.toString()}`);
+    },
+    start: (payload) =>
+      request('/impersonation/start', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    stop: () =>
+      request('/impersonation/stop', {
+        method: 'POST',
+        body: JSON.stringify({}),
       }),
   },
 

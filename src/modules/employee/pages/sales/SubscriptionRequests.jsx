@@ -1,11 +1,28 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Loader2, RefreshCw, Search, X, Building2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Building2,
+  CalendarClock,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
 import { salesApi } from '@/modules/employee/services/salesApi';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+const ALL_VALUE = 'ALL';
 
 const defaultForm = () => ({
   vendor_id: '',
@@ -17,37 +34,79 @@ const defaultForm = () => ({
   sales_note: '',
 });
 
-const statusBadge = (status) => {
-  if (status === 'RESOLVED') return 'bg-green-50 border border-green-200 text-green-700';
-  if (status === 'REJECTED')  return 'bg-red-50 border border-red-200 text-red-700';
-  if (status === 'FORWARDED') return 'bg-blue-50 border border-blue-200 text-blue-700';
-  return 'bg-amber-50 border border-amber-200 text-amber-700'; // OPEN
+const safeNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const formatDate = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const cleanLabel = (value) =>
+  String(value || '-')
+    .replaceAll('_', ' ')
+    .trim();
+
+const statusBadgeClass = (status) => {
+  const normalized = String(status || '').toUpperCase();
+  if (normalized === 'RESOLVED') return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+  if (normalized === 'REJECTED') return 'bg-red-50 border-red-200 text-red-700';
+  if (normalized === 'FORWARDED') return 'bg-blue-50 border-blue-200 text-blue-700';
+  return 'bg-amber-50 border-amber-200 text-amber-700';
 };
 
 const levelLabel = (level) => {
-  if (level === 'SALES')   return 'Awaiting Manager';
-  if (level === 'MANAGER') return 'With Manager → VP';
-  if (level === 'VP')      return 'With VP → Admin';
-  if (level === 'ADMIN')   return 'With Admin';
-  return level || '—';
+  const normalized = String(level || '').toUpperCase();
+  if (normalized === 'SALES') return 'Manager review';
+  if (normalized === 'MANAGER') return 'VP review';
+  if (normalized === 'VP') return 'Admin resolution';
+  if (normalized === 'ADMIN') return 'Admin';
+  return cleanLabel(level);
 };
 
-// ── Vendor Search Dropdown ────────────────────────────────────────────────────
+const StatCard = ({ icon: Icon, label, value, subtext }) => (
+  <Card className="border-slate-200">
+    <CardContent className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+          {subtext ? <p className="mt-1 text-xs text-slate-500">{subtext}</p> : null}
+        </div>
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+          <Icon className="h-4 w-4 text-slate-700" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
 
-function VendorSearchInput({ onSelect }) {
-  const [query, setQuery] = useState('');
+function VendorSearchInput({ value, onSelect }) {
+  const [query, setQuery] = useState(value || '');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef(null);
   const wrapperRef = useRef(null);
 
+  useEffect(() => {
+    setQuery(value || '');
+  }, [value]);
+
   const search = useCallback(async (q) => {
-    if (!q.trim()) { setResults([]); setOpen(false); return; }
+    if (!q.trim()) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
     setSearching(true);
     try {
       const data = await salesApi.searchVendors(q);
-      setResults(data);
+      setResults(Array.isArray(data) ? data : []);
       setOpen(true);
     } catch {
       setResults([]);
@@ -56,16 +115,16 @@ function VendorSearchInput({ onSelect }) {
     }
   }, []);
 
-  const handleInput = (e) => {
-    const val = e.target.value;
+  const handleInput = (event) => {
+    const val = event.target.value;
     setQuery(val);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(val), 350);
+    debounceRef.current = setTimeout(() => search(val), 300);
   };
 
   const handleSelect = (vendor) => {
     onSelect(vendor);
-    setQuery(vendor.company_name);
+    setQuery(vendor.company_name || '');
     setOpen(false);
     setResults([]);
   };
@@ -77,10 +136,9 @@ function VendorSearchInput({ onSelect }) {
     onSelect(null);
   };
 
-  // Close on outside click
   useEffect(() => {
-    const handler = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    const handler = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -88,90 +146,117 @@ function VendorSearchInput({ onSelect }) {
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-        <input
-          type="text"
-          value={query}
-          onChange={handleInput}
-          placeholder="Search vendor by company name..."
-          className="w-full border border-gray-200 rounded-md pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          autoComplete="off"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <Input
+        type="text"
+        value={query}
+        onChange={handleInput}
+        placeholder="Search vendor company"
+        className="pl-9 pr-9"
+        autoComplete="off"
+      />
+      {query ? (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
 
-      {open && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+      {open ? (
+        <div className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg">
           {searching ? (
-            <div className="flex items-center gap-2 px-4 py-3 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Searching...
+            <div className="flex items-center gap-2 px-4 py-3 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Searching vendors...
             </div>
           ) : results.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-gray-400">No vendors found</div>
+            <div className="px-4 py-3 text-sm text-slate-500">No vendors found</div>
           ) : (
-            results.map((v) => (
+            results.map((vendor) => (
               <button
-                key={v.id}
+                key={vendor.id}
                 type="button"
-                onClick={() => handleSelect(v)}
-                className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-start gap-3 border-b border-gray-50 last:border-0"
+                onClick={() => handleSelect(vendor)}
+                className="flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50"
               >
-                <Building2 className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{v.company_name}</p>
-                  <p className="text-xs text-gray-500">{[v.city, v.state].filter(Boolean).join(', ') || 'Location not set'}</p>
-                </div>
+                <Building2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-slate-950">{vendor.company_name}</span>
+                  <span className="block text-xs text-slate-500">
+                    {[vendor.city, vendor.state].filter(Boolean).join(', ') || 'Location not set'}
+                  </span>
+                  <span className="block text-xs text-slate-500">
+                    {[vendor.vendor_id, vendor.email, vendor.phone].filter(Boolean).join(' | ')}
+                  </span>
+                </span>
               </button>
             ))
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function SubscriptionRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState(ALL_VALUE);
 
   const load = async () => {
     setLoading(true);
     try {
       const data = await salesApi.getMyExtensionRequests();
       setRequests(Array.isArray(data) ? data : []);
-    } catch (e) {
-      toast({ title: 'Load failed', description: e?.message, variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Load failed', description: error?.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
+
+  const stats = useMemo(() => {
+    const open = requests.filter((row) => ['OPEN', 'FORWARDED'].includes(String(row.status || '').toUpperCase())).length;
+    const resolved = requests.filter((row) => String(row.status || '').toUpperCase() === 'RESOLVED').length;
+    const rejected = requests.filter((row) => String(row.status || '').toUpperCase() === 'REJECTED').length;
+    const totalDays = requests.reduce((sum, row) => sum + safeNumber(row.extension_days), 0);
+    return { open, resolved, rejected, totalDays };
+  }, [requests]);
+
+  const filteredRequests = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return requests.filter((row) => {
+      if (status !== ALL_VALUE && String(row.status || '').toUpperCase() !== status) return false;
+      if (!term) return true;
+      return [row.vendor_name, row.vendor_state, row.reason, row.sales_note, row.current_level, row.status]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(term);
+    });
+  }, [requests, search, status]);
 
   const handleVendorSelect = (vendor) => {
     if (!vendor) {
       setSelectedVendor(null);
-      setForm((f) => ({ ...f, vendor_id: '', vendor_name: '', vendor_state: '', vendor_city: '' }));
+      setForm((current) => ({ ...current, vendor_id: '', vendor_name: '', vendor_state: '', vendor_city: '' }));
       return;
     }
     setSelectedVendor(vendor);
-    setForm((f) => ({
-      ...f,
+    setForm((current) => ({
+      ...current,
       vendor_id: vendor.id,
       vendor_name: vendor.company_name,
       vendor_state: vendor.state || '',
@@ -179,11 +264,18 @@ export default function SubscriptionRequests() {
     }));
   };
 
-  const handleChange = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+  const updateFormField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const resetForm = () => {
+    setForm(defaultForm());
+    setSelectedVendor(null);
+  };
 
   const handleSubmit = async () => {
     const days = parseInt(form.extension_days, 10);
-    if (!form.vendor_id)    return toast({ title: 'Please select a vendor', variant: 'destructive' });
+    if (!form.vendor_id) return toast({ title: 'Please select a vendor', variant: 'destructive' });
     if (!form.reason.trim()) return toast({ title: 'Reason is required', variant: 'destructive' });
     if (!Number.isFinite(days) || days < 1 || days > 365) {
       return toast({ title: 'Extension days must be between 1 and 365', variant: 'destructive' });
@@ -192,193 +284,277 @@ export default function SubscriptionRequests() {
     setSubmitting(true);
     try {
       await salesApi.createExtensionRequest({
-        vendor_id:      form.vendor_id,
-        vendor_name:    form.vendor_name,
-        vendor_state:   form.vendor_state,
-        reason:         form.reason.trim(),
+        vendor_id: form.vendor_id,
+        vendor_name: form.vendor_name,
+        vendor_state: form.vendor_state,
+        reason: form.reason.trim(),
         extension_days: days,
-        sales_note:     form.sales_note.trim() || undefined,
+        sales_note: form.sales_note.trim() || undefined,
       });
-      toast({ title: 'Request submitted', description: 'Sent to Manager for review.' });
-      setForm(defaultForm());
-      setSelectedVendor(null);
-      setShowForm(false);
+      toast({ title: 'Request submitted', description: 'Manager review queue has been updated.' });
+      resetForm();
+      setFormOpen(false);
       load();
-    } catch (e) {
-      toast({ title: 'Submit failed', description: e?.message, variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Submit failed', description: error?.message, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCancel = () => {
-    setShowForm(false);
-    setForm(defaultForm());
-    setSelectedVendor(null);
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Subscription Extension Requests</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Request subscription extensions for vendors — escalates Manager → VP → Admin
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <ShieldCheck className="h-4 w-4" />
+            Subscription governance
+          </div>
+          <h1 className="mt-2 text-2xl font-bold text-slate-950">Extension Request Desk</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Raise vendor extension exceptions with enough commercial context for Manager, VP, and Admin approval.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
             New Request
           </Button>
         </div>
       </div>
 
-      {/* Form */}
-      {showForm && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-5">
-          <h2 className="text-base font-semibold text-gray-800">New Extension Request</h2>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={FileText} label="My requests" value={requests.length} subtext="All extension cases" />
+        <StatCard icon={CalendarClock} label="Open pipeline" value={stats.open} subtext="Needs reviewer action" />
+        <StatCard icon={CheckCircle2} label="Resolved" value={stats.resolved} subtext={`${stats.rejected} rejected`} />
+        <StatCard icon={AlertTriangle} label="Days requested" value={stats.totalDays} subtext="Commercial exception size" />
+      </div>
 
-          {/* Vendor search */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">
-              Select Vendor <span className="text-red-500">*</span>
-            </label>
-            <VendorSearchInput onSelect={handleVendorSelect} />
-          </div>
-
-          {/* Auto-filled vendor info */}
-          {selectedVendor && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 flex items-start gap-3">
-              <Building2 className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
-                <p className="font-semibold text-gray-900">{selectedVendor.company_name}</p>
-                <p className="text-gray-500">
-                  {[selectedVendor.city, selectedVendor.state].filter(Boolean).join(', ') || 'Location not available'}
-                </p>
-                {selectedVendor.email && <p className="text-gray-400 text-xs mt-0.5">{selectedVendor.email}</p>}
+      <Card className="border-slate-200">
+        <CardContent className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-4">
+          {[
+            ['Sales', 'Capture vendor issue and business reason'],
+            ['Manager', 'Validate account context and ROI risk'],
+            ['VP', 'Approve regional exception and priority'],
+            ['Admin', 'Apply extension and close request'],
+          ].map(([title, description], index) => (
+            <div key={title} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center gap-2">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
+                  {index + 1}
+                </span>
+                <p className="font-semibold text-slate-950">{title}</p>
               </div>
+              <p className="mt-2 text-xs text-slate-500">{description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-200">
+        <CardHeader className="border-b border-slate-100">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <CardTitle className="text-base">My Request Queue</CardTitle>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(220px,320px)_180px]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search vendor, reason, state"
+                  className="pl-9"
+                />
+              </div>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUE}>All statuses</SelectItem>
+                  <SelectItem value="OPEN">Open</SelectItem>
+                  <SelectItem value="FORWARDED">Forwarded</SelectItem>
+                  <SelectItem value="RESOLVED">Resolved</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="grid h-56 place-items-center text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          ) : filteredRequests.length === 0 ? (
+            <div className="px-6 py-14 text-center">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50">
+                <FileText className="h-5 w-5 text-slate-500" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-slate-950">No extension requests match this view</h3>
+              <p className="mx-auto mt-1 max-w-xl text-sm text-slate-500">
+                Use this desk for vendors who need retention support, technical recovery time, or strategic account exceptions.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1040px] text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Vendor</th>
+                    <th className="px-4 py-3 text-left">Exception</th>
+                    <th className="px-4 py-3 text-left">Stage</th>
+                    <th className="px-4 py-3 text-left">Reviewer Notes</th>
+                    <th className="px-4 py-3 text-left">Outcome</th>
+                    <th className="px-4 py-3 text-left">Raised</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredRequests.map((row) => (
+                    <tr key={row.id} className="align-top hover:bg-slate-50/70">
+                      <td className="px-4 py-4">
+                        <p className="font-semibold text-slate-950">{row.vendor_name || '-'}</p>
+                        <p className="mt-1 text-xs text-slate-500">{row.vendor_state || 'State not set'}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">{safeNumber(row.extension_days)} days</Badge>
+                          <Badge className={statusBadgeClass(row.status)} variant="outline">
+                            {cleanLabel(row.status)}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 max-w-[320px] text-sm text-slate-700">{row.reason || '-'}</p>
+                        {row.sales_note ? <p className="mt-1 max-w-[320px] text-xs text-slate-500">Sales note: {row.sales_note}</p> : null}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <ArrowUpRight className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-slate-900">{levelLabel(row.current_level)}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">Current level: {cleanLabel(row.current_level)}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="max-w-[260px] text-xs text-slate-600">
+                          {row.manager_note ? `Manager: ${row.manager_note}` : 'Manager note pending'}
+                        </p>
+                        <p className="mt-1 max-w-[260px] text-xs text-slate-600">
+                          {row.vp_note ? `VP: ${row.vp_note}` : 'VP note pending'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">
+                        {row.extension_granted_days ? (
+                          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700" variant="outline">
+                            {row.extension_granted_days} days granted
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-slate-500">Awaiting decision</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-xs text-slate-500">{formatDate(row.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">
-                Extension Days <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="number"
-                min={1}
-                max={365}
-                placeholder="e.g. 30"
-                value={form.extension_days}
-                onChange={(e) => handleChange('extension_days', e.target.value)}
-              />
-              <p className="text-xs text-gray-400">How many extra days does the vendor need?</p>
+      <Dialog
+        open={formOpen}
+        onOpenChange={(open) => {
+          if (submitting) return;
+          setFormOpen(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>New Subscription Extension Request</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Vendor</label>
+              <VendorSearchInput value={form.vendor_name} onSelect={handleVendorSelect} />
             </div>
 
-            {/* Show auto-filled state as readonly */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Vendor State</label>
-              <Input
-                value={form.vendor_state}
-                readOnly
-                placeholder="Auto-filled from vendor profile"
-                className="bg-gray-50 text-gray-500 cursor-not-allowed"
-              />
-            </div>
+            {selectedVendor ? (
+              <div className="rounded-md border border-blue-100 bg-blue-50 p-3">
+                <div className="flex items-start gap-3">
+                  <Building2 className="mt-0.5 h-5 w-5 text-blue-700" />
+                  <div>
+                    <p className="font-semibold text-slate-950">{selectedVendor.company_name}</p>
+                    <p className="text-xs text-slate-600">
+                      {[selectedVendor.city, selectedVendor.state].filter(Boolean).join(', ') || 'Location not available'}
+                    </p>
+                    {selectedVendor.email ? <p className="mt-1 text-xs text-slate-500">{selectedVendor.email}</p> : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-sm font-medium text-gray-700">
-                Reason <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                rows={3}
-                placeholder="Why does this vendor need a subscription extension? (e.g. low ROI, technical issues, market conditions)"
-                value={form.reason}
-                onChange={(e) => handleChange('reason', e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-sm font-medium text-gray-700">Additional Note for Manager (optional)</label>
-              <textarea
-                className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                rows={2}
-                placeholder="Any extra context you want the manager to know"
-                value={form.sales_note}
-                onChange={(e) => handleChange('sales_note', e.target.value)}
-              />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Extension Days</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={form.extension_days}
+                  onChange={(event) => updateFormField('extension_days', event.target.value)}
+                  placeholder="e.g. 30"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Vendor State</label>
+                <Input value={form.vendor_state} readOnly placeholder="Auto-filled" className="bg-slate-50 text-slate-500" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-slate-700">Business Reason</label>
+                <textarea
+                  id="subscription-extension-business-reason"
+                  name="subscription_extension_business_reason"
+                  rows={4}
+                  value={form.reason}
+                  onInput={(event) => updateFormField('reason', event.currentTarget.value)}
+                  onChange={(event) => updateFormField('reason', event.currentTarget.value)}
+                  placeholder="Explain retention risk, service issue, account value, or why extension is commercially justified."
+                  data-disable-auto-sanitize="true"
+                  className="flex min-h-[120px] w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-slate-950 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-slate-700">Internal Sales Note</label>
+                <textarea
+                  id="subscription-extension-sales-note"
+                  name="subscription_extension_sales_note"
+                  rows={3}
+                  value={form.sales_note}
+                  onInput={(event) => updateFormField('sales_note', event.currentTarget.value)}
+                  onChange={(event) => updateFormField('sales_note', event.currentTarget.value)}
+                  placeholder="Add context for the manager review queue."
+                  data-disable-auto-sanitize="true"
+                  className="flex min-h-[96px] w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-slate-950 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-3 pt-1">
-            <Button onClick={handleSubmit} disabled={submitting || !selectedVendor}>
-              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Submit Request
-            </Button>
-            <Button variant="outline" onClick={handleCancel} disabled={submitting}>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={submitting}>
               Cancel
             </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Requests table */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-800">My Requests ({requests.length})</h2>
-        </div>
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-          </div>
-        ) : requests.length === 0 ? (
-          <div className="text-center py-12 text-sm text-gray-500">No extension requests yet. Click "New Request" to raise one.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  {['Vendor', 'State', 'Days Req.', 'Reason', 'Status', 'Where it is', 'Days Granted', 'Raised On'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {requests.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{r.vendor_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.vendor_state || '—'}</td>
-                    <td className="px-4 py-3 text-gray-700 font-medium">{r.extension_days}d</td>
-                    <td className="px-4 py-3 text-gray-600 w-[20vw] truncate" title={r.reason}>{r.reason}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${statusBadge(r.status)}`}>
-                        {r.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{levelLabel(r.current_level)}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {r.extension_granted_days ? (
-                        <span className="text-green-700 font-medium">{r.extension_granted_days}d</span>
-                      ) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {new Date(r.created_at).toLocaleDateString('en-IN')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+            <Button type="button" onClick={handleSubmit} disabled={submitting || !selectedVendor}>
+              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Submit To Manager
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

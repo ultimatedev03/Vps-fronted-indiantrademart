@@ -88,7 +88,7 @@ const ProductDetail = () => {
   const { productSlug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userRole, vendorId: currentVendorId } = useAuth();
+  const { user, profile, userRole, buyerId, vendorId: currentVendorId } = useAuth();
   const enquiryCaptcha = useCaptchaGate();
 
   const [data, setData] = useState(null);
@@ -108,6 +108,13 @@ const ProductDetail = () => {
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const isBuyer = String(userRole || user?.role || '').toUpperCase() === 'BUYER';
+  const buyerIdentityKeys = useMemo(
+    () =>
+      [user?.id, buyerId, profile?.id, profile?.user_id, user?.email, profile?.email]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    [buyerId, profile?.email, profile?.id, profile?.user_id, user?.email, user?.id]
+  );
 
   // Enquiry modal
   const [enquiryOpen, setEnquiryOpen] = useState(false);
@@ -406,7 +413,7 @@ const ProductDetail = () => {
       slug: data.slug || productSlug || data.id,
       name: data.name || 'Service',
       price: data.price ?? null,
-      images: Array.isArray(data.images) ? data.images : [],
+      images: normalizeProductImages(data.images),
       vendorId: data?.vendors?.id || data?.vendor_id || null,
       vendorSlug: data?.vendors?.slug || '',
       vendorName: data?.vendors?.company_name || '',
@@ -417,12 +424,12 @@ const ProductDetail = () => {
 
   useEffect(() => {
     const productId = favoriteProduct?.productId;
-    if (!productId || !user?.id || !isBuyer) {
+    if (!productId || !isBuyer || buyerIdentityKeys.length === 0) {
       setIsFavorite(false);
       return;
     }
-    setIsFavorite(productFavorites.isFavorite(user.id, productId));
-  }, [favoriteProduct?.productId, user?.id, isBuyer]);
+    setIsFavorite(productFavorites.isFavoriteForKeys(buyerIdentityKeys, productId));
+  }, [buyerIdentityKeys, favoriteProduct?.productId, isBuyer]);
 
   const handleToggleFavorite = async () => {
     if (!favoriteProduct?.productId || favLoading) return;
@@ -440,7 +447,7 @@ const ProductDetail = () => {
 
     setFavLoading(true);
     try {
-      const next = productFavorites.toggle(user.id, favoriteProduct);
+      const next = productFavorites.toggleForKeys(user.id, buyerIdentityKeys, favoriteProduct);
       setIsFavorite(Boolean(next?.isFavorite));
       toast({ title: next?.isFavorite ? 'Added to Favorites' : 'Removed from Favorites' });
     } catch (e) {
@@ -463,7 +470,9 @@ const ProductDetail = () => {
 
     const refreshRatings = () => {
       const summary = productRatings.getProductSummary(productId);
-      const mine = user?.id ? productRatings.getUserRating(productId, user.id) : null;
+      const mine = buyerIdentityKeys.length
+        ? productRatings.getUserRatingForKeys(productId, buyerIdentityKeys)
+        : null;
       const feedbackList = productRatings
         .getProductRatings(productId)
         .filter((row) => String(row?.feedback || '').trim())
@@ -487,7 +496,7 @@ const ProductDetail = () => {
         window.removeEventListener('focus', refreshRatings);
       }
     };
-  }, [data?.id, user?.id]);
+  }, [buyerIdentityKeys, data?.id]);
 
   const openRatingDialog = () => {
     if (!data?.id) return;
@@ -503,7 +512,7 @@ const ProductDetail = () => {
       return;
     }
 
-    const mine = productRatings.getUserRating(data.id, user.id);
+    const mine = productRatings.getUserRatingForKeys(data.id, buyerIdentityKeys);
     setRatingDraft(mine?.rating || 0);
     setFeedbackDraft(mine?.feedback || '');
     setRatingDialogOpen(true);
@@ -526,9 +535,10 @@ const ProductDetail = () => {
         user?.email ||
         'Buyer';
 
-      const { summary, entry } = productRatings.upsertRating({
+      const { summary, entry } = productRatings.upsertRatingForKeys({
         productId: data.id,
-        userId: user.id,
+        primaryUserId: user.id,
+        userIds: buyerIdentityKeys,
         rating: ratingDraft,
         feedback: feedbackDraft,
         buyerName: displayName,
@@ -552,9 +562,9 @@ const ProductDetail = () => {
 
     setSavingRating(true);
     try {
-      const { removed, summary } = productRatings.deleteRating({
+      const { removed, summary } = productRatings.deleteRatingForKeys({
         productId: data.id,
-        userId: user.id,
+        userIds: buyerIdentityKeys,
       });
 
       if (!removed) {
@@ -584,7 +594,7 @@ const ProductDetail = () => {
         .from('micro_categories')
         .select(
           `
-          id, name, slug,
+          id, name, slug, image_url,
           sub_categories (
             id, name, slug,
             head_categories (id, name, slug)
@@ -1286,29 +1296,36 @@ const ProductDetail = () => {
                 </section>
               )}
 
-              {recentFeedback.length > 0 && (
+              {ratingSummary.count > 0 && (
                 <section className="border-b border-slate-200 pb-8">
                   <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Buyer Feedback</h2>
                   <div className="mt-3 space-y-3">
-                    {recentFeedback.map((row, idx) => (
-                      <div key={`${row.userId}-${row.updated_at || idx}`} className="border-b border-slate-100 pb-3 last:border-b-0">
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <div>
-                            <span className="text-sm font-semibold text-slate-800">{row.buyerName || 'Buyer'}</span>
-                            {row.updated_at || row.created_at ? (
-                              <p className="text-[11px] text-slate-400">
-                                Rated on {formatDateTime(row.updated_at || row.created_at)}
-                              </p>
-                            ) : null}
+                    {recentFeedback.length > 0 ? (
+                      recentFeedback.map((row, idx) => (
+                        <div key={`${row.userId}-${row.updated_at || idx}`} className="border-b border-slate-100 pb-3 last:border-b-0">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <div>
+                              <span className="text-sm font-semibold text-slate-800">{row.buyerName || 'Buyer'}</span>
+                              {row.updated_at || row.created_at ? (
+                                <p className="text-[11px] text-slate-400">
+                                  Rated on {formatDateTime(row.updated_at || row.created_at)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="inline-flex items-center gap-1 text-sm text-slate-600">
+                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              {Number(row.rating || 0).toFixed(1)}
+                            </span>
                           </div>
-                          <span className="inline-flex items-center gap-1 text-sm text-slate-600">
-                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                            {Number(row.rating || 0).toFixed(1)}
-                          </span>
+                          <p className="whitespace-pre-wrap break-words text-sm text-slate-600">{row.feedback}</p>
                         </div>
-                        <p className="whitespace-pre-wrap break-words text-sm text-slate-600">{row.feedback}</p>
+                      ))
+                    ) : (
+                      <div className="rounded border border-yellow-100 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                        {ratingSummary.count} buyer {ratingSummary.count === 1 ? 'rating has' : 'ratings have'} been saved.
+                        Written feedback is not shared yet.
                       </div>
-                    ))}
+                    )}
                   </div>
                 </section>
               )}
@@ -1405,6 +1422,25 @@ const ProductDetail = () => {
                 Rate
               </Button>
             </div>
+            {myRating > 0 ? (
+              <div className="mt-2 rounded border border-yellow-100 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">Your rating</span>
+                  <span className="inline-flex items-center gap-1 font-bold">
+                    <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                    {Number(myRating || 0).toFixed(1)} / 5
+                  </span>
+                </div>
+                {myRatingUpdatedAt ? (
+                  <div className="mt-1 text-[11px] text-yellow-700">Updated {formatDateTime(myRatingUpdatedAt)}</div>
+                ) : null}
+              </div>
+            ) : ratingSummary.count > 0 ? (
+              <div className="mt-2 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                Average rating {Number(ratingSummary.average || 0).toFixed(1)} from {ratingSummary.count} buyer
+                {ratingSummary.count === 1 ? '' : 's'}.
+              </div>
+            ) : null}
           </aside>
         </div>
       </div>

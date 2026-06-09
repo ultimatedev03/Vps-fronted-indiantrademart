@@ -68,7 +68,9 @@ const VendorSuspensionGuard = () => {
     return <Navigate to={loginPath} replace state={{ from: location }} />;
   }
 
-  if (isVendorSuspended(user) && !isSupportRoute) {
+  const isAssistedSession = Boolean(user?.impersonation?.active);
+
+  if (isVendorSuspended(user) && !isSupportRoute && !isAssistedSession) {
     return <Navigate to={supportPath} replace />;
   }
 

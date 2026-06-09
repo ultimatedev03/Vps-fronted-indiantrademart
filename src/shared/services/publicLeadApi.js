@@ -1,5 +1,6 @@
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
+import { getVisitorLeadContext, identifyVisitorContact } from '@/shared/utils/visitorTracking';
 
 const stripUndefined = (payload = {}) =>
   Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
@@ -63,8 +64,26 @@ const postLeadPayload = async (payload = {}) => {
 };
 
 export const submitPublicLead = async (leadPayload = {}) => {
-  const attempts = [stripUndefined({ ...leadPayload })];
-  const minimalPayload = buildMinimalLeadPayload(leadPayload);
+  identifyVisitorContact({
+    buyer_name: leadPayload.buyer_name,
+    buyer_email: leadPayload.buyer_email,
+    buyer_phone: leadPayload.buyer_phone,
+    company_name: leadPayload.company_name,
+    source: leadPayload.source || 'WEBSITE_REQUIREMENT_FORM',
+  });
+
+  const visitorContext = getVisitorLeadContext();
+  const enrichedPayload = stripUndefined({
+    ...visitorContext,
+    ...leadPayload,
+    source: leadPayload.source || 'MARKETPLACE',
+  });
+  const attempts = [enrichedPayload];
+  const minimalPayload = stripUndefined({
+    ...visitorContext,
+    ...buildMinimalLeadPayload(leadPayload),
+    source: leadPayload.source || 'MARKETPLACE',
+  });
   attempts.push(minimalPayload);
   attempts.push(
     stripUndefined({

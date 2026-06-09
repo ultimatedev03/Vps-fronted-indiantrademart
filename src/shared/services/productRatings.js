@@ -4,6 +4,17 @@ export const PRODUCT_RATINGS_UPDATED_EVENT = 'itm:product-ratings:updated';
 const normalizeProductId = (value) => String(value || '').trim();
 const normalizeUserId = (value) => String(value || '').trim() || 'guest';
 
+const normalizeUserIds = (userIds = []) => {
+  const values = Array.isArray(userIds) ? userIds : [userIds];
+  return Array.from(
+    new Set(
+      values
+        .map(normalizeUserId)
+        .filter((key) => key && key !== 'guest')
+    )
+  );
+};
+
 const clampRating = (value) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
@@ -108,6 +119,37 @@ export const productRatings = {
     };
   },
 
+  getUserRatingForKeys(productId, userIds = []) {
+    const pid = normalizeProductId(productId);
+    const keys = normalizeUserIds(userIds);
+    if (!pid || !keys.length) return null;
+
+    const store = readStore();
+    const bucket = getBucket(store, pid);
+    const entries = keys
+      .map((uid) => {
+        const row = bucket?.[uid];
+        const rating = clampRating(row?.rating);
+        if (!row || !rating) return null;
+        return {
+          userId: uid,
+          buyerName: String(row?.buyerName || '').trim(),
+          rating,
+          feedback: String(row?.feedback || '').trim(),
+          created_at: row?.created_at || row?.updated_at || null,
+          updated_at: row?.updated_at || null,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const at = a?.updated_at || a?.created_at ? new Date(a.updated_at || a.created_at).getTime() : 0;
+        const bt = b?.updated_at || b?.created_at ? new Date(b.updated_at || b.created_at).getTime() : 0;
+        return bt - at;
+      });
+
+    return entries[0] || null;
+  },
+
   upsertRating({ productId, userId, rating, feedback = '', buyerName = '' }) {
     const pid = normalizeProductId(productId);
     const uid = normalizeUserId(userId);
@@ -143,6 +185,43 @@ export const productRatings = {
     };
   },
 
+  upsertRatingForKeys({ productId, primaryUserId, userIds = [], rating, feedback = '', buyerName = '' }) {
+    const pid = normalizeProductId(productId);
+    const keys = normalizeUserIds([primaryUserId, ...(Array.isArray(userIds) ? userIds : [userIds])]);
+    const safeRating = clampRating(rating);
+
+    if (!pid) throw new Error('Invalid product id');
+    if (!keys.length) throw new Error('Please login to rate');
+    if (!safeRating) throw new Error('Please select a star rating');
+
+    const store = readStore();
+    const bucket = getBucket(store, pid);
+    const existingEntry = keys.map((key) => bucket?.[key]).find(Boolean);
+    const createdAt = existingEntry?.created_at || existingEntry?.updated_at || new Date().toISOString();
+    const updatedAt = new Date().toISOString();
+    const primaryKey = keys[0];
+
+    const nextBucket = { ...bucket };
+    keys.forEach((uid) => {
+      nextBucket[uid] = {
+        userId: uid,
+        buyerName: String(buyerName || '').trim().slice(0, 120),
+        rating: safeRating,
+        feedback: String(feedback || '').trim().slice(0, 1000),
+        created_at: createdAt,
+        updated_at: updatedAt,
+      };
+    });
+
+    store[pid] = nextBucket;
+    writeStore(store);
+
+    return {
+      entry: nextBucket[primaryKey],
+      summary: this.getProductSummary(pid),
+    };
+  },
+
   deleteRating({ productId, userId }) {
     const pid = normalizeProductId(productId);
     const uid = normalizeUserId(userId);
@@ -161,6 +240,46 @@ export const productRatings = {
 
     const nextBucket = { ...bucket };
     delete nextBucket[uid];
+
+    if (Object.keys(nextBucket).length > 0) {
+      store[pid] = nextBucket;
+    } else {
+      delete store[pid];
+    }
+
+    writeStore(store);
+
+    return {
+      removed: true,
+      summary: this.getProductSummary(pid),
+    };
+  },
+
+  deleteRatingForKeys({ productId, userIds = [] }) {
+    const pid = normalizeProductId(productId);
+    const keys = normalizeUserIds(userIds);
+
+    if (!pid) throw new Error('Invalid product id');
+    if (!keys.length) throw new Error('Please login to manage rating');
+
+    const store = readStore();
+    const bucket = getBucket(store, pid);
+    let removed = false;
+    const nextBucket = { ...bucket };
+
+    keys.forEach((uid) => {
+      if (nextBucket?.[uid]) {
+        delete nextBucket[uid];
+        removed = true;
+      }
+    });
+
+    if (!removed) {
+      return {
+        removed: false,
+        summary: this.getProductSummary(pid),
+      };
+    }
 
     if (Object.keys(nextBucket).length > 0) {
       store[pid] = nextBucket;

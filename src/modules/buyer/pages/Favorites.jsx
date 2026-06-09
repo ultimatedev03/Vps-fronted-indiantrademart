@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/shared/components/Card';
 import { Star, MapPin, ExternalLink, Loader2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,9 +20,16 @@ const formatPrice = (value) => {
 };
 
 const Favorites = () => {
-  const { user } = useAuth();
+  const { user, profile, buyerId } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const favoriteKeys = useMemo(
+    () =>
+      [user?.id, buyerId, profile?.id, profile?.user_id, user?.email, profile?.email]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    [buyerId, profile?.email, profile?.id, profile?.user_id, user?.email, user?.id]
+  );
 
   useEffect(() => {
     if (!user?.id) {
@@ -32,7 +39,7 @@ const Favorites = () => {
     }
 
     const refresh = () => {
-      setFavorites(productFavorites.list(user.id));
+      setFavorites(productFavorites.listForKeys(favoriteKeys));
       setLoading(false);
     };
 
@@ -45,11 +52,11 @@ const Favorites = () => {
       window.removeEventListener(PRODUCT_FAVORITES_UPDATED_EVENT, refresh);
       window.removeEventListener('focus', refresh);
     };
-  }, [user?.id]);
+  }, [favoriteKeys, user?.id]);
 
   const handleRemoveFavorite = (productId) => {
     if (!user?.id) return;
-    const next = productFavorites.remove(user.id, productId);
+    const next = productFavorites.removeForKeys(favoriteKeys, productId);
     setFavorites(next);
   };
 

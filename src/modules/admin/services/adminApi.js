@@ -124,6 +124,55 @@ export const adminApi = {
     return [];
   },
 
+  getVisitorActivity: async ({ days = 7, limit = 20 } = {}) => {
+    const params = new URLSearchParams();
+    params.set('days', String(days));
+    params.set('limit', String(limit));
+    const res = await fetchWithCsrf(apiUrl(`/api/admin/dashboard/visitor-activity?${params.toString()}`));
+    if (!res.ok) throw new Error('Failed to load visitor activity');
+    const data = await res.json();
+    return {
+      stats: data?.stats || {},
+      events: data?.events || [],
+    };
+  },
+
+  search360: {
+    search: async ({ query = '', limit = 25, offset = 0, stateId = '' } = {}) => {
+      const params = new URLSearchParams();
+      if (query) params.set('q', query);
+      if (stateId) params.set('stateId', stateId);
+      params.set('limit', String(limit));
+      params.set('offset', String(offset));
+      const res = await fetchWithCsrf(apiUrl(`/api/admin/search360/vendors?${params.toString()}`));
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success === false) throw new Error(data?.error || 'Failed to load Search 360');
+      return data;
+    },
+
+    escalate: async (payload) => {
+      const res = await fetchWithCsrf(apiUrl('/api/admin/search360/escalations'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success === false) throw new Error(data?.error || 'Failed to create Search 360 case');
+      return data;
+    },
+
+    updateCaseStatus: async (caseId, payload) => {
+      const res = await fetchWithCsrf(apiUrl(`/api/admin/search360/cases/${caseId}/status`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success === false) throw new Error(data?.error || 'Failed to update Search 360 case');
+      return data;
+    },
+  },
+
   getVendorsByCreator: async (creatorId, creatorEmployeeId = '') => {
     const params = new URLSearchParams();
     if (creatorId) params.set('creatorId', creatorId);

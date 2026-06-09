@@ -111,5 +111,14 @@ export const territoryApi = {
     const data = await unwrap(res, 'Failed to fetch engagements');
     return data?.engagements || [];
   },
-};
 
+  getEngagementsWithMeta: async (query = {}) => {
+    const base = getTerritoryBase();
+    const res = await fetchWithCsrf(withQuery(`${base}/sales/engagements`, query));
+    const data = await unwrap(res, 'Failed to fetch engagements');
+    return {
+      engagements: data?.engagements || [],
+      meta: data?.meta || {},
+    };
+  },
+};

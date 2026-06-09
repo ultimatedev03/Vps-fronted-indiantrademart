@@ -3,6 +3,18 @@ import { useSuperAdmin } from '@/modules/admin/context/SuperAdminContext';
 import { superAdminServerApi } from '@/modules/admin/services/superAdminServerApi';
 import { toast } from '@/components/ui/use-toast';
 import { filterRecordsBySearch } from '@/modules/admin/lib/search';
+import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
+import Search360Workspace from '@/shared/components/Search360Workspace';
+import {
+  DEFAULT_PLAN_CURRENCY,
+  PLAN_MARKET_REGION_OPTIONS,
+  PLAN_CURRENCY_OPTIONS,
+  formatPlanMoney,
+  getPlanCurrencyMeta,
+  normalizeRegionalPrices,
+  normalizePlanCurrency,
+  splitPlanMarketCodes,
+} from '@/shared/utils/currency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,6 +71,8 @@ import {
   Minus,
   Activity,
   Download,
+  Search,
+  ExternalLink,
 } from 'lucide-react';
 
 // SUPERADMIN (ITM Owner) can only create ADMIN employees.
@@ -132,6 +146,46 @@ const showBlankForZero = (value) => {
   return n === 0 ? '' : value;
 };
 
+const makeRegionalPriceDraft = (overrides = {}) => ({
+  currency: normalizePlanCurrency(overrides.currency || 'USD'),
+  market_codes: String(overrides.market_codes || '').trim(),
+  price: Number(overrides.price || 0),
+  original_price: Number(overrides.original_price || 0),
+  discount_percent: Number(overrides.discount_percent || 0),
+  discount_label: String(overrides.discount_label || ''),
+  extra_lead_price: Number(overrides.extra_lead_price || 0),
+});
+
+const defaultMarketCodesForCurrency = (currency) => {
+  const meta = getPlanCurrencyMeta(currency);
+  return [...(meta.countryCodes || []), ...(meta.regionCodes || [])].join(', ');
+};
+
+const regionalPricesToDrafts = (value) =>
+  normalizeRegionalPrices(value).map((row) =>
+    makeRegionalPriceDraft({
+      ...row,
+      market_codes: [...(row.country_codes || []), ...(row.region_codes || [])].join(', '),
+    })
+  );
+
+const regionalPriceDraftsToPayload = (rows = []) =>
+  (rows || [])
+    .map((row) => {
+      const { countryCodes, regionCodes } = splitPlanMarketCodes(row?.market_codes);
+      return {
+        currency: normalizePlanCurrency(row?.currency),
+        country_codes: countryCodes,
+        region_codes: regionCodes,
+        price: toNonNegativeNumber(row?.price, 0),
+        original_price: toNonNegativeNumber(row?.original_price, 0),
+        discount_percent: clampDiscountPercent(row?.discount_percent),
+        discount_label: String(row?.discount_label || '').trim(),
+        extra_lead_price: toNonNegativeNumber(row?.extra_lead_price, 0),
+      };
+    })
+    .filter((row) => row.currency !== DEFAULT_PLAN_CURRENCY && row.price > 0);
+
 const normalizeRole = (value) => String(value || '').trim().toUpperCase();
 
 const roleToDepartment = (role) => {
@@ -180,6 +234,7 @@ const getPlanPricingMeta = (plan) => {
   const currentPrice = Number(plan?.price || 0);
   const configuredOriginal = Number(pricing.original_price || 0);
   const configuredExtraLeadPrice = Number(pricing.extra_lead_price || 0);
+  const currency = DEFAULT_PLAN_CURRENCY;
 
   let originalPrice = configuredOriginal;
   if ((!Number.isFinite(originalPrice) || originalPrice <= 0) && discountPercent > 0 && discountPercent < 100) {
@@ -191,6 +246,8 @@ const getPlanPricingMeta = (plan) => {
     original_price: originalPrice,
     discount_percent: Number.isFinite(discountPercent) ? Math.max(0, Math.min(100, discountPercent)) : 0,
     discount_label: String(pricing.discount_label || '').trim(),
+    currency,
+    regional_prices: regionalPricesToDrafts(pricing.regional_prices || pricing.localized_prices || features.regional_prices),
     extra_lead_price:
       Number.isFinite(configuredExtraLeadPrice) && configuredExtraLeadPrice >= 0
         ? configuredExtraLeadPrice
@@ -230,12 +287,187 @@ const planToDraft = (plan) => {
     original_price: Number(pricing.original_price || 0),
     discount_percent: Number(pricing.discount_percent || 0),
     discount_label: pricing.discount_label,
+    currency: pricing.currency,
+    regional_prices: pricing.regional_prices,
     extra_lead_price: Number(pricing.extra_lead_price || 0),
     badge_label: pricing.badge_label,
     badge_variant: pricing.badge_variant,
     states_limit: Number(coverage.states_limit || 0),
     cities_limit: Number(coverage.cities_limit || 0),
   };
+};
+
+const SuperAdminBuyerAccessPanel = ({ title = 'Buyer Dashboard Access' }) => {
+  const [query, setQuery] = useState('');
+  const [buyers, setBuyers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState('');
+
+  const loadBuyers = async (nextQuery = query) => {
+    setLoading(true);
+    try {
+      const data = await superAdminServerApi.impersonation.targets({
+        target_type: 'BUYER',
+        query: nextQuery,
+        limit: 20,
+      });
+      setBuyers(data?.targets || []);
+    } catch (error) {
+      toast({
+        title: 'Buyer search failed',
+        description: error?.message || 'Could not load buyers for assisted access.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBuyers('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openBuyerDashboard = async (buyer) => {
+    if (!buyer?.id || busyId) return;
+    const tab = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null;
+    setBusyId(buyer.id);
+    try {
+      const data = await superAdminServerApi.impersonation.start({
+        target_type: 'BUYER',
+        target_id: buyer.id,
+      });
+      const next = data?.next || '/buyer/dashboard';
+      if (tab) {
+        tab.location.href = next;
+      } else if (typeof window !== 'undefined') {
+        window.location.href = next;
+      }
+      toast({
+        title: 'Buyer dashboard opened',
+        description: `Assisted access started for ${buyer.name || buyer.email || 'buyer'}.`,
+      });
+    } catch (error) {
+      if (tab) tab.close();
+      toast({
+        title: 'Could not open buyer dashboard',
+        description: error?.message || 'Assisted access failed.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  return (
+    <Card className="bg-neutral-900 border-neutral-800">
+      <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-300" />
+            {title}
+          </CardTitle>
+          <CardDescription className="text-neutral-400">
+            Search buyers and open their dashboard with audited Super Admin assisted access.
+          </CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          className="border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+          onClick={() => loadBuyers(query)}
+          disabled={loading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col gap-2 md:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') loadBuyers(query);
+              }}
+              className="bg-neutral-950 border-neutral-800 pl-9 text-white placeholder:text-neutral-500"
+              placeholder="Search buyer name, company, email, phone, city, state..."
+            />
+          </div>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => loadBuyers(query)} disabled={loading}>
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </Button>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-neutral-800">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-neutral-800">
+                <TableHead className="text-neutral-400">Buyer</TableHead>
+                <TableHead className="text-neutral-400">Contact</TableHead>
+                <TableHead className="text-neutral-400">Region</TableHead>
+                <TableHead className="text-neutral-400">Status</TableHead>
+                <TableHead className="text-neutral-400">Updated</TableHead>
+                <TableHead className="text-right text-neutral-400">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow className="border-neutral-800">
+                  <TableCell colSpan={6} className="py-8 text-center text-neutral-400">
+                    Loading buyers...
+                  </TableCell>
+                </TableRow>
+              ) : buyers.length ? (
+                buyers.map((buyer) => (
+                  <TableRow key={buyer.id} className="border-neutral-800">
+                    <TableCell>
+                      <div className="text-white font-medium">{buyer.name || 'Unnamed buyer'}</div>
+                      <div className="text-xs text-neutral-500">{buyer.company_name || buyer.id}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-neutral-200">{buyer.email || '-'}</div>
+                      <div className="text-xs text-neutral-500">{buyer.phone || '-'}</div>
+                    </TableCell>
+                    <TableCell className="text-neutral-300">
+                      {[buyer.city, buyer.state].filter(Boolean).join(', ') || '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={buyer.is_active ? 'bg-emerald-950 text-emerald-200' : 'bg-amber-950 text-amber-200'}>
+                        {buyer.status_label || (buyer.is_active ? 'ACTIVE' : 'INACTIVE')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-neutral-400">
+                      {formatDateTime(buyer.updated_at || buyer.created_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        className="bg-emerald-700 hover:bg-emerald-600"
+                        disabled={busyId === buyer.id}
+                        onClick={() => openBuyerDashboard(buyer)}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        {busyId === buyer.id ? 'Opening...' : 'Open Buyer Dashboard'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow className="border-neutral-800">
+                  <TableCell colSpan={6} className="py-8 text-center text-neutral-400">
+                    No buyers found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default function SuperAdminDashboard() {
@@ -314,6 +546,8 @@ export default function SuperAdminDashboard() {
     original_price: 0,
     discount_percent: 0,
     discount_label: '',
+    currency: DEFAULT_PLAN_CURRENCY,
+    regional_prices: [],
     extra_lead_price: 0,
     badge_label: '',
     badge_variant: 'neutral',
@@ -341,6 +575,8 @@ export default function SuperAdminDashboard() {
   const [monitoringActivity, setMonitoringActivity] = useState(null);
   const [monitoringRevenue, setMonitoringRevenue] = useState([]);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [visitorActivity, setVisitorActivity] = useState({ stats: {}, events: [] });
+  const [visitorActivityLoading, setVisitorActivityLoading] = useState(false);
   const [monitoringActivityDays, setMonitoringActivityDays] = useState(7);
   const [statesScopeModalOpen, setStatesScopeModalOpen] = useState(false);
   const [statesScopeTarget, setStatesScopeTarget] = useState(null);
@@ -350,6 +586,7 @@ export default function SuperAdminDashboard() {
   // Settings
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('system');
 
   const handleError = (error, fallback) => {
     toast({
@@ -635,19 +872,41 @@ export default function SuperAdminDashboard() {
 
   const fetchMonitoring = async (days = monitoringActivityDays) => {
     setMonitoringLoading(true);
+    setVisitorActivityLoading(true);
     try {
-      const [overviewRes, activityRes, revenueRes] = await Promise.all([
+      const [overviewRes, activityRes, revenueRes, visitorRes] = await Promise.all([
         superAdminServerApi.monitoring.overview(),
         superAdminServerApi.monitoring.adminActivity(days),
         superAdminServerApi.monitoring.revenueByState(),
+        superAdminServerApi.monitoring.visitorActivity({ days, limit: isGodMode ? 50 : 30 }),
       ]);
       setMonitoringOverview(overviewRes?.data || null);
       setMonitoringActivity(activityRes?.data || null);
       setMonitoringRevenue(revenueRes?.data || []);
+      setVisitorActivity({
+        stats: visitorRes?.stats || {},
+        events: visitorRes?.events || [],
+      });
     } catch (err) {
       handleError(err, 'Failed to load monitoring data');
     } finally {
       setMonitoringLoading(false);
+      setVisitorActivityLoading(false);
+    }
+  };
+
+  const fetchVisitorActivity = async (days = monitoringActivityDays) => {
+    setVisitorActivityLoading(true);
+    try {
+      const visitorRes = await superAdminServerApi.monitoring.visitorActivity({ days, limit: isGodMode ? 50 : 30 });
+      setVisitorActivity({
+        stats: visitorRes?.stats || {},
+        events: visitorRes?.events || [],
+      });
+    } catch (err) {
+      handleError(err, 'Failed to load visitor activity');
+    } finally {
+      setVisitorActivityLoading(false);
     }
   };
 
@@ -724,6 +983,8 @@ export default function SuperAdminDashboard() {
     original_price: Number(draft?.original_price || 0),
     discount_percent: Number(draft?.discount_percent || 0),
     discount_label: String(draft?.discount_label || '').trim(),
+    currency: DEFAULT_PLAN_CURRENCY,
+    regional_prices: regionalPriceDraftsToPayload(draft?.regional_prices),
     extra_lead_price: Number(draft?.extra_lead_price || 0),
     badge_label: String(draft?.badge_label || '').trim(),
     badge_variant: String(draft?.badge_variant || 'neutral').trim() || 'neutral',
@@ -825,6 +1086,200 @@ export default function SuperAdminDashboard() {
     });
   };
 
+  const updateRegionalPriceRows = (rows, rowIndex, key, value) => {
+    const nextRows = [...(rows || [])];
+    const current = makeRegionalPriceDraft(nextRows[rowIndex] || {});
+    const next = { ...current, [key]: value };
+
+    if (key === 'currency') {
+      next.currency = normalizePlanCurrency(value);
+      if (!String(next.market_codes || '').trim()) {
+        next.market_codes = defaultMarketCodesForCurrency(next.currency);
+      }
+    }
+    if (key === 'price' || key === 'original_price' || key === 'extra_lead_price') {
+      next[key] = toNonNegativeNumber(value, 0);
+    }
+    if (key === 'discount_percent') {
+      next.discount_percent = clampDiscountPercent(value);
+    }
+
+    if (key === 'discount_percent' || key === 'original_price') {
+      const discountPercent = clampDiscountPercent(next.discount_percent);
+      let originalPrice = toNonNegativeNumber(next.original_price, 0);
+      if (originalPrice <= 0 && discountPercent > 0) {
+        const currentPrice = toNonNegativeNumber(next.price, 0);
+        if (currentPrice > 0) {
+          originalPrice = currentPrice;
+          next.original_price = currentPrice;
+        }
+      }
+      if (originalPrice > 0) {
+        next.price = computeDiscountedPrice(originalPrice, discountPercent);
+      }
+    }
+
+    nextRows[rowIndex] = next;
+    return nextRows;
+  };
+
+  const renderRegionalPricesEditor = ({ rows = [], onChange, idPrefix }) => {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    const addRow = () =>
+      onChange([
+        ...safeRows,
+        makeRegionalPriceDraft({
+          currency: 'USD',
+          market_codes: defaultMarketCodesForCurrency('USD'),
+        }),
+      ]);
+
+    return (
+      <div className="rounded-lg border border-neutral-800 bg-neutral-950/30 p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] uppercase tracking-wide text-neutral-400">Regional Currency Prices</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addRow}
+            className="h-8 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Price
+          </Button>
+        </div>
+
+        {safeRows.length === 0 ? (
+          <div className="rounded-md border border-dashed border-neutral-800 px-3 py-4 text-center text-xs text-neutral-500">
+            No regional prices
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {safeRows.map((row, index) => {
+              const rowCurrency = normalizePlanCurrency(row.currency);
+              const rowPrice = toNonNegativeNumber(row.price, 0);
+              const rowOriginal = toNonNegativeNumber(row.original_price, 0);
+              const rowDiscount = clampDiscountPercent(row.discount_percent);
+              const rowShowOriginal = rowOriginal > rowPrice && rowPrice >= 0;
+              const inputKey = `${idPrefix || 'regional'}-${index}`;
+
+              return (
+                <div key={inputKey} className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-neutral-500">Currency</Label>
+                      <Select
+                        value={rowCurrency}
+                        onValueChange={(value) => onChange(updateRegionalPriceRows(safeRows, index, 'currency', value))}
+                      >
+                        <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white h-9">
+                          <SelectValue placeholder="Currency" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+                          {PLAN_CURRENCY_OPTIONS.filter((item) => item.code !== DEFAULT_PLAN_CURRENCY).map((item) => (
+                            <SelectItem key={item.code} value={item.code}>
+                              {item.code} - {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-neutral-500">Countries / Regions</Label>
+                      <Input
+                        value={row.market_codes ?? ''}
+                        onChange={(e) => onChange(updateRegionalPriceRows(safeRows, index, 'market_codes', e.target.value))}
+                        className="bg-neutral-800 border-neutral-700 text-white h-9"
+                        placeholder="US, EU, GCC"
+                        disableAutoSanitize
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-neutral-500">Current Price</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={showBlankForZero(row.price)}
+                        onChange={(e) => onChange(updateRegionalPriceRows(safeRows, index, 'price', e.target.value))}
+                        className="bg-neutral-800 border-neutral-700 text-white h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-neutral-500">Original Price</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={showBlankForZero(row.original_price)}
+                        onChange={(e) => onChange(updateRegionalPriceRows(safeRows, index, 'original_price', e.target.value))}
+                        className="bg-neutral-800 border-neutral-700 text-white h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-neutral-500">Discount %</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={showBlankForZero(row.discount_percent)}
+                        onChange={(e) => onChange(updateRegionalPriceRows(safeRows, index, 'discount_percent', e.target.value))}
+                        className="bg-neutral-800 border-neutral-700 text-white h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-neutral-500">Discount Label</Label>
+                      <Input
+                        value={row.discount_label ?? ''}
+                        onChange={(e) => onChange(updateRegionalPriceRows(safeRows, index, 'discount_label', e.target.value))}
+                        className="bg-neutral-800 border-neutral-700 text-white h-9"
+                        placeholder="Example: 20% OFF"
+                        disableAutoSanitize
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-neutral-500">Extra Lead Price</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={showBlankForZero(row.extra_lead_price)}
+                        onChange={(e) => onChange(updateRegionalPriceRows(safeRows, index, 'extra_lead_price', e.target.value))}
+                        className="bg-neutral-800 border-neutral-700 text-white h-9"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onChange(safeRows.filter((_, rowIndex) => rowIndex !== index))}
+                        className="h-9 w-full border-red-900/60 text-red-300 hover:bg-red-950/40"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-neutral-400">
+                    Preview: {rowShowOriginal ? `${formatPlanMoney(rowOriginal, rowCurrency)} -> ` : ''}
+                    {formatPlanMoney(rowPrice, rowCurrency)}
+                    {rowDiscount > 0 ? ` (${rowDiscount}% OFF)` : ''}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-1.5">
+          {PLAN_MARKET_REGION_OPTIONS.map((region) => (
+            <Badge key={region.code} variant="secondary" className="bg-neutral-800 text-neutral-400">
+              {region.code}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const resetNewPlanForm = () => {
     setNewPlanForm({
       name: '',
@@ -838,6 +1293,8 @@ export default function SuperAdminDashboard() {
       original_price: 0,
       discount_percent: 0,
       discount_label: '',
+      currency: DEFAULT_PLAN_CURRENCY,
+      regional_prices: [],
       extra_lead_price: 0,
       badge_label: '',
       badge_variant: 'neutral',
@@ -1334,6 +1791,56 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const navGroups = useMemo(() => {
+    const groups = [
+      {
+        label: 'Platform Control',
+        items: [
+          { value: 'system', label: 'System', icon: Wrench },
+          { value: 'employees', label: 'Employees', icon: Users },
+          { value: 'settings', label: 'Security', icon: Settings },
+        ],
+      },
+      {
+        label: 'Business Ops',
+        items: [
+          { value: 'vendors', label: 'Vendors', icon: Building2 },
+          { value: 'plans', label: 'Plans', icon: Package },
+          { value: 'finance', label: 'Finance', icon: IndianRupee },
+        ],
+      },
+      {
+        label: 'Intelligence',
+        items: [
+          { value: 'monitoring', label: 'Monitoring', icon: BarChart3 },
+          { value: 'search360', label: 'Search 360', icon: Search },
+        ],
+      },
+    ];
+
+    if (isGodMode) {
+      groups.push({
+        label: 'Developer',
+        items: [
+          { value: 'godmode', label: 'Operations', icon: ShieldAlert },
+          { value: 'audit', label: 'DB Activity', icon: History },
+        ],
+      });
+    }
+
+    return groups;
+  }, [isGodMode]);
+
+  const handleTabChange = (value) => {
+    setActiveTab(value);
+    if (value === 'monitoring' && !monitoringOverview && !monitoringLoading) {
+      fetchMonitoring();
+    }
+    if (value === 'godmode' && !(visitorActivity.events || []).length && !visitorActivityLoading) {
+      fetchVisitorActivity(monitoringActivityDays);
+    }
+  };
+
   if (!superAdmin) return null;
 
   return (
@@ -1343,10 +1850,10 @@ export default function SuperAdminDashboard() {
           <ShieldAlert className={`h-8 w-8 ${isGodMode ? 'text-red-600' : 'text-yellow-500'}`} />
           <div>
             <h1 className="text-xl font-bold text-white tracking-tight">
-              {isGodMode ? '🔥 GOD MODE' : '👑 SUPER ADMIN'}
+              {isGodMode ? 'Developer Console' : 'Super Admin'}
             </h1>
             <p className="text-xs text-neutral-500 font-mono">
-              {isGodMode ? 'Developer Console — Full Platform Access' : 'ITM Owner Console — Business Control'}
+              {isGodMode ? 'Platform engineering and diagnostics' : 'ITM owner console for business control'}
             </p>
           </div>
         </div>
@@ -1368,39 +1875,38 @@ export default function SuperAdminDashboard() {
       </header>
 
       <main className="mx-auto w-full min-w-0 space-y-6 p-6">
-        <Tabs defaultValue="system" className="space-y-6">
-          <TabsList className="bg-neutral-800 border border-neutral-700 p-1 flex flex-wrap">
-            <TabsTrigger value="system" className="data-[state=active]:bg-neutral-700">
-              <Wrench className="h-4 w-4 mr-2" /> System
-            </TabsTrigger>
-            <TabsTrigger value="employees" className="data-[state=active]:bg-neutral-700">
-              <Users className="h-4 w-4 mr-2" /> Employees
-            </TabsTrigger>
-            <TabsTrigger value="vendors" className="data-[state=active]:bg-neutral-700">
-              <Building2 className="h-4 w-4 mr-2" /> Vendors
-            </TabsTrigger>
-            <TabsTrigger value="plans" className="data-[state=active]:bg-neutral-700">
-              <Package className="h-4 w-4 mr-2" /> Plans
-            </TabsTrigger>
-            <TabsTrigger value="finance" className="data-[state=active]:bg-neutral-700">
-              <IndianRupee className="h-4 w-4 mr-2" /> Finance
-            </TabsTrigger>
-            <TabsTrigger value="monitoring" className="data-[state=active]:bg-neutral-700" onClick={() => { if (!monitoringOverview && !monitoringLoading) fetchMonitoring(); }}>
-              <BarChart3 className="h-4 w-4 mr-2" /> Monitoring
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="data-[state=active]:bg-neutral-700">
-              <History className="h-4 w-4 mr-2" /> Audit Logs
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-neutral-700">
-              <Settings className="h-4 w-4 mr-2" /> Security
-            </TabsTrigger>
-            {/* GOD MODE only tab */}
-            {isGodMode && (
-              <TabsTrigger value="godmode" className="data-[state=active]:bg-red-900 text-red-400 data-[state=active]:text-red-200">
-                <ShieldAlert className="h-4 w-4 mr-2" /> GOD MODE
-              </TabsTrigger>
-            )}
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-950/70 p-3">
+            <div className="grid gap-3 xl:grid-cols-4">
+              {navGroups.map((group) => (
+                <div key={group.label} className="rounded-md border border-neutral-800 bg-neutral-900/80 p-2">
+                  <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                    {group.label}
+                  </p>
+                  <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isDeveloperItem = group.label === 'Developer';
+                      return (
+                        <TabsTrigger
+                          key={item.value}
+                          value={item.value}
+                          className={`h-9 rounded-md px-3 text-xs data-[state=active]:text-white ${
+                            isDeveloperItem
+                              ? 'text-red-300 data-[state=active]:bg-red-900'
+                              : 'text-neutral-300 data-[state=active]:bg-neutral-700'
+                          }`}
+                        >
+                          <Icon className="mr-2 h-4 w-4" />
+                          {item.label}
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <TabsContent value="system" className="space-y-4">
             <Card className="bg-neutral-900 border-neutral-800">
@@ -2019,6 +2525,8 @@ export default function SuperAdminDashboard() {
                       const nowPrice = Number(draft?.price || 0);
                       const oldPrice = Number(draft?.original_price || 0);
                       const discountPercent = Number(draft?.discount_percent || 0);
+                      const currency = normalizePlanCurrency(draft?.currency);
+                      const currencyMeta = getPlanCurrencyMeta(currency);
                       const showOldPrice = Number.isFinite(oldPrice) && oldPrice > nowPrice && nowPrice >= 0;
                       const showPercent = Number.isFinite(discountPercent) && discountPercent > 0;
 
@@ -2080,6 +2588,14 @@ export default function SuperAdminDashboard() {
                             <p className="text-[11px] uppercase tracking-wide text-neutral-400">Pricing</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <div className="space-y-1">
+                                <Label className="text-[11px] text-neutral-500">Base Currency</Label>
+                                <Input
+                                  value="INR - Indian Rupee"
+                                  readOnly
+                                  className="bg-neutral-800 border-neutral-700 text-neutral-300 h-9"
+                                />
+                              </div>
+                              <div className="space-y-1">
                                 <Label className="text-[11px] text-neutral-500">Original Price</Label>
                                 <Input
                                   type="number"
@@ -2134,9 +2650,16 @@ export default function SuperAdminDashboard() {
                               </div>
                             </div>
                             <div className="text-xs text-neutral-400">
-                              Preview: {showOldPrice ? `Rs. ${money(oldPrice)} -> ` : ''}Rs. {money(nowPrice)}
+                              Preview: {showOldPrice ? `${formatPlanMoney(oldPrice, currency)} -> ` : ''}
+                              {formatPlanMoney(nowPrice, currency)}
                               {showPercent ? ` (${discountPercent}% OFF)` : ''}
+                              <span className="text-neutral-500"> · {currencyMeta.code}</span>
                             </div>
+                            {renderRegionalPricesEditor({
+                              rows: draft.regional_prices,
+                              idPrefix: `plan-${plan.id}`,
+                              onChange: (nextRows) => updatePlanDraft(plan.id, 'regional_prices', nextRows),
+                            })}
                           </div>
 
                           <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
@@ -2430,6 +2953,17 @@ export default function SuperAdminDashboard() {
                 </Card>
               ))}
             </div>
+
+            <WebsiteVisitorActivityCard
+              events={visitorActivity.events || []}
+              stats={visitorActivity.stats || {}}
+              loading={visitorActivityLoading}
+              onRefresh={() => fetchVisitorActivity(monitoringActivityDays)}
+              dark
+              technical={isGodMode}
+              title="Website Visitor Intelligence"
+              description="Public website visits, searches, product/vendor views, and captured contact context."
+            />
 
             {/* Admin Activity Monitor */}
             <Card className="bg-neutral-900 border-neutral-800">
@@ -2739,6 +3273,18 @@ export default function SuperAdminDashboard() {
 
           </TabsContent>
 
+          <TabsContent value="search360" className="space-y-4">
+            <Search360Workspace
+              api={superAdminServerApi.search360}
+              impersonationApi={superAdminServerApi.impersonation}
+              title="Search 360"
+              description="Super Admin view for vendor profile, products, plan, account status, support cases, and cross-team escalation."
+              roleLabel={isGodMode ? 'GODMODE' : 'SUPERADMIN'}
+              dark
+            />
+            <SuperAdminBuyerAccessPanel />
+          </TabsContent>
+
           <TabsContent value="audit" className="space-y-4">
             <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -2962,6 +3508,106 @@ export default function SuperAdminDashboard() {
           {isGodMode && (
             <TabsContent value="godmode" className="space-y-4">
               <Card className="bg-neutral-900 border-red-900">
+                <CardHeader>
+                  <CardTitle className="text-red-300 flex items-center gap-2">
+                    <ShieldAlert className="h-5 w-5" />
+                    Developer Operations
+                  </CardTitle>
+                  <CardDescription className="text-neutral-400">
+                    Live website signals, DB activity, and high-impact platform controls in one workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      ['Website Events', visitorActivity.stats?.total_events || visitorActivity.events?.length || 0],
+                      ['Product Visits', visitorActivity.stats?.product_views || 0],
+                      ['Unique Visitors', visitorActivity.stats?.unique_visitors || 0],
+                      ['DB Updates', auditLogs.length || 0],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-md border border-neutral-800 bg-neutral-950 p-3">
+                        <p className="text-xs uppercase tracking-wide text-neutral-500">{label}</p>
+                        <p className="mt-1 text-2xl font-bold text-white">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="rounded-lg border border-neutral-800 bg-neutral-950">
+                      <div className="border-b border-neutral-800 px-4 py-3">
+                        <p className="text-sm font-semibold text-white">Live DB Activity</p>
+                        <p className="text-xs text-neutral-500">Recent writes and admin actions from the audit stream.</p>
+                      </div>
+                      <div className="divide-y divide-neutral-800">
+                        {(auditLogs || []).slice(0, 8).length ? (
+                          (auditLogs || []).slice(0, 8).map((log) => (
+                            <div key={log.id || `${log.action}-${log.created_at}`} className="flex items-start justify-between gap-3 px-4 py-3 text-xs">
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold text-neutral-100">{log.action || 'DB_UPDATE'}</p>
+                                <p className="mt-1 truncate text-neutral-500">
+                                  {log.entity_type || 'record'} {log.entity_id ? `• ${log.entity_id}` : ''}
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-neutral-500">{formatDateTime(log.created_at)}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-4 py-6 text-center text-sm text-neutral-500">No DB activity loaded.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+                      <p className="text-sm font-semibold text-white">Fast Actions</p>
+                      <p className="mt-1 text-xs text-neutral-500">Jump to the areas used for most operational fixes.</p>
+                      <div className="mt-4 grid gap-2">
+                        {[
+                          ['System & Pages', 'system'],
+                          ['Vendor Control', 'vendors'],
+                          ['Plans & Pricing', 'plans'],
+                          ['Search 360', 'search360'],
+                          ['Visitor Intelligence', 'monitoring'],
+                          ['Security', 'settings'],
+                          ['Full DB Activity', 'audit'],
+                        ].map(([label, tab]) => (
+                          <Button
+                            key={tab}
+                            variant="outline"
+                            className="justify-between border-neutral-800 bg-neutral-900 text-neutral-200 hover:bg-neutral-800"
+                            onClick={() => handleTabChange(tab)}
+                          >
+                            {label}
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <WebsiteVisitorActivityCard
+                events={visitorActivity.events || []}
+                stats={visitorActivity.stats || {}}
+                loading={visitorActivityLoading}
+                onRefresh={() => fetchVisitorActivity(monitoringActivityDays)}
+                dark
+                technical
+                title="Developer Visitor Feed"
+                description="GOD MODE view includes technical context such as user agent and IP for diagnostics."
+              />
+
+              <Search360Workspace
+                api={superAdminServerApi.search360}
+                impersonationApi={superAdminServerApi.impersonation}
+                title="Developer Search 360"
+                description="GOD MODE view for all-region vendor intelligence, escalations, and operational diagnostics."
+                roleLabel="GODMODE"
+                dark
+              />
+              <SuperAdminBuyerAccessPanel title="Developer Buyer Dashboard Access" />
+
+              <Card className="bg-neutral-900 border-red-900">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-red-400 flex items-center gap-2">
@@ -2999,7 +3645,7 @@ export default function SuperAdminDashboard() {
                             <TableCell className="text-white">{sa.email}</TableCell>
                             <TableCell>
                               <Badge className={sa.role === 'GODMODE' ? 'bg-red-900 text-red-200' : 'bg-yellow-900 text-yellow-200'}>
-                                {sa.role === 'GODMODE' ? '🔥 GOD MODE' : '👑 SUPERADMIN'}
+                                {sa.role === 'GODMODE' ? 'GOD MODE' : 'SUPERADMIN'}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -3290,7 +3936,15 @@ export default function SuperAdminDashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label className="text-neutral-300">Base Currency</Label>
+                <Input
+                  value="INR - Indian Rupee"
+                  readOnly
+                  className="bg-neutral-800 border-neutral-700 text-neutral-300"
+                />
+              </div>
               <div className="space-y-2">
                 <Label className="text-neutral-300">Current Price</Label>
                 <Input
@@ -3351,6 +4005,12 @@ export default function SuperAdminDashboard() {
                 />
               </div>
             </div>
+
+            {renderRegionalPricesEditor({
+              rows: newPlanForm.regional_prices,
+              idPrefix: 'new-plan',
+              onChange: (nextRows) => setNewPlanForm((prev) => ({ ...prev, regional_prices: nextRows })),
+            })}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-2">

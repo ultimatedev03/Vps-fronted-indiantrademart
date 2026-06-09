@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/Card';
 import { 
   Ticket, FileText, Star, TrendingUp, Clock, 
@@ -12,7 +12,7 @@ import { buyerApi } from '@/modules/buyer/services/buyerApi';
 import { productFavorites, PRODUCT_FAVORITES_UPDATED_EVENT } from '@/modules/buyer/services/productFavorites';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, profile, buyerId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     activeTickets: 0,
@@ -22,6 +22,13 @@ const Dashboard = () => {
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [error, setError] = useState(null);
+  const favoriteKeys = useMemo(
+    () =>
+      [user?.id, buyerId, profile?.id, profile?.user_id, user?.email, profile?.email]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    [buyerId, profile?.email, profile?.id, profile?.user_id, user?.email, user?.id]
+  );
 
   const fetchDashboardData = useCallback(async ({ silent = false } = {}) => {
     const currentUserId = user?.id || null;
@@ -38,7 +45,7 @@ const Dashboard = () => {
           ...prev,
           activeTickets: statData?.openTickets || 0,
           pendingProposals: statData?.activeProposals || 0,
-          favorites: currentUserId ? productFavorites.list(currentUserId).length : (statData?.favoriteVendors || 0),
+          favorites: currentUserId ? productFavorites.listForKeys(favoriteKeys).length : (statData?.favoriteVendors || 0),
           unreadMessages: statData?.unreadMessages || 0,
         }));
         return;
@@ -52,7 +59,7 @@ const Dashboard = () => {
       setStats({
         activeTickets: statData?.openTickets || 0,
         pendingProposals: statData?.activeProposals || 0,
-        favorites: currentUserId ? productFavorites.list(currentUserId).length : (statData?.favoriteVendors || 0),
+        favorites: currentUserId ? productFavorites.listForKeys(favoriteKeys).length : (statData?.favoriteVendors || 0),
         unreadMessages: statData?.unreadMessages || 0,
       });
 
@@ -67,7 +74,7 @@ const Dashboard = () => {
         setLoading(false);
       }
     }
-  }, [user?.id]);
+  }, [favoriteKeys, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return undefined;
@@ -91,7 +98,7 @@ const Dashboard = () => {
     if (!user?.id || typeof window === 'undefined') return undefined;
 
     const syncFavorites = () => {
-      const nextFavorites = productFavorites.list(user.id).length;
+      const nextFavorites = productFavorites.listForKeys(favoriteKeys).length;
       setStats((prev) => ({ ...prev, favorites: nextFavorites }));
     };
 
@@ -101,7 +108,7 @@ const Dashboard = () => {
       window.removeEventListener(PRODUCT_FAVORITES_UPDATED_EVENT, syncFavorites);
       window.removeEventListener('focus', syncFavorites);
     };
-  }, [user?.id]);
+  }, [favoriteKeys, user?.id]);
 
   if (loading) return <div className="flex h-96 justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-gray-300" /></div>;
   if (error) return <div className="flex h-96 justify-center items-center text-red-500 gap-2"><AlertCircle /> {error}</div>;

@@ -68,9 +68,9 @@
 //       >
 //         <div className="h-20 flex items-center justify-center border-b border-neutral-100 bg-[#003D82]">
 //            <img
-//             src="https://horizons-cdn.hostinger.com/f872dc8f-3c19-4e7d-8677-e9f5922486ba/fdb3954cae9a5b8889e2ea4e9a3885ae.png"
+//             src="/itm-logo.png"
 //             alt="ITM Internal"
-//             className="h-8 w-auto brightness-0 invert"
+//             className="h-8 w-auto"
 //           />
 //         </div>
 

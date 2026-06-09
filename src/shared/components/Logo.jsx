@@ -26,14 +26,13 @@ const Logo = ({
       title="IndianTradeMart"
       className={`inline-flex items-center gap-2 ${className}`}
     >
-      {/* Logo image always follows wrapper height */}
-      <div className="h-full flex-shrink-0">
+      <div className="flex h-full aspect-square flex-shrink-0 items-center justify-center overflow-hidden">
         <img
-          src="/itm-logo.png"
+          src="/itm-mark.png"
           alt="IndianTradeMART Logo"
           width="160"
           height="160"
-          className="h-full w-auto object-contain"
+          className="h-full w-full object-contain"
           loading="eager"
           decoding="async"
           fetchpriority="high"

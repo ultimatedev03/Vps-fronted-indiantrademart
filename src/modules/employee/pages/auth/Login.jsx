@@ -174,9 +174,10 @@ const Login = ({ forcedPortalKey = '' }) => {
 
       <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center relative z-10 mb-8">
         <Logo
-          className="mx-auto h-16 brightness-0 invert"
+          className="mx-auto h-16"
           showTagline={false}
           compact={true}
+          variant="light"
         />
 
         <h2 className="mt-6 text-center text-3xl font-extrabold text-white tracking-tight">

@@ -48,6 +48,8 @@ const PricingRules = lazy(() => import('@/modules/employee/pages/sales/PricingRu
 const SalesSubscriptionRequests = lazy(() => import('@/modules/employee/pages/sales/SubscriptionRequests'));
 const TerritoryEngagements = lazy(() => import('@/modules/employee/pages/territory/TerritoryEngagements'));
 const AdminSubscriptionRequests = lazy(() => import('@/modules/admin/pages/SubscriptionRequests'));
+const Search360 = lazy(() => import('@/modules/employee/pages/Search360'));
+const AdminSearch360 = lazy(() => import('@/modules/admin/pages/Search360'));
 
 const PortalLogin = lazy(() => import('@/shared/pages/PortalLogin'));
 import { ShieldCheck, Users } from 'lucide-react';
@@ -221,6 +223,7 @@ export const AdminRoutes = () => {
           <Route element={<PortalLayout role="ADMIN" />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="search-360" element={<AdminSearch360 />} />
 
             {/* Vendors (business management) */}
             <Route path="vendors" element={<AdminVendors />} />
@@ -265,6 +268,7 @@ export const AdminRoutes = () => {
         <Route path="dataentry" element={<EmployeeLayout allowedRole="DATA_ENTRY" />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DataEntryDashboard />} />
+          <Route path="search-360" element={<Search360 />} />
           <Route path="categories" element={<DataEntryCategories />} />
           <Route path="categories/upload" element={<DataEntryCsvUpload />} />
           <Route path="locations" element={<DataEntryLocations />} />
@@ -285,6 +289,7 @@ export const AdminRoutes = () => {
         <Route path="support" element={<EmployeeLayout allowedRole="SUPPORT" />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<SupportDashboard />} />
+          <Route path="search-360" element={<Search360 />} />
           <Route path="kyc-review" element={<KycApprovals />} />
           <Route path="kyc" element={<KycApprovals />} />
           <Route path="tickets" element={<SupportTickets />} />
@@ -298,6 +303,7 @@ export const AdminRoutes = () => {
         <Route path="sales" element={<EmployeeLayout allowedRole="SALES" />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<SalesDashboard />} />
+          <Route path="search-360" element={<Search360 />} />
           <Route path="leads" element={<SalesLeads />} />
           <Route path="pricing-rules" element={<PricingRules />} />
           <Route path="subscription-requests" element={<SalesSubscriptionRequests />} />

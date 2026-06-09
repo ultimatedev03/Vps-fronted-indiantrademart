@@ -6,12 +6,14 @@ const ManagerDashboard = lazy(() => import('@/modules/management/manager/pages/D
 const TerritoryEngagements = lazy(() => import('@/modules/management/manager/pages/TerritoryEngagements'));
 const ManagerPricingApprovals = lazy(() => import('@/modules/management/manager/pages/PricingApprovals'));
 const ManagerSubscriptionRequests = lazy(() => import('@/modules/management/pages/SubscriptionRequests'));
+const Search360 = lazy(() => import('@/modules/employee/pages/Search360'));
 
 export const ManagerRoutes = () => {
   return (
     <Route path="manager" element={<EmployeeLayout allowedRole="MANAGER" />}>
       <Route index element={<Navigate to="dashboard" replace />} />
       <Route path="dashboard" element={<ManagerDashboard />} />
+      <Route path="search-360" element={<Search360 />} />
       <Route path="territory" element={<ManagerDashboard />} />
       <Route path="pricing-approvals" element={<ManagerPricingApprovals />} />
       <Route path="subscription-requests" element={<ManagerSubscriptionRequests role="MANAGER" />} />

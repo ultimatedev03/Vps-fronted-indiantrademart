@@ -176,7 +176,7 @@ const Login = () => {
          <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px'}}></div>
          
          <div className="relative z-10">
-            <Logo to="/" className="h-8 brightness-0 invert" showTagline={true} variant="light" />
+            <Logo to="/" className="h-8" showTagline={true} variant="light" />
          </div>
 
          <div className="relative z-10 w-[36vw]">

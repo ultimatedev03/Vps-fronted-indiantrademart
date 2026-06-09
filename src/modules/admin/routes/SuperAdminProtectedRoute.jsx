@@ -22,12 +22,6 @@ const SuperAdminProtectedRoute = () => {
   // ✅ Use consistent login route (works on localhost + admin subdomain)
   const loginPath = '/admin/superadmin/login';
 
-  console.log('[SuperAdminRoute] Checking access:', { 
-    isLoading, 
-    hasUser: !!superAdmin, 
-    user: superAdmin 
-  });
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-white">
@@ -38,12 +32,10 @@ const SuperAdminProtectedRoute = () => {
   }
 
   if (!superAdmin) {
-    console.warn('[SuperAdminRoute] Access denied: No active session');
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   if (!isSuperAdminRole(superAdmin.role)) {
-    console.warn('[SuperAdminRoute] Access denied: Invalid role', superAdmin.role);
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-white p-4">
         <div className="w-[28vw] text-center">

@@ -37,10 +37,103 @@ export const salesApi = {
     return data?.stats || null;
   },
 
+  getDashboard: async () => {
+    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/dashboard'));
+    const data = await unwrap(res, 'Failed to load sales dashboard');
+    return data?.dashboard || null;
+  },
+
+  getProfile: async () => {
+    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/profile'));
+    const data = await unwrap(res, 'Failed to load sales profile');
+    return data?.profile || null;
+  },
+
   getAllLeads: async () => {
     const res = await fetchWithCsrf(apiUrl('/api/employee/sales/leads'));
     const data = await unwrap(res, 'Failed to load leads');
     return data?.leads || [];
+  },
+
+  getNoPlanVendors: async (query = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(query || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      params.set(key, String(value));
+    });
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetchWithCsrf(apiUrl(`/api/employee/sales/no-plan-vendors${suffix}`));
+    const data = await unwrap(res, 'Failed to load vendors without plans');
+    return {
+      vendors: data?.vendors || [],
+      meta: data?.meta || {},
+    };
+  },
+
+  getSalesPlans: async () => {
+    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/plans'));
+    const data = await unwrap(res, 'Failed to load plans');
+    return data?.plans || [];
+  },
+
+  getReminders: async (query = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(query || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      params.set(key, String(value));
+    });
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetchWithCsrf(apiUrl(`/api/employee/sales/reminders${suffix}`));
+    const data = await unwrap(res, 'Failed to load reminders');
+    return data?.reminders || [];
+  },
+
+  createReminder: async (payload = {}) => {
+    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/reminders'), {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await unwrap(res, 'Failed to create reminder');
+    return data?.reminder || null;
+  },
+
+  updateReminderStatus: async (id, status) => {
+    const reminderId = String(id || '').trim();
+    if (!reminderId) throw new Error('Reminder id is required');
+    const res = await fetchWithCsrf(apiUrl(`/api/employee/sales/reminders/${reminderId}/status`), {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+    const data = await unwrap(res, 'Failed to update reminder');
+    return data?.reminder || null;
+  },
+
+  sharePlan: async (payload = {}) => {
+    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/plan-shares'), {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await unwrap(res, 'Failed to share plan');
+    return {
+      share: data?.share || null,
+      link: data?.link || '',
+      sales_code: data?.sales_code || '',
+    };
+  },
+
+  getAttributions: async (query = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(query || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      params.set(key, String(value));
+    });
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetchWithCsrf(apiUrl(`/api/employee/sales/attributions${suffix}`));
+    const data = await unwrap(res, 'Failed to load attribution records');
+    return {
+      payments: data?.payments || [],
+      summary: data?.summary || {},
+    };
   },
 
   updateLeadStatus: async (id, status) => {

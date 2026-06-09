@@ -20,7 +20,9 @@ const SupportTickets = lazy(() => import('@/modules/employee/pages/support/Ticke
 const SalesDashboard = lazy(() => import('@/modules/employee/pages/sales/Dashboard'));
 const SalesLeads = lazy(() => import('@/modules/employee/pages/sales/Leads'));
 const PricingRules = lazy(() => import('@/modules/employee/pages/sales/PricingRules'));
+const SalesSubscriptionRequests = lazy(() => import('@/modules/employee/pages/sales/SubscriptionRequests'));
 const TerritoryEngagements = lazy(() => import('@/modules/employee/pages/territory/TerritoryEngagements'));
+const Search360 = lazy(() => import('@/modules/employee/pages/Search360'));
 
 export const EmployeeRoutes = () => {
   return (
@@ -32,6 +34,7 @@ export const EmployeeRoutes = () => {
       <Route path="dataentry" element={<EmployeeLayout allowedRole="DATA_ENTRY" />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DataEntryDashboard />} />
+        <Route path="search-360" element={<Search360 />} />
         <Route path="categories" element={<DataEntryCategories />} />
         <Route path="categories/upload" element={<DataEntryCsvUpload />} />
         <Route path="locations" element={<DataEntryLocations />} />
@@ -49,6 +52,7 @@ export const EmployeeRoutes = () => {
       <Route path="support" element={<EmployeeLayout allowedRole="SUPPORT" />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<SupportDashboard />} />
+        <Route path="search-360" element={<Search360 />} />
         <Route path="kyc-review" element={<KycApprovals />} />
         <Route path="kyc" element={<KycApprovals />} />
         <Route path="tickets" element={<SupportTickets />} />
@@ -59,15 +63,17 @@ export const EmployeeRoutes = () => {
       <Route path="sales" element={<EmployeeLayout allowedRole="SALES" />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<SalesDashboard />} />
+        <Route path="search-360" element={<Search360 />} />
         <Route path="leads" element={<SalesLeads />} />
         <Route path="pricing-rules" element={<PricingRules />} />
+        <Route path="subscription-requests" element={<SalesSubscriptionRequests />} />
         <Route path="territory-engagements" element={<TerritoryEngagements />} />
       </Route>
 
       {ManagerRoutes()}
       {VpRoutes()}
 
-      <Route path="*" element={<Navigate to="login" replace />} />
+      <Route path="*" element={<Navigate to="/employee/login" replace />} />
     </Routes>
   );
 };

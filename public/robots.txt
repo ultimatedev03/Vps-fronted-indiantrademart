@@ -3,9 +3,11 @@ Disallow:
 Allow: /
 
 Sitemap: https://indiantrademart.com/sitemap.xml
+Sitemap: https://indiantrademart.com/sitemap-static.xml
 Sitemap: https://indiantrademart.com/sitemap-products.xml
 Sitemap: https://indiantrademart.com/sitemap-vendors.xml
 Sitemap: https://indiantrademart.com/sitemap-categories.xml
+Sitemap: https://indiantrademart.com/sitemap-locations.xml
 
 # NOTE:
 # - This file allows bots to crawl all pages, including individual product/service pages.

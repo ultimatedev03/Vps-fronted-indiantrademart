@@ -148,6 +148,7 @@ const buildVendorSessionFallback = (sessionUser = null) => {
     email: sessionUser.email || null,
     phone: sessionUser.phone || null,
     role: 'VENDOR',
+    impersonation: sessionUser.impersonation || null,
     name: fullName,
     ownerName: fullName,
     isVerified: null,
@@ -217,7 +218,7 @@ export const AuthProvider = ({ children }) => {
         return fallbackUser;
       }
 
-      const finalUser = { ...me, role: 'VENDOR' };
+      const finalUser = { ...me, role: 'VENDOR', impersonation: session.user?.impersonation || null };
 
       setUser(finalUser);
       setIsAuthenticated(true);

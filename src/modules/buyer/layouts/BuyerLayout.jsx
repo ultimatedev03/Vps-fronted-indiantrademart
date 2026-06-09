@@ -16,6 +16,8 @@ import {
   Heart,
   Lightbulb,
   Ban,
+  Store,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
@@ -26,6 +28,7 @@ import NotificationBell from "@/shared/components/NotificationBell";
 import { dbClient } from "@/lib/dbClient";
 import { urlParser } from "@/shared/utils/urlParser";
 import { useGlobalInputSanitizer } from "@/shared/hooks/useGlobalInputSanitizer";
+import { getPortalUrl, switchToVendor } from "@/shared/services/roleSwitchApi";
 
 const slugify = (value) => {
   if (!value) return "";
@@ -175,6 +178,7 @@ const BuyerLayout = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { resolvePath, appType } = useSubdomain();
+  const [switchingToVendor, setSwitchingToVendor] = useState(false);
 
   // ✅ Header quick search (no popup)
   const [searchText, setSearchText] = useState("");
@@ -242,12 +246,39 @@ const BuyerLayout = () => {
     );
   }, [buyerProfile.avatar_url, user]);
 
+  const isAssistedSession = useMemo(() => {
+    return Boolean(user?.impersonation?.active);
+  }, [user?.impersonation?.active]);
+  const limitBuyerAccess = isBuyerSuspended && !isAssistedSession;
+
   // ✅ FIXED logout (await + hard redirect)
   const handleLogout = async () => {
     try {
       await logout();
     } finally {
       window.location.href = "/buyer/login";
+    }
+  };
+
+  const handleSwitchToVendor = async () => {
+    if (switchingToVendor) return;
+    setSwitchingToVendor(true);
+    try {
+      await switchToVendor();
+      window.location.href = getPortalUrl("vendor", "/dashboard?from=buyer");
+    } catch (error) {
+      const payload = error?.payload || {};
+      if (payload?.needs_vendor_registration) {
+        window.location.href = getPortalUrl("vendor", "/register?from=buyer");
+        return;
+      }
+
+      toast({
+        title: "Switch failed",
+        description: error?.message || "Unable to open vendor account",
+        variant: "destructive",
+      });
+      setSwitchingToVendor(false);
     }
   };
 
@@ -442,6 +473,10 @@ const BuyerLayout = () => {
           Suggestions
         </SidebarLink>
 
+        <SidebarButton icon={Store} onClick={() => { closeMobile(); handleSwitchToVendor(); }}>
+          {switchingToVendor ? "Opening Vendor..." : "Become Vendor"}
+        </SidebarButton>
+
         <SidebarLink
           to={resolvePath("profile", "buyer")}
           icon={User}
@@ -462,7 +497,7 @@ const BuyerLayout = () => {
         )}
 
         {/* ✅ Banner for suspended */}
-        {!buyerLoading && isBuyerSuspended && (
+        {!buyerLoading && limitBuyerAccess && (
           <div className="px-4 pt-4">
             <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs p-3">
               Your account is suspended. Only Support Tickets are available.
@@ -473,7 +508,7 @@ const BuyerLayout = () => {
         {/* ✅ Render nav based on suspended */}
         {buyerLoading ? (
           <nav className="p-4 flex-1" />
-        ) : isBuyerSuspended ? (
+        ) : limitBuyerAccess ? (
           <SuspendedNav />
         ) : (
           <ActiveNav />
@@ -559,7 +594,7 @@ const BuyerLayout = () => {
             </div>
 
             {/* ✅ If suspended: hide header search + notifications */}
-            {!buyerLoading && !isBuyerSuspended && (
+            {!buyerLoading && !limitBuyerAccess && (
               <div className="flex items-center gap-2">
                 <form
                   onSubmit={async (e) => {
@@ -590,6 +625,21 @@ const BuyerLayout = () => {
                   </Button>
                 </form>
 
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10"
+                  onClick={handleSwitchToVendor}
+                  disabled={switchingToVendor}
+                >
+                  {switchingToVendor ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Store className="mr-2 h-4 w-4" />
+                  )}
+                  Become Vendor
+                </Button>
+
                 <NotificationBell
                   userId={user?.id || user?.user_id || null}
                   userEmail={user?.email || null}
@@ -597,6 +647,23 @@ const BuyerLayout = () => {
               </div>
             )}
           </header>
+
+          {isAssistedSession ? (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 md:px-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  Super Admin assisted session. Actions are being performed for {displayName}.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="self-start rounded-md border border-amber-300 px-3 py-1 font-semibold hover:bg-amber-100 sm:self-auto"
+                >
+                  Exit assisted access
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 md:px-5 md:py-4">
             <div className="mx-auto w-full min-w-0">

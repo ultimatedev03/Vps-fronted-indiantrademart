@@ -19,7 +19,8 @@ import {
   User,
   MapPin,
   Home,
-  ClipboardList
+  ClipboardList,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -42,6 +43,23 @@ const SidebarLink = ({ to, icon: Icon, children, onNavigate }) => (
     <Icon className="h-5 w-5" />
     <span className="font-medium">{children}</span>
   </NavLink>
+);
+
+const EmployeeBrand = () => (
+  <div className="flex items-center gap-3">
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-white/25">
+      <img
+        src="/itm-mark.png"
+        alt="Indian Trade Mart"
+        className="h-9 w-9 object-contain"
+        loading="eager"
+        decoding="async"
+      />
+    </span>
+    <span className="text-lg font-semibold tracking-tight text-white whitespace-nowrap">
+      ITM Employee
+    </span>
+  </div>
 );
 
 const EMPLOYEE_LOGIN_PATHS = {
@@ -119,12 +137,8 @@ const EmployeeLayout = ({ allowedRole }) => {
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } h-screen flex flex-col`}
       >
-        <div className="h-20 flex items-center justify-center border-b border-neutral-100 bg-[#003D82]">
-           <img
-            src="https://horizons-cdn.hostinger.com/f872dc8f-3c19-4e7d-8677-e9f5922486ba/fdb3954cae9a5b8889e2ea4e9a3885ae.png"
-            alt="ITM Employee"
-            className="h-8 w-auto brightness-0 invert"
-          />
+        <div className="h-20 flex items-center justify-center border-b border-blue-950/30 bg-[#003D82]">
+          <EmployeeBrand />
         </div>
 
         <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
@@ -132,6 +146,7 @@ const EmployeeLayout = ({ allowedRole }) => {
             <>
               <div className="px-4 py-2 text-xs font-semibold text-neutral-400 uppercase tracking-wider">Data Operations</div>
               <SidebarLink to="/employee/dataentry/dashboard" icon={LayoutDashboard} onNavigate={() => setIsSidebarOpen(false)}>Dashboard</SidebarLink>
+              <SidebarLink to="/employee/dataentry/search-360" icon={Search} onNavigate={() => setIsSidebarOpen(false)}>Search 360</SidebarLink>
               <SidebarLink to="/employee/dataentry/vendor-onboarding" icon={UserPlus} onNavigate={() => setIsSidebarOpen(false)}>Vendor Onboarding</SidebarLink>
               <SidebarLink to="/employee/dataentry/vendors" icon={Users} onNavigate={() => setIsSidebarOpen(false)}>Vendors</SidebarLink>
               <SidebarLink to="/employee/dataentry/records" icon={FileText} onNavigate={() => setIsSidebarOpen(false)}>Data Entry Records</SidebarLink>
@@ -148,6 +163,7 @@ const EmployeeLayout = ({ allowedRole }) => {
           {user.role === 'SUPPORT' && (
             <>
               <SidebarLink to="/employee/support/dashboard" icon={LayoutDashboard} onNavigate={() => setIsSidebarOpen(false)}>Dashboard</SidebarLink>
+              <SidebarLink to="/employee/support/search-360" icon={Search} onNavigate={() => setIsSidebarOpen(false)}>Search 360</SidebarLink>
               <SidebarLink to="/employee/support/kyc-review" icon={ShieldCheck} onNavigate={() => setIsSidebarOpen(false)}>KYC Review</SidebarLink>
               <SidebarLink to="/employee/support/tickets/vendor" icon={Building2} onNavigate={() => setIsSidebarOpen(false)}>Help for Vendor</SidebarLink>
               <SidebarLink to="/employee/support/tickets/buyer" icon={User} onNavigate={() => setIsSidebarOpen(false)}>Help for Buyer</SidebarLink>
@@ -157,6 +173,7 @@ const EmployeeLayout = ({ allowedRole }) => {
           {user.role === 'SALES' && (
             <>
               <SidebarLink to="/employee/sales/dashboard" icon={TrendingUp} onNavigate={() => setIsSidebarOpen(false)}>Dashboard</SidebarLink>
+              <SidebarLink to="/employee/sales/search-360" icon={Search} onNavigate={() => setIsSidebarOpen(false)}>Search 360</SidebarLink>
               <SidebarLink to="/employee/sales/leads" icon={Users} onNavigate={() => setIsSidebarOpen(false)}>Lead Management</SidebarLink>
               <SidebarLink to="/employee/sales/pricing-rules" icon={Tag} onNavigate={() => setIsSidebarOpen(false)}>Pricing Rules</SidebarLink>
               <SidebarLink to="/employee/sales/subscription-requests" icon={ClipboardList} onNavigate={() => setIsSidebarOpen(false)}>Subscription Requests</SidebarLink>
@@ -167,6 +184,7 @@ const EmployeeLayout = ({ allowedRole }) => {
           {user.role === 'MANAGER' && (
             <>
               <SidebarLink to="/employee/manager/dashboard" icon={LayoutDashboard} onNavigate={() => setIsSidebarOpen(false)}>Dashboard</SidebarLink>
+              <SidebarLink to="/employee/manager/search-360" icon={Search} onNavigate={() => setIsSidebarOpen(false)}>Search 360</SidebarLink>
               <SidebarLink to="/employee/manager/territory" icon={Users} onNavigate={() => setIsSidebarOpen(false)}>Team Territory</SidebarLink>
               <SidebarLink to="/employee/manager/pricing-approvals" icon={Tag} onNavigate={() => setIsSidebarOpen(false)}>Pricing Approvals</SidebarLink>
               <SidebarLink to="/employee/manager/subscription-requests" icon={ClipboardList} onNavigate={() => setIsSidebarOpen(false)}>Subscription Requests</SidebarLink>
@@ -177,6 +195,7 @@ const EmployeeLayout = ({ allowedRole }) => {
           {user.role === 'VP' && (
             <>
               <SidebarLink to="/employee/vp/dashboard" icon={LayoutDashboard} onNavigate={() => setIsSidebarOpen(false)}>Dashboard</SidebarLink>
+              <SidebarLink to="/employee/vp/search-360" icon={Search} onNavigate={() => setIsSidebarOpen(false)}>Search 360</SidebarLink>
               <SidebarLink to="/employee/vp/territory" icon={Users} onNavigate={() => setIsSidebarOpen(false)}>Manager Allocation</SidebarLink>
               <SidebarLink to="/employee/vp/subscription-requests" icon={ClipboardList} onNavigate={() => setIsSidebarOpen(false)}>Subscription Requests</SidebarLink>
               <SidebarLink to="/employee/vp/engagements" icon={TrendingUp} onNavigate={() => setIsSidebarOpen(false)}>Engagements</SidebarLink>

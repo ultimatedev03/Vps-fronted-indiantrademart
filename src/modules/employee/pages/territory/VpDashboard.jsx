@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -6,15 +7,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Activity, CalendarClock, ClipboardList, Loader2, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { territoryApi } from '@/modules/employee/services/territoryApi';
+import { salesApi } from '@/modules/employee/services/salesApi';
 import { locationService } from '@/shared/services/locationService';
 
 const ALL_STATES_VALUE = 'all';
 const ALL_CITIES_VALUE = 'all';
 const normalizeId = (value) => String(value || '').trim();
 const normalizeName = (value) => String(value || '').trim().toLowerCase();
+const safeNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
 
 const VpDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -24,6 +30,13 @@ const VpDashboard = () => {
   const [managers, setManagers] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [allocations, setAllocations] = useState([]);
+  const [governance, setGovernance] = useState({
+    engagements: 0,
+    due: 0,
+    planShares: 0,
+    extensionRequests: 0,
+    salesOwners: 0,
+  });
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
   const [statesLoading, setStatesLoading] = useState(false);
@@ -155,6 +168,19 @@ const VpDashboard = () => {
       setManagers(managerRows || []);
       setDivisions(divisionRows || []);
       setAllocations(allocationRows || []);
+
+      const [engagementResult, requestResult] = await Promise.allSettled([
+        territoryApi.getEngagementsWithMeta({ limit: 500 }),
+        salesApi.getVpExtensionRequests(),
+      ]);
+      const engagementSummary = engagementResult.status === 'fulfilled' ? engagementResult.value?.meta?.summary || {} : {};
+      setGovernance({
+        engagements: safeNumber(engagementSummary.total),
+        due: safeNumber(engagementSummary.due_count),
+        planShares: safeNumber(engagementSummary.plan_shared_count),
+        extensionRequests: requestResult.status === 'fulfilled' ? (requestResult.value || []).length : 0,
+        salesOwners: safeNumber(engagementSummary.unique_sales_users),
+      });
     } catch (error) {
       toast({
         title: 'Failed to load territory data',
@@ -318,12 +344,48 @@ const VpDashboard = () => {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">VP Territory Dashboard</h1>
-          <p className="text-sm text-slate-600">Allocate city divisions to managers without changing existing sales flow.</p>
+          <p className="text-sm text-slate-600">Allocate divisions to managers and monitor regional sales governance.</p>
         </div>
         <Button variant="outline" onClick={loadBase}>
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
         </Button>
       </div>
+
+      <Card className="border-slate-200">
+        <CardHeader>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <CardTitle>Regional Sales Control</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">High-level coverage, sales follow-ups, and escalated subscription exceptions.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/employee/vp/engagements">Engagements</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/employee/vp/subscription-requests">Extension Reviews</Link>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          {[
+            { label: 'Regional touchpoints', value: governance.engagements, icon: Activity },
+            { label: 'Due follow-ups', value: governance.due, icon: CalendarClock },
+            { label: 'Plans shared', value: governance.planShares, icon: ClipboardList },
+            { label: 'Extension reviews', value: governance.extensionRequests, icon: ShieldCheck },
+            { label: 'Sales owners', value: governance.salesOwners, icon: Users },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+                <Icon className="h-4 w-4 text-slate-600" />
+              </div>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -8,6 +8,14 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/modules/vendor/context/AuthContext';
 import { apiUrl } from '@/lib/apiBase';
+import {
+  DEFAULT_PLAN_CURRENCY,
+  formatPlanMoney,
+  getRegionCodesForCountry,
+  getVisitorMarketContext,
+  normalizePlanCurrency,
+  pickRegionalPriceForMarket,
+} from '@/shared/utils/currency';
 import {
   CheckCircle2,
   Zap,
@@ -36,11 +44,6 @@ import { useSubdomain } from '@/contexts/SubdomainContext';
 
 const cx = (...arr) => arr.filter(Boolean).join(' ');
 
-const formatINR = (v) => {
-  const n = Number(v || 0);
-  return n.toLocaleString('en-IN');
-};
-
 const asObject = (value) => {
   if (!value) return {};
   if (typeof value === 'string') {
@@ -54,13 +57,20 @@ const asObject = (value) => {
   return typeof value === 'object' && !Array.isArray(value) ? value : {};
 };
 
-const getPlanDisplayPricing = (plan) => {
-  const nowPrice = Number(plan?.price || 0);
+const getPlanDisplayPricing = (plan, marketContext) => {
   const features = asObject(plan?.features);
   const pricing = asObject(features?.pricing);
+  const regionalPrice = pickRegionalPriceForMarket(
+    pricing.regional_prices || pricing.localized_prices || features.regional_prices,
+    marketContext
+  );
+  const nowPrice = Number(regionalPrice?.price ?? plan?.price ?? 0);
+  const currency = normalizePlanCurrency(
+    regionalPrice?.currency || pricing.currency || features.currency || plan?.currency
+  );
 
-  const configuredOriginalPrice = Number(pricing.original_price || 0);
-  const configuredDiscountPercent = Number(pricing.discount_percent || 0);
+  const configuredOriginalPrice = Number(regionalPrice?.original_price ?? pricing.original_price ?? 0);
+  const configuredDiscountPercent = Number(regionalPrice?.discount_percent ?? pricing.discount_percent ?? 0);
 
   let originalPrice = configuredOriginalPrice;
   let discountPercent = Number.isFinite(configuredDiscountPercent)
@@ -79,8 +89,10 @@ const getPlanDisplayPricing = (plan) => {
     discountPercent = Number((((originalPrice - nowPrice) / originalPrice) * 100).toFixed(2));
   }
 
-  const discountLabel = String(pricing.discount_label || '').trim();
-  const rawExtraLeadPrice = Number(pricing.extra_lead_price || 0);
+  const discountLabel = String(regionalPrice?.discount_label || pricing.discount_label || '').trim();
+  const rawExtraLeadPrice = Number(
+    regionalPrice ? regionalPrice.extra_lead_price || 0 : pricing.extra_lead_price || 0
+  );
   const extraLeadPrice = Number.isFinite(rawExtraLeadPrice) && rawExtraLeadPrice > 0 ? rawExtraLeadPrice : 0;
 
   return {
@@ -89,6 +101,8 @@ const getPlanDisplayPricing = (plan) => {
     discountPercent,
     discountLabel,
     extraLeadPrice,
+    currency,
+    isRegionalPrice: Boolean(regionalPrice),
   };
 };
 
@@ -100,7 +114,7 @@ const getDiscountTag = (pricing) => {
   return '';
 };
 
-const getReferralDisplaySummary = (preview, baseAmount = 0) => {
+const getReferralDisplaySummary = (preview, baseAmount = 0, currency = DEFAULT_PLAN_CURRENCY) => {
   const normalizedType = String(preview?.configured_discount_type || '').toUpperCase();
   const type = normalizedType || null;
   const valueRaw = Number(preview?.configured_discount_value || 0);
@@ -114,10 +128,10 @@ const getReferralDisplaySummary = (preview, baseAmount = 0) => {
     ? (amount * value) / 100
     : 0;
   const capApplied = Boolean(cap && expectedPercentDiscount > cap + 0.01);
-  const capText = capApplied ? ` (max ₹${formatINR(cap)})` : '';
+  const capText = capApplied ? ` (max ${formatPlanMoney(cap, currency)})` : '';
 
   if (type === 'FLAT' && value > 0) {
-    const amountLabel = `₹${formatINR(value)}`;
+    const amountLabel = formatPlanMoney(value, currency);
     return {
       type,
       value,
@@ -148,6 +162,12 @@ const normalizeCouponCode = (value) =>
     .toUpperCase()
     .replace(/\s+/g, '')
     .replace(/[^A-Z0-9_-]/g, '')
+    .slice(0, 32);
+
+const normalizeSalesCode = (value) =>
+  String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
     .slice(0, 32);
 
 const extractApiErrorMessage = async (response, fallbackMessage) => {
@@ -204,6 +224,7 @@ const planIcon = (name) => {
 
 const Services = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { resolvePath } = useSubdomain();
   const leadsPath = resolvePath('leads', 'vendor');
@@ -214,31 +235,57 @@ const Services = () => {
   const [fatalError, setFatalError] = useState(null);
   const [vendorId, setVendorId] = useState(null);
   const [couponCode, setCouponCode] = useState('');
+  const [salesCode, setSalesCode] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return normalizeSalesCode(window.localStorage?.getItem('itm_sales_code') || '');
+  });
   const [referralOffersByPlan, setReferralOffersByPlan] = useState({});
   const [referralOfferSettings, setReferralOfferSettings] = useState({
     is_enabled: false,
     first_paid_plan_only: true,
   });
+  const [visitorMarket, setVisitorMarket] = useState(() => getVisitorMarketContext());
   const TRIAL_PLAN_ID = '7fee24d0-de18-44d3-a357-be7b40492a1a'; // Trial plan UUID
   const TRIAL_DURATION_DAYS = 30;
 
   // ✅ dialog state
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [linkedPlanHandled, setLinkedPlanHandled] = useState(false);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
+  useEffect(() => {
+    const codeFromUrl = normalizeSalesCode(
+      searchParams.get('sales_code') ||
+        searchParams.get('sales') ||
+        searchParams.get('sc') ||
+        ''
+    );
+    if (!codeFromUrl) return;
+    setSalesCode(codeFromUrl);
+    try {
+      window.localStorage?.setItem('itm_sales_code', codeFromUrl);
+    } catch {
+      // Storage can be unavailable in private browsing; checkout still carries state.
+    }
+  }, [searchParams]);
+
   const mostPopularPlanId = useMemo(() => {
     if (!plans?.length) return null;
     const paid = plans
-      .filter((p) => Number(p.price || 0) > 0)
-      .sort((a, b) => Number(a.price) - Number(b.price));
+      .filter((p) => Number(getPlanDisplayPricing(p, visitorMarket).nowPrice || 0) > 0)
+      .sort(
+        (a, b) =>
+          Number(getPlanDisplayPricing(a, visitorMarket).nowPrice || 0) -
+          Number(getPlanDisplayPricing(b, visitorMarket).nowPrice || 0)
+      );
     if (paid.length >= 2) return paid[Math.max(0, paid.length - 2)].id;
     if (paid.length === 1) return paid[0].id;
     return plans[0].id;
-  }, [plans]);
+  }, [plans, visitorMarket]);
 
   const parsePlanMeta = (plan) => {
     const rawFeatures = plan?.features;
@@ -347,6 +394,39 @@ const Services = () => {
 
     if (user && !vendorId) fetchVendorId();
   }, [user, vendorId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMarketContext = async () => {
+      try {
+        const response = await fetchWithCsrf(apiUrl('/api/payment/market-context'));
+        const payload = await response.json().catch(() => ({}));
+        const countryCode = String(payload?.data?.country_code || '').trim().toUpperCase();
+        const source = String(payload?.data?.source || '').trim() || 'fallback';
+
+        if (!response.ok || !payload?.success || !countryCode || source === 'fallback') return;
+        if (cancelled) return;
+
+        setVisitorMarket((current) => {
+          if (current?.source === 'query' || current?.source === 'stored') return current;
+          if (current?.countryCode === countryCode && current?.source === source) return current;
+          return {
+            countryCode,
+            regionCodes: getRegionCodesForCountry(countryCode),
+            source,
+          };
+        });
+      } catch (error) {
+        console.warn('Market context lookup failed:', error);
+      }
+    };
+
+    loadMarketContext();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (vendorId) loadData();
@@ -469,8 +549,10 @@ const Services = () => {
       return;
     }
 
+    const pricing = getPlanDisplayPricing(plan, visitorMarket);
+
     // Check if plan is free
-    if (!plan.price || Number(plan.price) === 0) {
+    if (!pricing.nowPrice || Number(pricing.nowPrice) === 0) {
       // Free plan - activate directly without payment
       toast({ title: 'Processing...', description: `Subscribing to ${plan.name}` });
       try {
@@ -492,6 +574,7 @@ const Services = () => {
           end_date: endDate.toISOString(),
           status: 'ACTIVE',
           plan_duration_days: durationDays,
+          sales_code: salesCode || null,
           auto_renewal_enabled: false,
           renewal_notification_sent: false
         });
@@ -538,6 +621,15 @@ const Services = () => {
     }
 
     // Paid plan - initiate Razorpay payment
+    if (pricing.currency !== 'INR') {
+      toast({
+        title: 'Manual billing required',
+        description: `${plan.name} is priced in ${pricing.currency}. Online checkout is currently available for INR plans only.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     initiateRazorpayPayment(plan, couponOverride);
   };
   const initiateRazorpayPayment = async (plan, couponOverride = couponCode) => {
@@ -553,6 +645,7 @@ const Services = () => {
           vendor_id: vendorId,
           plan_id: plan.id,
           coupon_code: appliedCoupon || undefined,
+          sales_code: salesCode || undefined,
         }),
       });
 
@@ -564,6 +657,7 @@ const Services = () => {
       const orderData = data.order;
       const keyId = data.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID;
       const effectiveOfferCode = normalizeCouponCode(orderData?.coupon_code || appliedCoupon);
+      const effectiveSalesCode = normalizeSalesCode(orderData?.sales_code || salesCode);
 
       if (!keyId) {
         toast({
@@ -579,7 +673,7 @@ const Services = () => {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
-        script.onload = () => openRazorpayCheckout(orderData, plan, keyId, effectiveOfferCode);
+        script.onload = () => openRazorpayCheckout(orderData, plan, keyId, effectiveOfferCode, effectiveSalesCode);
         script.onerror = () => {
           toast({ 
             title: 'Warning', 
@@ -591,7 +685,7 @@ const Services = () => {
             const retryScript = document.createElement('script');
             retryScript.src = 'https://checkout.razorpay.com/v1/checkout.js';
             retryScript.async = true;
-            retryScript.onload = () => openRazorpayCheckout(orderData, plan, keyId, effectiveOfferCode);
+            retryScript.onload = () => openRazorpayCheckout(orderData, plan, keyId, effectiveOfferCode, effectiveSalesCode);
             retryScript.onerror = () => {
               toast({ 
                 title: 'Error', 
@@ -604,7 +698,7 @@ const Services = () => {
         };
         document.body.appendChild(script);
       } else {
-        openRazorpayCheckout(orderData, plan, keyId, effectiveOfferCode);
+        openRazorpayCheckout(orderData, plan, keyId, effectiveOfferCode, effectiveSalesCode);
       }
     } catch (err) {
       toast({ title: 'Error', description: err?.message || 'Failed to initiate payment', variant: 'destructive' });
@@ -612,7 +706,7 @@ const Services = () => {
     }
   };
 
-  const openRazorpayCheckout = (orderData, plan, keyId, appliedCoupon = couponCode) => {
+  const openRazorpayCheckout = (orderData, plan, keyId, appliedCoupon = couponCode, appliedSalesCode = salesCode) => {
     const options = {
       key: keyId,
       amount: orderData.amount,
@@ -635,6 +729,7 @@ const Services = () => {
               vendor_id: vendorId,
               plan_id: plan.id,
               coupon_code: appliedCoupon || undefined,
+              sales_code: normalizeSalesCode(appliedSalesCode) || undefined,
             }),
           });
 
@@ -696,6 +791,20 @@ const Services = () => {
     setCouponCode('');
     setDetailsOpen(true);
   };
+
+  useEffect(() => {
+    if (linkedPlanHandled || loading || !plans.length) return;
+    const planId = String(searchParams.get('plan') || searchParams.get('plan_id') || '').trim();
+    if (!planId) return;
+
+    const linkedPlan = plans.find((plan) => String(plan?.id || '') === planId);
+    if (!linkedPlan) return;
+
+    setSelectedPlan(linkedPlan);
+    setCouponCode('');
+    setDetailsOpen(true);
+    setLinkedPlanHandled(true);
+  }, [linkedPlanHandled, loading, plans, searchParams]);
 
   const fetchPaymentHistory = async () => {
     if (!vendorId) return;
@@ -785,10 +894,20 @@ const Services = () => {
   const selectedIsCurrent = selectedPlan && currentSub?.plan_id === selectedPlan.id;
   const selectedIsPopular = selectedPlan && selectedPlan.id === mostPopularPlanId;
   const selectedPricing = selectedPlan
-    ? getPlanDisplayPricing(selectedPlan)
-    : { nowPrice: 0, originalPrice: 0, discountPercent: 0, discountLabel: '', extraLeadPrice: 0 };
+    ? getPlanDisplayPricing(selectedPlan, visitorMarket)
+    : {
+        nowPrice: 0,
+        originalPrice: 0,
+        discountPercent: 0,
+        discountLabel: '',
+        extraLeadPrice: 0,
+        currency: DEFAULT_PLAN_CURRENCY,
+      };
   const selectedDiscountTag = getDiscountTag(selectedPricing);
-  const selectedReferralPreview = selectedPlan ? referralOffersByPlan?.[selectedPlan.id] || null : null;
+  const selectedReferralPreview =
+    selectedPlan && selectedPricing.currency === DEFAULT_PLAN_CURRENCY
+      ? referralOffersByPlan?.[selectedPlan.id] || null
+      : null;
   const selectedReferralDiscountRaw = Number(selectedReferralPreview?.discount_amount || 0);
   const selectedReferralDiscountAmount = Number.isFinite(selectedReferralDiscountRaw)
     ? Math.max(0, selectedReferralDiscountRaw)
@@ -799,7 +918,8 @@ const Services = () => {
     : selectedPricing.nowPrice;
   const selectedReferralSummary = getReferralDisplaySummary(
     selectedReferralPreview,
-    selectedPricing.nowPrice
+    selectedPricing.nowPrice,
+    selectedPricing.currency
   );
   const selectedHasReferralPreview =
     selectedReferralDiscountAmount > 0 && selectedReferralNetAmount < selectedPricing.nowPrice;
@@ -904,9 +1024,10 @@ const Services = () => {
         {plans.map((plan) => {
           const isCurrent = currentSub?.plan_id === plan.id;
           const isPopular = plan.id === mostPopularPlanId;
-          const pricing = getPlanDisplayPricing(plan);
+          const pricing = getPlanDisplayPricing(plan, visitorMarket);
           const discountTag = getDiscountTag(pricing);
-          const referralPreview = referralOffersByPlan?.[plan.id] || null;
+          const referralPreview =
+            pricing.currency === DEFAULT_PLAN_CURRENCY ? referralOffersByPlan?.[plan.id] || null : null;
           const referralDiscountAmountRaw = Number(referralPreview?.discount_amount || 0);
           const referralDiscountAmount = Number.isFinite(referralDiscountAmountRaw)
             ? Math.max(0, referralDiscountAmountRaw)
@@ -915,7 +1036,7 @@ const Services = () => {
           const referralNetAmount = Number.isFinite(referralNetAmountRaw)
             ? Math.max(0, referralNetAmountRaw)
             : pricing.nowPrice;
-          const referralSummary = getReferralDisplaySummary(referralPreview, pricing.nowPrice);
+          const referralSummary = getReferralDisplaySummary(referralPreview, pricing.nowPrice, pricing.currency);
           const hasReferralPreview = referralDiscountAmount > 0 && referralNetAmount < pricing.nowPrice;
 
           const { meta, keyBenefits } = buildGroups(plan);
@@ -983,11 +1104,11 @@ const Services = () => {
                   <div>
                     {pricing.originalPrice > pricing.nowPrice ? (
                       <div className="text-xs text-slate-400 line-through">
-                        ₹{formatINR(pricing.originalPrice)}
+                        {formatPlanMoney(pricing.originalPrice, pricing.currency)}
                       </div>
                     ) : null}
                     <div className="text-2xl font-extrabold text-slate-900">
-                      ₹{formatINR(pricing.nowPrice)}
+                      {formatPlanMoney(pricing.nowPrice, pricing.currency)}
                       <span className="text-xs font-medium text-slate-500">/year</span>
                     </div>
                     {hasReferralPreview ? (
@@ -997,7 +1118,7 @@ const Services = () => {
                           {referralOfferSettings?.first_paid_plan_only ? ' • first paid purchase' : ''}
                         </div>
                         <div className="text-sm font-bold text-emerald-700">
-                          ₹{formatINR(referralNetAmount)} / year after referral
+                          {formatPlanMoney(referralNetAmount, pricing.currency)} / year after referral
                         </div>
                       </div>
                     ) : null}
@@ -1008,7 +1129,7 @@ const Services = () => {
                     ) : null}
                     {pricing.extraLeadPrice > 0 ? (
                       <div className="mt-1 text-[11px] font-medium text-slate-600">
-                        Extra lead: ₹{formatINR(pricing.extraLeadPrice)} / lead
+                        Extra lead: {formatPlanMoney(pricing.extraLeadPrice, pricing.currency)} / lead
                       </div>
                     ) : null}
                     <div className="text-[12px] text-slate-500 mt-1">Tap card to view full details</div>
@@ -1124,16 +1245,16 @@ const Services = () => {
                       </div>
                       {selectedPricing.originalPrice > selectedPricing.nowPrice ? (
                         <div className="text-xs text-white/60 line-through">
-                          ₹{formatINR(selectedPricing.originalPrice)}
+                          {formatPlanMoney(selectedPricing.originalPrice, selectedPricing.currency)}
                         </div>
                       ) : null}
                       {selectedHasReferralPreview ? (
                         <div className="text-xs text-white/60 line-through">
-                          ₹{formatINR(selectedPricing.nowPrice)}
+                          {formatPlanMoney(selectedPricing.nowPrice, selectedPricing.currency)}
                         </div>
                       ) : null}
                       <div className="text-3xl font-extrabold leading-tight">
-                        ₹{formatINR(selectedPayableBase)}
+                        {formatPlanMoney(selectedPayableBase, selectedPricing.currency)}
                         <span className="text-sm font-medium text-white/80"> / year</span>
                       </div>
                       {selectedDiscountTag ? (
@@ -1183,7 +1304,7 @@ const Services = () => {
                   </div>
                   {selectedPricing.extraLeadPrice > 0 ? (
                     <div className="text-[11px] text-slate-600 font-medium text-right">
-                      Extra lead price: ₹{formatINR(selectedPricing.extraLeadPrice)} / lead
+                      Extra lead price: {formatPlanMoney(selectedPricing.extraLeadPrice, selectedPricing.currency)} / lead
                     </div>
                   ) : null}
                 </div>
@@ -1283,17 +1404,21 @@ const Services = () => {
                       {selectedPricing.originalPrice > selectedPricing.nowPrice ? (
                         <div className="flex justify-between text-xs text-slate-400 leading-tight">
                           <span>Old price</span>
-                          <span className="line-through">₹{formatINR(selectedPricing.originalPrice)}</span>
+                          <span className="line-through">
+                            {formatPlanMoney(selectedPricing.originalPrice, selectedPricing.currency)}
+                          </span>
                         </div>
                       ) : null}
                       <div className="flex justify-between text-sm text-slate-700 leading-tight">
                         <span>Plan price</span>
-                        <span className="font-semibold text-slate-800">₹{formatINR(selectedPricing.nowPrice)}</span>
+                        <span className="font-semibold text-slate-800">
+                          {formatPlanMoney(selectedPricing.nowPrice, selectedPricing.currency)}
+                        </span>
                       </div>
                       {selectedHasReferralPreview ? (
                         <div className="flex justify-between text-sm text-emerald-700 font-semibold">
                           <span>{selectedReferralSummary.breakdownText}</span>
-                          <span>-₹{formatINR(selectedReferralDiscountAmount)}</span>
+                          <span>-{formatPlanMoney(selectedReferralDiscountAmount, selectedPricing.currency)}</span>
                         </div>
                       ) : null}
                       {selectedDiscountTag ? (
@@ -1315,7 +1440,7 @@ const Services = () => {
                       )}
                       <div className="border-t pt-2.5 flex justify-between text-base font-bold text-slate-900">
                         <span>Payable now</span>
-                        <span>₹{formatINR(selectedPayableBase)}</span>
+                        <span>{formatPlanMoney(selectedPayableBase, selectedPricing.currency)}</span>
                       </div>
                       {selectedHasReferralPreview && referralOfferSettings?.first_paid_plan_only ? (
                         <div className="text-[11px] text-emerald-700 text-right">

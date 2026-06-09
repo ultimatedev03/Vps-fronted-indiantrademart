@@ -70,9 +70,10 @@ const AccountSuspendedPage = () => {
  * Active again => if user is on /buyer/account-suspended, redirect to /buyer/dashboard
  */
 const BuyerSuspensionGuard = () => {
-  const { buyerLoading, isBuyerSuspended, isAuthenticated, refreshBuyer } = useBuyerAuth();
+  const { user, buyerLoading, isBuyerSuspended, isAuthenticated, refreshBuyer } = useBuyerAuth();
   const location = useLocation();
   const path = location.pathname;
+  const isAssistedSession = Boolean(user?.impersonation?.active);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -110,7 +111,7 @@ const BuyerSuspensionGuard = () => {
     path === "/buyer/account-suspended";
 
   // ✅ Suspended and trying other pages -> force suspended page
-  if (isBuyerSuspended && !allowedWhenSuspended) {
+  if (isBuyerSuspended && !allowedWhenSuspended && !isAssistedSession) {
     return <Navigate to="/buyer/account-suspended" replace />;
   }
 

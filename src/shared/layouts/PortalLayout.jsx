@@ -3,8 +3,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Package, Users, FileText, Settings, LogOut,
-  Menu, X, ShieldCheck, HelpCircle, ChevronRight, Boxes,
-  BarChart3, UserCheck, Ticket, Database, Home, CalendarClock, ClipboardList
+  Menu, X, ShieldCheck, HelpCircle, Boxes,
+  BarChart3, UserCheck, Ticket, Database, Home, CalendarClock, ClipboardList, Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { dbClient } from '@/lib/dbClient';
@@ -71,6 +71,25 @@ const SidebarItem = ({ icon: Icon, label, path, collapsed, exact = false }) => {
     </Link>
   );
 };
+
+const PortalBrand = ({ label, collapsed = false }) => (
+  <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2'} min-w-0`}>
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
+      <img
+        src="/itm-mark.png"
+        alt="Indian Trade Mart"
+        className="h-7 w-7 object-contain"
+        loading="eager"
+        decoding="async"
+      />
+    </span>
+    {!collapsed ? (
+      <span className="min-w-0 truncate text-base font-semibold tracking-tight text-[#003D82]">
+        {label}
+      </span>
+    ) : null}
+  </div>
+);
 
 const PortalLayout = ({ role }) => {
   const VENDOR_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -236,6 +255,7 @@ const PortalLayout = ({ role }) => {
       case 'ADMIN':
         return [
           { icon: LayoutDashboard, label: 'Dashboard', path: resolvePath('dashboard', 'admin') },
+          { icon: Search, label: 'Search 360', path: resolvePath('search-360', 'admin') },
           { icon: Package, label: 'Vendors', path: resolvePath('vendors', 'admin') },
           { icon: Users, label: 'Buyers', path: resolvePath('buyers', 'admin') },
           { icon: Ticket, label: 'Support Tickets', path: resolvePath('tickets', 'admin') },
@@ -260,6 +280,7 @@ const PortalLayout = ({ role }) => {
       case 'DATA_ENTRY':
         return [
           { icon: LayoutDashboard, label: 'Dashboard', path: '/employee/dataentry/dashboard' },
+          { icon: Search, label: 'Search 360', path: '/employee/dataentry/search-360' },
           { icon: Database, label: 'Categories', path: '/employee/dataentry/categories' },
           { icon: Database, label: 'Locations', path: '/employee/dataentry/locations' },
           { icon: Users, label: 'Vendors', path: '/employee/dataentry/vendors' },
@@ -268,12 +289,14 @@ const PortalLayout = ({ role }) => {
       case 'SUPPORT':
         return [
           { icon: LayoutDashboard, label: 'Dashboard', path: '/employee/support/dashboard' },
+          { icon: Search, label: 'Search 360', path: '/employee/support/search-360' },
           { icon: ShieldCheck, label: 'KYC Review', path: '/employee/support/kyc-review' },
           { icon: Ticket, label: 'Tickets', path: '/employee/support/tickets' },
         ];
       case 'SALES':
         return [
           { icon: LayoutDashboard, label: 'Dashboard', path: '/employee/sales/dashboard' },
+          { icon: Search, label: 'Search 360', path: '/employee/sales/search-360' },
           { icon: Users, label: 'Leads', path: '/employee/sales/leads' },
           { icon: BarChart3, label: 'Pricing Rules', path: '/employee/sales/pricing-rules' },
           { icon: ClipboardList, label: 'Sub. Requests', path: '/employee/sales/subscription-requests' },
@@ -310,19 +333,26 @@ const PortalLayout = ({ role }) => {
         animate={{ width: collapsed ? 72 : 230 }}
         className="hidden md:flex flex-col bg-white border-r border-neutral-200 h-screen sticky top-0 z-30 flex-shrink-0"
       >
-        <div className="p-4 flex items-center justify-between h-16 border-b border-neutral-100">
-          {!collapsed && (
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="font-bold text-lg text-[#003D82] truncate"
+        <div className={`p-3 flex items-center h-16 border-b border-neutral-100 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#003D82]"
+              title="Expand sidebar"
             >
-              {portalName}
-            </motion.span>
+              <PortalBrand label={portalName} collapsed />
+            </button>
+          ) : (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
+                <PortalBrand label={portalName} />
+              </motion.div>
+              <Button variant="ghost" size="icon" onClick={() => setCollapsed(true)} className="ml-auto">
+                <Menu className="h-4 w-4" />
+              </Button>
+            </>
           )}
-          <Button variant="ghost" size="icon" onClick={() => setCollapsed(!collapsed)} className="ml-auto">
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </Button>
         </div>
 
         <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
@@ -401,7 +431,7 @@ const PortalLayout = ({ role }) => {
               className="fixed top-0 left-0 bottom-0 w-64 bg-white z-50 md:hidden flex flex-col shadow-xl"
             >
               <div className="p-4 border-b border-neutral-100 flex justify-between items-center">
-                <span className="font-bold text-xl text-[#003D82]">{portalName}</span>
+                <PortalBrand label={portalName} />
                 <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
                   <X className="h-5 w-5" />
                 </Button>

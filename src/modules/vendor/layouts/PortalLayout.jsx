@@ -4,15 +4,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Package, Users, FileText, Settings, LogOut,
   Menu, X, Search, ShieldCheck, HelpCircle, ChevronRight, Boxes,
-  BarChart, Wallet, User as UserIcon, RefreshCw, Ban, MapPin, FolderKanban, MessageSquare, Home
+  BarChart, Wallet, User as UserIcon, RefreshCw, Ban, MapPin, FolderKanban, MessageSquare, Home, UserCheck, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/modules/vendor/context/AuthContext';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 import NotificationBell from '@/shared/components/NotificationBell';
 import { useGlobalInputSanitizer } from '@/shared/hooks/useGlobalInputSanitizer';
 import { getPublicSiteUrl } from '@/shared/lib/publicSite';
+import { getPortalUrl, switchToBuyer } from '@/shared/services/roleSwitchApi';
 
 import {
   DropdownMenu,
@@ -100,6 +102,7 @@ const PortalLayout = () => {
   const [statusLoading, setStatusLoading] = useState(true);
   const [vendorActive, setVendorActive] = useState(true);
   const [vendorVerified, setVendorVerified] = useState(true);
+  const [switchingToBuyer, setSwitchingToBuyer] = useState(false);
 
   const supportPath = resolvePath('support', 'vendor');
   const referralsPath = resolvePath('referrals', 'vendor');
@@ -118,10 +121,14 @@ const PortalLayout = () => {
     return vendorActive === false;
   }, [statusLoading, vendorActive]);
 
+  const isAssistedSession = useMemo(() => {
+    return Boolean(user?.impersonation?.active || me?.impersonation?.active);
+  }, [user?.impersonation?.active, me?.impersonation?.active]);
+
   // ✅ IMPORTANT: Blur should stay for all routes except support (support is allowed)
   const showOverlay = useMemo(() => {
-    return isSuspended && !isSupportRoute;
-  }, [isSuspended, isSupportRoute]);
+    return isSuspended && !isSupportRoute && !isAssistedSession;
+  }, [isSuspended, isSupportRoute, isAssistedSession]);
 
   const displayOwnerName = useMemo(() => {
     return (
@@ -142,6 +149,22 @@ const PortalLayout = () => {
       await logout();
     } finally {
       window.location.replace('/');
+    }
+  };
+
+  const handleSwitchToBuyer = async () => {
+    if (switchingToBuyer) return;
+    setSwitchingToBuyer(true);
+    try {
+      await switchToBuyer();
+      window.location.href = getPortalUrl('buyer', '/proposals/new?from=vendor');
+    } catch (error) {
+      toast({
+        title: 'Switch failed',
+        description: error?.message || 'Unable to open buyer account',
+        variant: 'destructive',
+      });
+      setSwitchingToBuyer(false);
     }
   };
 
@@ -379,6 +402,20 @@ const PortalLayout = () => {
             </div>
 
             <div className="flex items-center gap-3 sm:gap-5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSwitchToBuyer}
+                disabled={switchingToBuyer}
+              >
+                {switchingToBuyer ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <UserCheck className="mr-2 h-4 w-4" />
+                )}
+                Switch to User
+              </Button>
+
               <Button variant="outline" size="sm" asChild>
                 <a href={getPublicSiteUrl(window.location)}>
                   <Home className="mr-2 h-4 w-4" />
@@ -442,6 +479,17 @@ const PortalLayout = () => {
 
                   <DropdownMenuSeparator />
 
+                  <DropdownMenuItem onClick={handleSwitchToBuyer} disabled={switchingToBuyer}>
+                    {switchingToBuyer ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserCheck className="mr-2 h-4 w-4" />
+                    )}
+                    Switch to User
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
                   <DropdownMenuItem onClick={handleLogout} className="text-red-600">
                     <LogOut className="mr-2 h-4 w-4" /> Logout
                   </DropdownMenuItem>
@@ -449,6 +497,23 @@ const PortalLayout = () => {
               </DropdownMenu>
             </div>
           </header>
+
+          {isAssistedSession ? (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 sm:px-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  Super Admin assisted session. Actions are being performed for {displayOwnerName}.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="self-start rounded-md border border-amber-300 px-3 py-1 font-semibold hover:bg-amber-100 sm:self-auto"
+                >
+                  Exit assisted access
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {/* Page Content */}
           <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-gray-50/50 p-4 sm:p-6 scroll-smooth">

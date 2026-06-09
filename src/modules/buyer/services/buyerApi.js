@@ -4,6 +4,7 @@ import { apiUrl } from '@/lib/apiBase';
 import { resolveBuyerId, resolveBuyerProfile, getAuthUserOrThrow } from '@/modules/buyer/services/buyerSession';
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
 import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
+import { getVisitorLeadContext, identifyVisitorContact } from '@/shared/utils/visitorTracking';
 
 // Helper to get current buyer ID from auth user
 const getBuyerId = async () => {
@@ -512,7 +513,16 @@ export const buyerApi = {
       updated_at: createdAt,
     };
 
+    identifyVisitorContact({
+      name: buyerName,
+      email: buyerEmail,
+      phone: buyerPhone,
+      company: buyerCompany,
+      source: 'BUYER_PROPOSAL',
+    });
+    const visitorContext = getVisitorLeadContext();
     const requestPayload = stripUndefined({
+      ...visitorContext,
       title: payload.title,
       product_name: payload.product_name,
       product_interest: payload.product_name,
@@ -538,6 +548,7 @@ export const buyerApi = {
       head_category_id: normalizedHeadCategoryId,
       required_by_date: normalizedRequiredByDate,
       vendor_email: resolvedVendorEmail,
+      source: payload.vendor_id ? 'DIRECT' : 'MARKETPLACE',
       captcha_token: normalizeOptionalText(proposalData?.captcha_token || proposalData?.captchaToken),
       captcha_action: normalizeOptionalText(proposalData?.captcha_action || proposalData?.captchaAction),
     });
@@ -664,6 +675,7 @@ export const buyerApi = {
     // - Direct lead: vendor_id set
     // - Marketplace lead: vendor_id null
     const leadPayload = {
+      ...visitorContext,
       vendor_id: payload.vendor_id || null,
       vendor_email: payload.vendor_email || null,
 

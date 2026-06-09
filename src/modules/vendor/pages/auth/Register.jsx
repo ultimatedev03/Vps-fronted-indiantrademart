@@ -15,6 +15,7 @@ import { validateStrongPassword } from '@/lib/passwordPolicy';
 import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
 import { useSubdomain } from '@/contexts/SubdomainContext';
+import { getPortalUrl, switchToVendor } from '@/shared/services/roleSwitchApi';
 
 // ✅ Logo component
 import Logo from '@/shared/components/Logo';
@@ -90,6 +91,11 @@ const VendorRegister = () => {
     const raw = new URLSearchParams(location.search || '').get('ref');
     return normalizeReferralCode(raw);
   }, [location.search]);
+  const isBuyerConversion = useMemo(() => {
+    const params = new URLSearchParams(location.search || '');
+    return String(params.get('from') || '').toLowerCase() === 'buyer';
+  }, [location.search]);
+  const [existingAuthUser, setExistingAuthUser] = useState(null);
 
   const dashboardPath = resolvePath('dashboard', 'vendor');
   const loginPath = resolvePath('login', 'vendor');
@@ -97,6 +103,57 @@ const VendorRegister = () => {
   useEffect(() => {
     loadStates();
   }, []);
+
+  useEffect(() => {
+    if (!isBuyerConversion) return;
+
+    let cancelled = false;
+    const loadCurrentBuyer = async () => {
+      try {
+        const { data: { user } } = await dbClient.auth.getUser();
+        if (!user || cancelled) return;
+
+        setExistingAuthUser(user);
+
+        let buyerProfile = null;
+        if (user.id) {
+          const { data } = await dbClient
+            .from('buyers')
+            .select('full_name, company_name, email, phone')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          buyerProfile = data || null;
+        }
+
+        if (!buyerProfile && user.email) {
+          const { data } = await dbClient
+            .from('buyers')
+            .select('full_name, company_name, email, phone')
+            .ilike('email', String(user.email).trim())
+            .limit(1)
+            .maybeSingle();
+          buyerProfile = data || null;
+        }
+
+        if (cancelled) return;
+
+        setFormData((prev) => ({
+          ...prev,
+          ownerName: prev.ownerName || buyerProfile?.full_name || user?.full_name || user?.user_metadata?.full_name || '',
+          companyName: prev.companyName || buyerProfile?.company_name || '',
+          email: prev.email || buyerProfile?.email || user?.email || '',
+          phone: prev.phone || String(buyerProfile?.phone || '').replace(/\D/g, '').slice(-10),
+        }));
+      } catch (error) {
+        console.warn('Buyer conversion prefill failed:', error);
+      }
+    };
+
+    loadCurrentBuyer();
+    return () => {
+      cancelled = true;
+    };
+  }, [isBuyerConversion]);
 
   useEffect(() => {
     if (step === 3 && timer > 0) {
@@ -203,18 +260,33 @@ const VendorRegister = () => {
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      toast({ title: 'Password Mismatch', description: 'Passwords do not match', variant: 'destructive' });
-      return;
+    if (isBuyerConversion && existingAuthUser?.email) {
+      const currentEmail = String(existingAuthUser.email || '').trim().toLowerCase();
+      const formEmail = String(formData.email || '').trim().toLowerCase();
+      if (currentEmail && formEmail && currentEmail !== formEmail) {
+        toast({
+          title: 'Email mismatch',
+          description: 'Use the same email as your buyer account.',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
-    const passwordValidation = validateStrongPassword(formData.password);
-    if (!passwordValidation.ok) {
-      toast({
-        title: 'Weak Password',
-        description: passwordValidation.error,
-        variant: 'destructive',
-      });
-      return;
+
+    if (!(isBuyerConversion && existingAuthUser?.id)) {
+      if (formData.password !== formData.confirmPassword) {
+        toast({ title: 'Password Mismatch', description: 'Passwords do not match', variant: 'destructive' });
+        return;
+      }
+      const passwordValidation = validateStrongPassword(formData.password);
+      if (!passwordValidation.ok) {
+        toast({
+          title: 'Weak Password',
+          description: passwordValidation.error,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
     if (formData.phone.length !== 10) {
       toast({
@@ -270,15 +342,23 @@ const VendorRegister = () => {
     try {
       await otpService.verifyOtp(formData.email, formData.otp);
 
-      const authData = await otpService.createAuthUser(formData.email, formData.password, {
-        full_name: formData.ownerName,
-      });
+      let authData = null;
+      const conversionEmail = String(existingAuthUser?.email || '').trim().toLowerCase();
+      const formEmail = String(formData.email || '').trim().toLowerCase();
+
+      if (isBuyerConversion && existingAuthUser?.id && conversionEmail === formEmail) {
+        authData = { user: existingAuthUser, session: null };
+      } else {
+        authData = await otpService.createAuthUser(formData.email, formData.password, {
+          full_name: formData.ownerName,
+        });
+
+        if (authData.session) {
+          await dbClient.auth.setSession(authData.session);
+        }
+      }
 
       if (!authData?.user) throw new Error('Failed to create auth user');
-
-      if (authData.session) {
-        await dbClient.auth.setSession(authData.session);
-      }
 
       await vendorApi.registerVendor({
         userId: authData.user.id,
@@ -328,11 +408,19 @@ const VendorRegister = () => {
 
       toast({
         title: 'Registration Successful!',
-        description: authData.session
+        description: isBuyerConversion && existingAuthUser?.id
+          ? 'Your vendor account is ready. Redirecting to dashboard...'
+          : authData.session
           ? 'Your account is verified. Redirecting to dashboard...'
           : 'Your account is verified. Please login to continue.',
         className: 'bg-green-50 border-green-200',
       });
+
+      if (isBuyerConversion && existingAuthUser?.id) {
+        await switchToVendor();
+        window.location.href = getPortalUrl('vendor', '/dashboard?from=buyer');
+        return;
+      }
 
       setTimeout(() => navigate(authData.session ? dashboardPath : loginPath), 500);
     } catch (error) {
@@ -529,22 +617,24 @@ const VendorRegister = () => {
                 <Input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Password *</Label>
-                  <Input required type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-                </div>
+              {!(isBuyerConversion && existingAuthUser?.id) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Password *</Label>
+                    <Input required type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Confirm Password *</Label>
-                  <Input
-                    required
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  />
+                  <div className="space-y-2">
+                    <Label>Confirm Password *</Label>
+                    <Input
+                      required
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex gap-4">
                 <Button type="button" variant="outline" onClick={() => setStep(1)} className="w-1/3">

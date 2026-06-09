@@ -16,6 +16,7 @@ import { apiUrl } from '@/lib/apiBase';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import DeferredAIChatWidget from '@/shared/components/DeferredAIChatWidget';
 import ScrollToTopButton from '@/shared/components/ScrollToTopButton';
+import VisitorActivityTracker from '@/shared/components/VisitorActivityTracker';
 
 const MaintenancePage = lazy(() => import('@/shared/components/MaintenancePage'));
 
@@ -148,8 +149,9 @@ const VendorSuspensionGate = ({ children }) => {
 
   const currentPath = typeof window !== 'undefined' ? (window.location.pathname || '') : path;
   const isAllowed = allowPaths.some((p) => currentPath.startsWith(p));
+  const isAssistedSession = Boolean(user?.impersonation?.active);
 
-  if (isSuspended && !isAllowed) {
+  if (isSuspended && !isAllowed && !isAssistedSession) {
     const reason =
       user?.suspension_reason ||
       user?.termination_reason ||
@@ -385,6 +387,7 @@ function App() {
           <SubdomainProvider>
             <MaintenanceGate>
               <AuthProvider>
+                <VisitorActivityTracker />
                 <InternalAuthProvider>
                   <VendorAuthProvider>
                     <EmployeeAuthProvider>
