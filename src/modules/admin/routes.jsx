@@ -50,6 +50,7 @@ const TerritoryEngagements = lazy(() => import('@/modules/employee/pages/territo
 const AdminSubscriptionRequests = lazy(() => import('@/modules/admin/pages/SubscriptionRequests'));
 const Search360 = lazy(() => import('@/modules/employee/pages/Search360'));
 const AdminSearch360 = lazy(() => import('@/modules/admin/pages/Search360'));
+const AdminVisitorIntelligence = lazy(() => import('@/modules/admin/pages/VisitorIntelligence'));
 
 const PortalLogin = lazy(() => import('@/shared/pages/PortalLogin'));
 import { ShieldCheck, Users } from 'lucide-react';
@@ -224,6 +225,7 @@ export const AdminRoutes = () => {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="search-360" element={<AdminSearch360 />} />
+            <Route path="visitor-intelligence" element={<AdminVisitorIntelligence />} />
 
             {/* Vendors (business management) */}
             <Route path="vendors" element={<AdminVendors />} />

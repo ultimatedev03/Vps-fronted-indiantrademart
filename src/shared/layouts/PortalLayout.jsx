@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Package, Users, FileText, Settings, LogOut,
   Menu, X, ShieldCheck, HelpCircle, Boxes,
-  BarChart3, UserCheck, Ticket, Database, Home, CalendarClock, ClipboardList, Search
+  BarChart3, UserCheck, Ticket, Database, Home, CalendarClock, ClipboardList, Search, Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { dbClient } from '@/lib/dbClient';
@@ -256,6 +256,7 @@ const PortalLayout = ({ role }) => {
         return [
           { icon: LayoutDashboard, label: 'Dashboard', path: resolvePath('dashboard', 'admin') },
           { icon: Search, label: 'Search 360', path: resolvePath('search-360', 'admin') },
+          { icon: Activity, label: 'Visitor Intel', path: resolvePath('visitor-intelligence', 'admin') },
           { icon: Package, label: 'Vendors', path: resolvePath('vendors', 'admin') },
           { icon: Users, label: 'Buyers', path: resolvePath('buyers', 'admin') },
           { icon: Ticket, label: 'Support Tickets', path: resolvePath('tickets', 'admin') },
