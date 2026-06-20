@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { directoryApi } from "@/modules/directory/services/directoryApi";
+import { directoryApi } from "@/modules/directory/api/directoryApi";
 import { vendorService } from "@/modules/directory/services/vendorService";
 import Card from "@/shared/components/Card";
 import { Button } from "@/components/ui/button";

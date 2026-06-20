@@ -9,7 +9,7 @@ dotenv.config({ path: '.env.local' });
 const BASE_URL = String(process.env.VITE_SITE_URL || 'https://indiantrademart.com').trim().replace(/\/+$/, '');
 const PUBLIC_DIR = path.join(FRONTEND_DIR, 'public');
 const SITEMAP_URL_LIMIT = Number(process.env.SITEMAP_URL_LIMIT || 45000);
-const INDEX_LASTMOD = String(process.env.SITEMAP_INDEX_LASTMOD || '2026-06-05').trim();
+const INDEX_LASTMOD = String(process.env.SITEMAP_INDEX_LASTMOD || '').trim();
 
 const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
 const xmlFooter = '</urlset>';
@@ -30,6 +30,7 @@ const isMissingColumnError = (err) => {
 };
 
 const toBool = (value) => value === true || value === 1 || String(value).trim() === '1' || String(value).toLowerCase() === 'true';
+const normalizeKey = (value = '') => String(value || '').trim();
 
 const isInactiveStatus = (value) => {
   const status = String(value || '').trim().toUpperCase();
@@ -136,18 +137,43 @@ const dedupeEntries = (entries = []) => {
 
 const generateProductsSitemap = async () => {
   console.log('📦 Generating products sitemap...');
-  const products = await safeSelectAll(
-    'products',
-    [
-      'id, slug, updated_at, created_at, status',
-      'id, slug, created_at, status',
-      'id, slug, created_at',
-    ],
-    { orderBy: 'created_at', ascending: false }
-  );
+  const [products, vendors] = await Promise.all([
+    safeSelectAll(
+      'products',
+      [
+        'id, slug, vendor_id, updated_at, created_at, status',
+        'id, slug, vendor_id, created_at, status',
+        'id, slug, updated_at, created_at, status',
+        'id, slug, created_at, status',
+        'id, slug, created_at',
+      ],
+      { orderBy: 'created_at', ascending: false }
+    ),
+    safeSelectAll(
+      'vendors',
+      [
+        'id, vendor_id, status, account_status, is_active, is_verified',
+        'id, vendor_id, status, is_active',
+        'id, vendor_id',
+      ],
+      { orderBy: 'created_at', ascending: false }
+    ).catch((error) => {
+      console.warn('⚠️  Unable to filter products by vendor status:', error?.message || error);
+      return [];
+    }),
+  ]);
+
+  const publicVendorKeys = new Set();
+  vendors.filter(isOnboardedVendor).forEach((vendor) => {
+    [vendor.id, vendor.vendor_id].map(normalizeKey).filter(Boolean).forEach((key) => publicVendorKeys.add(key));
+  });
 
   const entries = products
     .filter(isPublicProduct)
+    .filter((product) => {
+      const vendorKey = normalizeKey(product.vendor_id);
+      return !vendorKey || publicVendorKeys.size === 0 || publicVendorKeys.has(vendorKey);
+    })
     .map((product) => {
       const slugOrId = String(product.slug || product.id || '').trim();
       if (!slugOrId) return null;
@@ -258,10 +284,6 @@ const generateLocationsSitemap = async (model) => {
 
   const microById = new Map(model.micros.map((micro) => [String(micro.id), micro]));
   const entries = [];
-
-  states.forEach((state) => {
-    if (state.slug) entries.push(createUrlEntry(`${BASE_URL}/directory/search/all/${encodeSegment(state.slug)}`, state.updated_at || state.created_at, '0.5', 'monthly'));
-  });
 
   cities.forEach((city) => {
     if (city.slug) entries.push(createUrlEntry(`${BASE_URL}/directory/city/${encodeSegment(city.slug)}`, city.updated_at || city.created_at, '0.6', 'monthly'));

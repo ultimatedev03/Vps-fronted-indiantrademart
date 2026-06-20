@@ -166,12 +166,12 @@ const VendorLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="mb-8">
+    <div className="min-h-[100svh] bg-gray-50 flex flex-col items-center justify-start sm:justify-center px-4 py-6 sm:py-10 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
+      <div className="mb-6 sm:mb-8">
         <Logo />
       </div>
       
-      <Card className="w-[92vw] sm:w-[28vw] shadow-lg border-t-4 border-t-[#003D82]">
+      <Card className="w-full max-w-md shadow-lg border-t-4 border-t-[#003D82]">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center text-[#003D82]">Vendor Login</CardTitle>
           <CardDescription className="text-center">
@@ -184,8 +184,16 @@ const VendorLogin = () => {
               <Label htmlFor="email">Email Address</Label>
               <Input 
                 id="email" 
+                name="email"
                 type="email" 
                 placeholder="vendor@company.com" 
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
+                className="h-12 text-base"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 required
@@ -200,13 +208,21 @@ const VendorLogin = () => {
               </div>
               <Input 
                 id="password" 
+                name="password"
                 type="password" 
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="go"
+                className="h-12 text-base"
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required
               />
             </div>
-            <Button type="submit" className="w-full bg-[#003D82] hover:bg-[#002d62]" disabled={loading}>
+            <Button type="submit" className="w-full h-12 bg-[#003D82] hover:bg-[#002d62] touch-manipulation" disabled={loading}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Sign In
             </Button>
 
@@ -219,7 +235,7 @@ const VendorLogin = () => {
           </form>
         </CardContent>
         <CardFooter className="flex justify-center border-t p-4 bg-gray-50 rounded-b-lg">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 text-center">
             Don't have an account?{' '}
             <Link to={registerPath} className="font-semibold text-[#003D82] hover:underline inline-flex items-center">
               Register Now <ArrowRight className="ml-1 w-3 h-3" />

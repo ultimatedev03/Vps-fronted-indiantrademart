@@ -22,5 +22,3 @@ export const ManagerRoutes = () => {
     </Route>
   );
 };
-
-export default ManagerRoutes;

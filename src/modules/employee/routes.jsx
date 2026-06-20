@@ -77,5 +77,3 @@ export const EmployeeRoutes = () => {
     </Routes>
   );
 };
-
-export default EmployeeRoutes;

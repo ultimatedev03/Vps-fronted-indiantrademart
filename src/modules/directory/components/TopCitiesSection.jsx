@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { directoryApi } from '@/modules/directory/services/directoryApi';
+import { directoryApi } from '@/modules/directory/api/directoryApi';
 
 const DESIRED_CITIES = [
   'Delhi',

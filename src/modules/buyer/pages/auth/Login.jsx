@@ -120,8 +120,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto w-[92vw] sm:w-[28vw] text-center">
+    <div className="min-h-[100svh] bg-slate-50 flex flex-col justify-start sm:justify-center px-4 py-6 sm:py-12 sm:px-6 lg:px-8 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
+      <div className="sm:mx-auto w-full max-w-md text-center">
         <div className="flex justify-center mb-6">
           <Logo />
         </div>
@@ -133,7 +133,7 @@ const Login = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto w-[92vw] sm:w-[28vw]">
+      <div className="mt-8 sm:mx-auto w-full max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 sm:rounded-xl sm:px-10 border border-slate-100">
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
@@ -143,7 +143,13 @@ const Login = () => {
                 name="email" 
                 type="email" 
                 required 
-                className="mt-1" 
+                className="mt-1 h-12 text-base"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
                 value={formData.email} 
                 onChange={handleChange}
                 placeholder="name@company.com"
@@ -160,7 +166,12 @@ const Login = () => {
                 name="password" 
                 type="password" 
                 required 
-                className="mt-1" 
+                className="mt-1 h-12 text-base"
+                autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="go"
                 value={formData.password} 
                 onChange={handleChange}
                 placeholder="Enter your password"
@@ -170,7 +181,7 @@ const Login = () => {
             <div>
               <Button
                 type="submit"
-                className="w-full flex justify-center py-2.5 px-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold transition-all"
+                className="w-full h-12 flex justify-center px-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold transition-all touch-manipulation"
                 disabled={loading}
               >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

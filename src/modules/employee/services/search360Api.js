@@ -38,5 +38,3 @@ export const search360Api = {
     return readJson(res);
   },
 };
-
-export default search360Api;

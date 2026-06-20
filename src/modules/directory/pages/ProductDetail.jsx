@@ -714,14 +714,27 @@ const ProductDetail = () => {
               product = rawByLegacySlug;
             }
           }
+
+          if (!product && normalizedIncomingSlug) {
+            const { data: rawByOwnerId } = await dbClient
+              .from('products')
+              .select('*, vendors(*)')
+              .eq('id', normalizedIncomingSlug)
+              .maybeSingle();
+
+            if (rawByOwnerId && rawByOwnerId.vendor_id === currentVendorId) {
+              product = await hydrateProduct(rawByOwnerId);
+            }
+          }
         }
 
         // Fallback: try loading by ID (in case slug is actually an ID)
         if (!product) {
           const { data: rawById } = await dbClient
             .from('products')
-            .select('*, vendors(*)')
-            .eq('id', productSlug)
+            .select('*, vendors!inner(*)')
+            .eq('id', normalizedIncomingSlug)
+            .eq('vendors.is_active', true)
             .maybeSingle();
           product = await hydrateProduct(rawById);
         }

@@ -16,6 +16,17 @@ const isMissingColumnError = (err) => {
   return err.code === '42703' || /column .* does not exist/i.test(err.message || '');
 };
 
+const safeDecodeSegment = (value = '') => {
+  const raw = String(value || '');
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+};
+
+const normalizeLookupKey = (value = '') => safeDecodeSegment(value).trim();
+
 const normalizeMetaRows = (rows = []) =>
   (Array.isArray(rows) ? rows : []).map((r) => ({
     ...r,
@@ -42,7 +53,17 @@ const buildProductKeywordOrFilter = (value = '') => {
   return clauses.join(',');
 };
 
-// ✅ NEW: safely extract first image url
+const TOP_CITIES_TTL_MS = 5 * 60 * 1000;
+const topCitiesCache = new Map();
+const topCitiesPending = new Map();
+
+const getFreshCache = (cache, key) => {
+  const entry = cache.get(key);
+  if (entry && entry.expiresAt > Date.now()) return entry.data;
+  return null;
+};
+
+// Safely extract first image url.
 const pickFirstImageUrl = (images) => {
   const imgs = images;
   let url = null;
@@ -55,6 +76,26 @@ const pickFirstImageUrl = (images) => {
 
   if (typeof url === 'string' && url.trim().length > 0) return url.trim();
   return null;
+};
+
+const PRODUCT_DETAIL_SELECT = `
+  *,
+  vendors!inner (*)
+`;
+
+const fetchPublicProductDetail = async (column, value) => {
+  const lookup = normalizeLookupKey(value);
+  if (!lookup) return null;
+
+  const { data, error } = await dbClient
+    .from('products')
+    .select(PRODUCT_DETAIL_SELECT)
+    .eq(column, lookup)
+    .eq('vendors.is_active', true)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
 };
 
 export const directoryApi = {
@@ -449,17 +490,14 @@ export const directoryApi = {
 
   // ✅ UPDATED: return null if vendor suspended (hide)
   getProductDetailBySlug: async (slug) => {
-    const { data: product, error } = await dbClient
-      .from('products')
-      .select(`
-        *,
-        vendors!inner (*)
-      `)
-      .eq('slug', slug)
-      .eq('vendors.is_active', true)
-      .maybeSingle();
+    const lookup = normalizeLookupKey(slug);
+    if (!lookup) return null;
 
-    if (error) throw error;
+    let product = await fetchPublicProductDetail('slug', lookup);
+    if (!product) {
+      product = await fetchPublicProductDetail('id', lookup);
+    }
+
     if (!product) return null;
 
     if (product && product.micro_category_id) {
@@ -556,27 +594,29 @@ export const directoryApi = {
     return data || [];
   },
 
-  // ✅ also returns supplier_count safely (supports suplier_count column)
+  // Returns supplier_count safely, with support for the legacy suplier_count column.
   getCities: async (stateId) => {
     if (!stateId) return [];
 
-    // try misspelled column first
+    const isMissingColumnErr = (err) => {
+      const msg = (err?.message || err?.details || '').toString().toLowerCase();
+      return msg.includes('does not exist') || msg.includes('42703');
+    };
+
     let res = await dbClient
       .from('cities')
-      .select('id, name, slug, suplier_count')
+      .select('id, name, slug, supplier_count')
       .eq('state_id', stateId)
       .order('name');
 
-    // fallback if schema has supplier_count
-    if (res?.error) {
+    if (res?.error && isMissingColumnErr(res.error)) {
       res = await dbClient
         .from('cities')
-        .select('id, name, slug, supplier_count')
+        .select('id, name, slug, suplier_count')
         .eq('state_id', stateId)
         .order('name');
     }
 
-    // final fallback without count
     if (res?.error) {
       res = await dbClient
         .from('cities')
@@ -591,17 +631,11 @@ export const directoryApi = {
       return {
         ...c,
         slug: c?.slug || slugify(c?.name),
-        suplier_count: c?.suplier_count ?? c?.supplier_count ?? count,
         supplier_count: count,
       };
     });
   },
 
-  /**
-   * ✅ FIXED: getTopCities now reads REAL DB count column.
-   * Your DB column: suplier_count (misspelled) ✅ handled
-   * UI expects: supplier_count ✅ we map it
-   */
   getTopCities: async (limit = 200) => {
     let n = 200;
     if (typeof limit === 'number') n = limit;
@@ -609,49 +643,57 @@ export const directoryApi = {
       n = Number(limit.limit || limit.pageSize || limit.size || 200);
     }
     if (!Number.isFinite(n) || n <= 0) n = 200;
+    const cacheKey = `top-cities:${n}`;
+    const cached = getFreshCache(topCitiesCache, cacheKey);
+    if (cached) return cached;
 
-    // 1) try with suplier_count (your DB)
-    let res = await dbClient
-      .from('cities')
-      .select('id, name, slug, suplier_count')
-      .order('suplier_count', { ascending: false })
-      .order('name', { ascending: true })
-      .limit(n);
+    if (topCitiesPending.has(cacheKey)) {
+      return topCitiesPending.get(cacheKey);
+    }
 
-    // 2) fallback: supplier_count
-    if (res?.error) {
-      res = await dbClient
+    const request = (async () => {
+      let res = await dbClient
         .from('cities')
         .select('id, name, slug, supplier_count')
         .order('supplier_count', { ascending: false })
         .order('name', { ascending: true })
         .limit(n);
-    }
 
-    // 3) fallback: no count
-    if (res?.error) {
-      res = await dbClient
-        .from('cities')
-        .select('id, name, slug')
-        .order('name', { ascending: true })
-        .limit(n);
-    }
+      if (res?.error) {
+        res = await dbClient
+          .from('cities')
+          .select('id, name, slug')
+          .order('name', { ascending: true })
+          .limit(n);
+      }
 
-    if (res?.error) {
-      console.error('[directoryApi.getTopCities] error:', res.error);
-      return [];
-    }
+      if (res?.error) {
+        console.error('[directoryApi.getTopCities] error:', res.error);
+        return [];
+      }
 
-    const data = res?.data || [];
-    return (Array.isArray(data) ? data : []).map((c) => {
-      const count = Number(c?.suplier_count ?? c?.supplier_count ?? 0) || 0;
-      return {
-        ...c,
-        slug: c?.slug || slugify(c?.name),
-        suplier_count: c?.suplier_count ?? c?.supplier_count ?? count,
-        supplier_count: count,
-      };
-    });
+      const data = (Array.isArray(res?.data) ? res.data : []).map((c) => {
+        const count = Number(c?.supplier_count ?? 0) || 0;
+        return {
+          ...c,
+          slug: c?.slug || slugify(c?.name),
+          supplier_count: count,
+        };
+      });
+
+      topCitiesCache.set(cacheKey, {
+        data,
+        expiresAt: Date.now() + TOP_CITIES_TTL_MS,
+      });
+      return data;
+    })();
+
+    topCitiesPending.set(cacheKey, request);
+    try {
+      return await request;
+    } finally {
+      topCitiesPending.delete(cacheKey);
+    }
   },
 
   getHeadCategoryBySlug: async (headSlug) => {
