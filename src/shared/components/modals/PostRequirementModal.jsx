@@ -5,6 +5,7 @@ import { toast } from '@/components/ui/use-toast';
 import { dbClient } from '@/lib/dbClient';
 import { StateDropdown, CityDropdown } from '@/shared/components/LocationSelectors';
 import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
+import { setGlobalModalOpen, suppressQuotePopup } from '@/shared/utils/popupCoordinator';
 
 const safe = (value) => (value == null ? '' : String(value).trim());
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
@@ -37,6 +38,13 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
   const [catSuggestions, setCatSuggestions] = useState([]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const catBoxRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    setGlobalModalOpen(true);
+    suppressQuotePopup(120_000);
+    return () => setGlobalModalOpen(false);
+  }, [isOpen]);
 
   useEffect(() => {
     const onDocClick = (event) => {
@@ -317,6 +325,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
     }
 
     setLoading(true);
+    suppressQuotePopup(180_000);
     
     try {
       const payload = {
@@ -348,6 +357,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
       };
 
       await submitPublicLead(payload);
+      suppressQuotePopup(180_000);
       
       toast({
         title: "Requirement Posted!",

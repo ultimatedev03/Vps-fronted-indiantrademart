@@ -37,6 +37,7 @@ import {
   Filter,
   Loader2,
   Mail,
+  Palette,
   Phone,
   Package,
   Search,
@@ -196,6 +197,18 @@ const getJoinedDateRange = (filterValue, now = new Date()) => {
   return null;
 };
 
+const normalizeProfileTemplate = (value) => {
+  const token = String(value || "AUTO").trim().toUpperCase();
+  return ["AUTO", "STANDARD", "PREMIUM"].includes(token) ? token : "AUTO";
+};
+
+const profileTemplateLabel = (value) => {
+  const token = normalizeProfileTemplate(value);
+  if (token === "PREMIUM") return "Premium";
+  if (token === "STANDARD") return "Standard";
+  return "Auto by plan";
+};
+
 const createCustomJoinedDateRange = (fromValue, toValue) => {
   const from = DATE_ONLY_RE.test(String(fromValue || "").trim())
     ? new Date(`${String(fromValue).trim()}T00:00:00+05:30`)
@@ -229,6 +242,8 @@ export default function Vendors() {
 
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [showVendorModal, setShowVendorModal] = useState(false);
+  const [templateVendor, setTemplateVendor] = useState(null);
+  const [templateValue, setTemplateValue] = useState("AUTO");
 
   const [showTerminateModal, setShowTerminateModal] = useState(false);
   const [terminationReason, setTerminationReason] = useState("");
@@ -494,6 +509,59 @@ export default function Vendors() {
     setSelectedVendor(v);
     setTerminationReason("");
     setShowTerminateModal(true);
+  };
+
+  const openTemplateControl = (v) => {
+    setTemplateVendor(v);
+    setTemplateValue(normalizeProfileTemplate(v?.profile_template_override));
+  };
+
+  const saveProfileTemplate = async () => {
+    if (!templateVendor?.id) return;
+
+    setProcessing(true);
+    try {
+      const res = await fetchWithCsrf(
+        `${ADMIN_API_BASE}/vendors/${templateVendor.id}/profile-template`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ profile_template_override: templateValue }),
+        }
+      );
+      const data = await safeReadJson(res);
+      if (!data?.success) throw new Error(data?.error || "Profile style update failed");
+
+      const updatedVendor = {
+        ...templateVendor,
+        ...(data?.vendor || {}),
+        profile_template_override: normalizeProfileTemplate(
+          data?.vendor?.profile_template_override || templateValue
+        ),
+      };
+
+      setVendors((prev) =>
+        (prev || []).map((entry) =>
+          String(entry?.id || "") === String(updatedVendor?.id || "") ? { ...entry, ...updatedVendor } : entry
+        )
+      );
+      setSelectedVendor((prev) =>
+        String(prev?.id || "") === String(updatedVendor?.id || "") ? { ...prev, ...updatedVendor } : prev
+      );
+      setTemplateVendor(null);
+      toast({
+        title: "Success",
+        description: `Profile style set to ${profileTemplateLabel(updatedVendor.profile_template_override)}`,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: "Error",
+        description: e.message || "Profile style update failed",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const doTerminate = async () => {
@@ -810,6 +878,9 @@ export default function Vendors() {
                               {planPrice ? (
                                 <div className="text-[11px] text-gray-500 truncate">₹{planPrice}</div>
                               ) : null}
+                              <Badge variant="secondary" className="text-[11px] font-medium">
+                                {profileTemplateLabel(v.profile_template_override)}
+                              </Badge>
                             </div>
                           </TableCell>
 
@@ -862,6 +933,17 @@ export default function Vendors() {
                                   <Package className="h-4 w-4" />
                                 </Button>
                               </Link>
+
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => openTemplateControl(v)}
+                                title="Profile style"
+                                aria-label="Change profile style"
+                                className="h-9 w-9"
+                              >
+                                <Palette className="h-4 w-4" />
+                              </Button>
 
                               {active ? (
                                 <Button
@@ -996,6 +1078,20 @@ export default function Vendors() {
                     : ""}
                 </Badge>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                Profile style:{" "}
+                <Badge variant="secondary" className="font-medium">
+                  {profileTemplateLabel(selectedVendor.profile_template_override)}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openTemplateControl(selectedVendor)}
+                >
+                  <Palette className="mr-2 h-4 w-4" />
+                  Change profile style
+                </Button>
+              </div>
               <div>
                 Status:{" "}
                 <Badge
@@ -1014,6 +1110,63 @@ export default function Vendors() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowVendorModal(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Profile Style Modal */}
+      <Dialog
+        open={!!templateVendor}
+        onOpenChange={(open) => {
+          if (!open) setTemplateVendor(null);
+        }}
+      >
+        <DialogContent className="w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Profile Style</DialogTitle>
+            <DialogDescription>
+              Choose how this vendor company page should appear publicly.
+            </DialogDescription>
+          </DialogHeader>
+
+          {templateVendor ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div className="text-sm font-semibold text-gray-900">
+                  {templateVendor.company_name || "Vendor"}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Current package: {templateVendor.package?.plan_name || "FREE"}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Public profile template</label>
+                <Select value={templateValue} onValueChange={setTemplateValue}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select profile style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AUTO">Auto by active plan</SelectItem>
+                    <SelectItem value="STANDARD">Standard profile</SelectItem>
+                    <SelectItem value="PREMIUM">Premium brand profile</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  Auto uses the active package price/name. Premium gives the vendor a richer company-website style page.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateVendor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveProfileTemplate} disabled={processing || !templateVendor}>
+              {processing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+              Save style
             </Button>
           </DialogFooter>
         </DialogContent>

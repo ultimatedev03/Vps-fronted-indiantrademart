@@ -1,5 +1,6 @@
 import { apiUrl } from '@/lib/apiBase';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
+import { fetchSWR } from '@/shared/utils/swrCache';
 
 const parseJson = async (res) => {
   try {
@@ -38,9 +39,15 @@ export const salesApi = {
   },
 
   getDashboard: async () => {
-    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/dashboard'));
-    const data = await unwrap(res, 'Failed to load sales dashboard');
-    return data?.dashboard || null;
+    return fetchSWR(
+      'sales:dashboard',
+      async () => {
+        const res = await fetchWithCsrf(apiUrl('/api/employee/sales/dashboard'));
+        const data = await unwrap(res, 'Failed to load sales dashboard');
+        return data?.dashboard || null;
+      },
+      { freshMs: 30_000, staleMs: 5 * 60_000 }
+    );
   },
 
   getProfile: async () => {
@@ -49,9 +56,23 @@ export const salesApi = {
     return data?.profile || null;
   },
 
-  getAllLeads: async () => {
-    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/leads'));
+  getLeadsPage: async (query = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(query || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      params.set(key, String(value));
+    });
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetchWithCsrf(apiUrl(`/api/employee/sales/leads${suffix}`));
     const data = await unwrap(res, 'Failed to load leads');
+    return {
+      leads: data?.leads || [],
+      pageInfo: data?.pageInfo || { hasMore: false, nextCursor: null },
+    };
+  },
+
+  getAllLeads: async (query = {}) => {
+    const data = await salesApi.getLeadsPage(query);
     return data?.leads || [];
   },
 

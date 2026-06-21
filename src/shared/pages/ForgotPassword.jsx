@@ -27,7 +27,6 @@ const ForgotPassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otpExpiry, setOtpExpiry] = useState(0);
-  const [showPassword, setShowPassword] = useState(false);
 
   const getOtpSeconds = (payload) => {
     const value = Number(payload?.expiresIn);
@@ -392,16 +391,14 @@ const ForgotPassword = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="newPassword"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Strong password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                </div>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Strong password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
                 <p className="text-xs text-gray-500">
                   {PASSWORD_POLICY_MESSAGE}
                 </p>
@@ -411,25 +408,12 @@ const ForgotPassword = () => {
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   placeholder="Re-enter your password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="showPassword"
-                  checked={showPassword}
-                  onChange={(e) => setShowPassword(e.target.checked)}
-                  className="w-4 h-4 cursor-pointer"
-                />
-                <Label htmlFor="showPassword" className="cursor-pointer text-sm">
-                  Show password
-                </Label>
               </div>
 
               <Button

@@ -8,6 +8,7 @@ import SearchResultsList from '@/modules/directory/components/SearchResultsList'
 import PillBreadcrumbs from '@/shared/components/PillBreadcrumbs';
 import NearbyLocationNav from '@/modules/directory/components/NearbyLocationNav';
 import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBar';
+import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { urlParser } from '@/shared/utils/urlParser';
 import { Loader2 } from 'lucide-react';
 import { dbClient } from '@/lib/dbClient';
@@ -350,6 +351,7 @@ const SearchResults = () => {
 
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchNotice, setSearchNotice] = useState(null);
 
   const [filters, setFilters] = useState({
     priceRange: [0, 100000],
@@ -642,11 +644,13 @@ const SearchResults = () => {
     const fetchResults = async () => {
       if (!parsedParams.serviceSlug) {
         setResults([]);
+        setSearchNotice(null);
         setLoading(false);
         return;
       }
 
       setLoading(true);
+      setSearchNotice(null);
       try {
         const serviceSlug = parsedParams.serviceSlug;
         const rawServiceText = rawSearchQuery || serviceSlug.replace(/-/g, ' ');
@@ -660,6 +664,54 @@ const SearchResults = () => {
         ]);
         const stateId = state?.id || null;
         const cityId = city?.id || null;
+
+        try {
+          const hybridPayload = await directoryApi.hybridSearch({
+            q: rawServiceText,
+            microSlug: ctx.type === 'micro' ? serviceSlug : '',
+            stateId,
+            cityId,
+            sort: '',
+            page: 1,
+            limit: 30,
+          });
+
+          const hybridRows = Array.isArray(hybridPayload?.data) ? hybridPayload.data : [];
+          if (hybridPayload?.success && (hybridRows.length > 0 || hybridPayload?.availability?.exactAvailable === false)) {
+            const mappedHybridRows = hybridRows.map((p) => {
+              const vendorObj = Array.isArray(p?.vendors) ? p.vendors[0] : p?.vendors;
+              const planName = p?.vendorPlanName || p?.vendor_plan_name || vendorObj?.plan_name || '';
+              const planPriority = Number(p?.vendor_plan_priority || p?.vendor_plan_priority_score || 0) || getPlanPriority(planName);
+              return {
+                ...p,
+                vendors: vendorObj,
+                vendorName: p?.vendorName || vendorObj?.company_name,
+                vendorId: p?.vendorId || vendorObj?.id || p?.vendor_id,
+                vendorCity: p?.vendorCity || vendorObj?.city,
+                vendorState: p?.vendorState || vendorObj?.state,
+                vendorRating: p?.vendorRating || vendorObj?.seller_rating || 4.5,
+                vendorVerified: p?.vendorVerified || vendorObj?.kyc_status === 'VERIFIED' || !!vendorObj?.verification_badge,
+                vendorPlanName: planName,
+                __planPriority: planPriority,
+              };
+            });
+
+            setSearchNotice(
+              hybridPayload?.availability?.exactAvailable === false
+                ? {
+                    tone: 'amber',
+                    title: 'This product is currently not available',
+                    message: hybridPayload?.availability?.message || 'You may like these similar products.',
+                  }
+                : null
+            );
+            setResults(mappedHybridRows);
+            return;
+          }
+        } catch (hybridError) {
+          console.warn('Hybrid search fallback activated:', hybridError?.message || hybridError);
+          setSearchNotice(null);
+        }
 
         // ✅ IMPORTANT: include vendor meta columns from DB
         const selectString = `
@@ -920,6 +972,13 @@ const SearchResults = () => {
             </aside>
 
             <main className="flex-1">
+              {searchNotice ? (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+                  <p className="font-semibold">{searchNotice.title}</p>
+                  <p className="mt-1 text-amber-800">{searchNotice.message}</p>
+                </div>
+              ) : null}
+
               {loading ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="w-8 h-8 animate-spin text-[#003D82]" />

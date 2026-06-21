@@ -203,7 +203,12 @@ const DirectorySearchBar = ({
         return;
       }
       try {
-        const res = await directoryApi.searchMicroCategories(q);
+        let res = [];
+        try {
+          res = await directoryApi.autocomplete(q);
+        } catch {
+          res = await directoryApi.searchMicroCategories(q);
+        }
         setSuggestions(res || []);
       } catch (e) {
         console.error('Suggestion search failed', e);

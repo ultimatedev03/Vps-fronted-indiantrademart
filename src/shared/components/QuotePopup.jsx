@@ -10,6 +10,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
+import {
+  isBlockingPopupOpen,
+  isQuotePopupSuppressed,
+  onPopupStateChange,
+  suppressQuotePopup,
+} from '@/shared/utils/popupCoordinator';
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 const hasStartedForm = (data = {}) =>
@@ -61,6 +67,7 @@ const QuotePopup = () => {
   // Timer references
   const showTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
+  const visibleRef = useRef(false);
   
   const [formData, setFormData] = useState({
     productName: '',
@@ -118,6 +125,21 @@ const QuotePopup = () => {
   }, [formData.stateId]);
 
   useEffect(() => {
+    visibleRef.current = isVisible;
+  }, [isVisible]);
+
+  useEffect(() => {
+    const unsubscribe = onPopupStateChange(() => {
+      if (visibleRef.current) {
+        visibleRef.current = false;
+        setIsVisible(false);
+        suppressQuotePopup(90_000);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     // 1. Reset state on navigation
     setIsVisible(false);
     clearTimers();
@@ -130,9 +152,7 @@ const QuotePopup = () => {
 
     // 3. Start a fresh timer for each eligible visit.
     // The popup should behave consistently on each visit until the user explicitly dismisses it.
-    showTimerRef.current = setTimeout(() => {
-      showPopup();
-    }, QUOTE_POPUP_SHOW_DELAY_MS);
+    schedulePopup(QUOTE_POPUP_SHOW_DELAY_MS);
 
     return () => clearTimers();
   }, [user, location.pathname]);
@@ -151,9 +171,34 @@ const QuotePopup = () => {
   const clearTimers = () => {
     if (showTimerRef.current) clearTimeout(showTimerRef.current);
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    showTimerRef.current = null;
+    closeTimerRef.current = null;
+  };
+
+  const shouldWaitForUserFlow = () => {
+    if (user) return true;
+    if (!isAllowedPage()) return true;
+    if (readPopupSessionState().dismissed) return true;
+    if (isQuotePopupSuppressed()) return true;
+    return isBlockingPopupOpen();
+  };
+
+  const schedulePopup = (delay = 10_000) => {
+    if (showTimerRef.current) clearTimeout(showTimerRef.current);
+    showTimerRef.current = setTimeout(() => {
+      if (shouldWaitForUserFlow()) {
+        schedulePopup(10_000);
+        return;
+      }
+      showPopup();
+    }, delay);
   };
 
   const showPopup = () => {
+    if (shouldWaitForUserFlow()) {
+      schedulePopup(10_000);
+      return;
+    }
     setIsVisible(true);
 
     // 4. Auto-close logic for untouched sessions only.

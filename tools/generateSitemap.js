@@ -82,6 +82,16 @@ const writeSitemapFile = (filename, content) => {
   console.log(`✅ Created ${filename}`);
 };
 
+const cleanupGeneratedSitemaps = () => {
+  if (!fs.existsSync(PUBLIC_DIR)) return;
+  const generatedSitemapPattern = /^sitemap(?:-(?:static|products|vendors|categories|locations)(?:-\d+)?)?\.xml$/i;
+  fs.readdirSync(PUBLIC_DIR)
+    .filter((filename) => generatedSitemapPattern.test(filename))
+    .forEach((filename) => {
+      fs.rmSync(path.join(PUBLIC_DIR, filename), { force: true });
+    });
+};
+
 const writeSitemapChunks = (baseName, entries = []) => {
   const safeEntries = entries.filter((entry) => entry?.location);
   if (safeEntries.length === 0) return [];
@@ -135,16 +145,52 @@ const dedupeEntries = (entries = []) => {
   });
 };
 
-const generateProductsSitemap = async () => {
-  console.log('📦 Generating products sitemap...');
+const addNormalizedKeys = (target, values = []) => {
+  values.map(normalizeKey).filter(Boolean).forEach((key) => target.add(key));
+};
+
+const getVendorKeys = (vendor = {}) =>
+  [vendor.id, vendor.vendor_id].map(normalizeKey).filter(Boolean);
+
+const generateStaticSitemap = async () => {
+  console.log('🏠 Generating static sitemap...');
+  const today = getCurrentDate();
+  return [
+    createUrlEntry(`${BASE_URL}/`, today, '1.0', 'weekly'),
+    createUrlEntry(`${BASE_URL}/directory`, today, '0.9', 'weekly'),
+    createUrlEntry(`${BASE_URL}/directory/cities`, today, '0.7', 'weekly'),
+    createUrlEntry(`${BASE_URL}/directory/vendor`, today, '0.8', 'weekly'),
+    createUrlEntry(`${BASE_URL}/about-us`, today, '0.7', 'monthly'),
+    createUrlEntry(`${BASE_URL}/become-a-vendor`, today, '0.8', 'monthly'),
+    createUrlEntry(`${BASE_URL}/pricing`, today, '0.7', 'monthly'),
+    createUrlEntry(`${BASE_URL}/logistics`, today, '0.6', 'monthly'),
+    createUrlEntry(`${BASE_URL}/privacy`, today, '0.5', 'yearly'),
+    createUrlEntry(`${BASE_URL}/terms`, today, '0.5', 'yearly'),
+    createUrlEntry(`${BASE_URL}/press`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/investor`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/join-sales`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/success-stories`, today, '0.6', 'monthly'),
+    createUrlEntry(`${BASE_URL}/help`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/customer-care`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/complaints`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/jobs`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/contact`, today, '0.6', 'yearly'),
+    createUrlEntry(`${BASE_URL}/link-to-us`, today, '0.4', 'yearly'),
+    createUrlEntry(`${BASE_URL}/buyleads`, today, '0.6', 'weekly'),
+    createUrlEntry(`${BASE_URL}/learning-centre`, today, '0.5', 'monthly'),
+    createUrlEntry(`${BASE_URL}/products`, today, '0.6', 'weekly'),
+  ];
+};
+
+const loadPublicContent = async () => {
   const [products, vendors] = await Promise.all([
     safeSelectAll(
       'products',
       [
+        'id, slug, vendor_id, micro_category_id, updated_at, created_at, status',
+        'id, slug, vendor_id, micro_category_id, created_at, status',
         'id, slug, vendor_id, updated_at, created_at, status',
         'id, slug, vendor_id, created_at, status',
-        'id, slug, updated_at, created_at, status',
-        'id, slug, created_at, status',
         'id, slug, created_at',
       ],
       { orderBy: 'created_at', ascending: false }
@@ -152,28 +198,53 @@ const generateProductsSitemap = async () => {
     safeSelectAll(
       'vendors',
       [
-        'id, vendor_id, status, account_status, is_active, is_verified',
-        'id, vendor_id, status, is_active',
-        'id, vendor_id',
+        'id, vendor_id, slug, state_id, city_id, updated_at, created_at, status, account_status, is_active, is_verified',
+        'id, vendor_id, slug, state_id, city_id, created_at, status, is_active',
+        'id, vendor_id, slug, state_id, city_id, created_at',
       ],
       { orderBy: 'created_at', ascending: false }
     ).catch((error) => {
-      console.warn('⚠️  Unable to filter products by vendor status:', error?.message || error);
+      console.warn('⚠️  Unable to filter public content by vendor status:', error?.message || error);
       return [];
     }),
   ]);
 
   const publicVendorKeys = new Set();
-  vendors.filter(isOnboardedVendor).forEach((vendor) => {
-    [vendor.id, vendor.vendor_id].map(normalizeKey).filter(Boolean).forEach((key) => publicVendorKeys.add(key));
+  const vendorLocationByKey = new Map();
+  const publicVendors = vendors.filter(isOnboardedVendor);
+
+  publicVendors.forEach((vendor) => {
+    const keys = getVendorKeys(vendor);
+    addNormalizedKeys(publicVendorKeys, keys);
+    if (vendor.state_id || vendor.city_id) {
+      keys.forEach((key) => {
+        vendorLocationByKey.set(key, {
+          stateId: vendor.state_id,
+          cityId: vendor.city_id,
+          lastmod: vendor.updated_at || vendor.created_at,
+        });
+      });
+    }
   });
 
-  const entries = products
+  const publicProducts = products
     .filter(isPublicProduct)
     .filter((product) => {
       const vendorKey = normalizeKey(product.vendor_id);
-      return !vendorKey || publicVendorKeys.size === 0 || publicVendorKeys.has(vendorKey);
-    })
+      return Boolean(vendorKey) && publicVendorKeys.has(vendorKey);
+    });
+
+  return {
+    publicProducts,
+    publicVendors,
+    publicVendorKeys,
+    vendorLocationByKey,
+  };
+};
+
+const generateProductsSitemap = async (content) => {
+  console.log('📦 Generating products sitemap...');
+  const entries = content.publicProducts
     .map((product) => {
       const slugOrId = String(product.slug || product.id || '').trim();
       if (!slugOrId) return null;
@@ -184,20 +255,9 @@ const generateProductsSitemap = async () => {
   return dedupeEntries(entries);
 };
 
-const generateVendorsSitemap = async () => {
+const generateVendorsSitemap = async (content) => {
   console.log('🏢 Generating vendors sitemap...');
-  const vendors = await safeSelectAll(
-    'vendors',
-    [
-      'id, vendor_id, slug, updated_at, created_at, status, account_status, is_active, is_verified',
-      'id, vendor_id, slug, created_at, status, is_active',
-      'id, vendor_id, slug, created_at',
-    ],
-    { orderBy: 'created_at', ascending: false }
-  );
-
-  const entries = vendors
-    .filter(isOnboardedVendor)
+  const entries = content.publicVendors
     .map((vendor) => {
       const slugOrId = String(vendor.slug || vendor.vendor_id || vendor.id || '').trim();
       if (!slugOrId) return null;
@@ -237,18 +297,29 @@ const loadCategoryModel = async () => {
   };
 };
 
-const generateCategoriesSitemap = async (model) => {
+const generateCategoriesSitemap = async (model, content) => {
   console.log('📂 Generating category sitemap...');
   const entries = [];
+  const linkedSubIds = new Set();
+  const linkedHeadIds = new Set();
+
+  model.micros.forEach((micro) => {
+    const sub = model.subById.get(String(micro.sub_category_id));
+    const head = model.headById.get(String(sub?.head_category_id));
+    if (!sub?.slug || !head?.slug || !micro.slug) return;
+
+    linkedSubIds.add(normalizeKey(sub.id));
+    linkedHeadIds.add(normalizeKey(head.id));
+  });
 
   model.heads.forEach((head) => {
-    if (!head.slug) return;
+    if (!head.slug || !linkedHeadIds.has(normalizeKey(head.id))) return;
     entries.push(createUrlEntry(`${BASE_URL}/directory/${encodeSegment(head.slug)}`, head.updated_at || head.created_at, '0.7', 'weekly'));
   });
 
   model.subs.forEach((sub) => {
     const head = model.headById.get(String(sub.head_category_id));
-    if (!head?.slug || !sub.slug) return;
+    if (!head?.slug || !sub.slug || !linkedSubIds.has(normalizeKey(sub.id))) return;
     entries.push(createUrlEntry(`${BASE_URL}/directory/${encodeSegment(head.slug)}/${encodeSegment(sub.slug)}`, sub.updated_at || sub.created_at, '0.7', 'weekly'));
   });
 
@@ -262,36 +333,34 @@ const generateCategoriesSitemap = async (model) => {
   return dedupeEntries(entries);
 };
 
-const generateLocationsSitemap = async (model) => {
+const generateLocationsSitemap = async (model, content) => {
   console.log('📍 Generating location sitemap...');
-  const [statesRaw, citiesRaw, productsRaw, vendorsRaw] = await Promise.all([
+  const [statesRaw, citiesRaw] = await Promise.all([
     safeSelectAll('states', ['id, name, slug, is_active, updated_at, created_at', 'id, name, slug, updated_at, created_at'], { orderBy: 'name', ascending: true }),
     safeSelectAll('cities', ['id, state_id, name, slug, is_active, updated_at, created_at', 'id, state_id, name, slug, updated_at, created_at'], { orderBy: 'name', ascending: true }),
-    safeSelectAll('products', ['id, vendor_id, micro_category_id, updated_at, created_at, status', 'id, vendor_id, micro_category_id, created_at, status', 'id, vendor_id, micro_category_id, created_at'], { orderBy: 'created_at', ascending: false }),
-    safeSelectAll('vendors', ['id, state_id, city_id, updated_at, created_at, status, account_status, is_active, is_verified', 'id, state_id, city_id, created_at, status, is_active', 'id, state_id, city_id, created_at'], { orderBy: 'created_at', ascending: false }),
   ]);
 
   const states = statesRaw.filter(isActiveCategory);
   const cities = citiesRaw.filter(isActiveCategory);
   const stateById = new Map(states.map((state) => [String(state.id), state]));
   const cityById = new Map(cities.map((city) => [String(city.id), city]));
-  const vendorLocationById = new Map(
-    vendorsRaw
-      .filter(isOnboardedVendor)
-      .filter((vendor) => vendor.state_id || vendor.city_id)
-      .map((vendor) => [String(vendor.id), { stateId: vendor.state_id, cityId: vendor.city_id, lastmod: vendor.updated_at || vendor.created_at }])
-  );
+  const publicCityIds = new Set();
+  content.vendorLocationByKey.forEach((location) => {
+    if (location.cityId) publicCityIds.add(normalizeKey(location.cityId));
+  });
 
   const microById = new Map(model.micros.map((micro) => [String(micro.id), micro]));
   const entries = [];
 
   cities.forEach((city) => {
-    if (city.slug) entries.push(createUrlEntry(`${BASE_URL}/directory/city/${encodeSegment(city.slug)}`, city.updated_at || city.created_at, '0.6', 'monthly'));
+    if (city.slug && publicCityIds.has(normalizeKey(city.id))) {
+      entries.push(createUrlEntry(`${BASE_URL}/directory/city/${encodeSegment(city.slug)}`, city.updated_at || city.created_at, '0.6', 'monthly'));
+    }
   });
 
-  productsRaw.filter(isPublicProduct).forEach((product) => {
+  content.publicProducts.forEach((product) => {
     const micro = microById.get(String(product.micro_category_id || ''));
-    const vendorLocation = vendorLocationById.get(String(product.vendor_id || ''));
+    const vendorLocation = content.vendorLocationByKey.get(normalizeKey(product.vendor_id));
     if (!micro || !vendorLocation) return;
 
     const sub = model.subById.get(String(micro.sub_category_id));
@@ -323,19 +392,18 @@ const generateSitemapIndex = (sitemaps) => {
 
 const generateAllSitemaps = async () => {
   console.log('🤖 Starting dynamic sitemap generation...');
+  cleanupGeneratedSitemaps();
   const model = await loadCategoryModel();
+  const content = await loadPublicContent();
 
   const generated = [];
-  const staticSitemap = path.join(PUBLIC_DIR, 'sitemap-static.xml');
-  if (fs.existsSync(staticSitemap)) {
-    generated.push({ name: 'sitemap-static.xml', lastmod: INDEX_LASTMOD || getCurrentDate() });
-  }
 
   const sitemapJobs = [
-    { name: 'sitemap-products.xml', generator: generateProductsSitemap },
-    { name: 'sitemap-vendors.xml', generator: generateVendorsSitemap },
-    { name: 'sitemap-categories.xml', generator: () => generateCategoriesSitemap(model) },
-    { name: 'sitemap-locations.xml', generator: () => generateLocationsSitemap(model) },
+    { name: 'sitemap-static.xml', generator: generateStaticSitemap },
+    { name: 'sitemap-products.xml', generator: () => generateProductsSitemap(content) },
+    { name: 'sitemap-vendors.xml', generator: () => generateVendorsSitemap(content) },
+    { name: 'sitemap-categories.xml', generator: () => generateCategoriesSitemap(model, content) },
+    { name: 'sitemap-locations.xml', generator: () => generateLocationsSitemap(model, content) },
   ];
 
   for (const sitemap of sitemapJobs) {

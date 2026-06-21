@@ -1,5 +1,7 @@
 // ✅ File: src/modules/directory/api/directoryApi.js
+import { apiUrl } from '@/lib/apiBase';
 import { dbClient } from '@/lib/dbClient';
+import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 
 // ✅ helper (only used for getTopCities fallback slug)
 const slugify = (text = '') =>
@@ -63,6 +65,18 @@ const getFreshCache = (cache, key) => {
   return null;
 };
 
+const fetchDirectoryJson = async (path, fallbackMessage = 'Directory request failed') => {
+  const res = await fetchWithCsrf(apiUrl(path));
+  let payload = {};
+  try {
+    payload = await res.json();
+  } catch {
+    payload = {};
+  }
+  if (!res.ok) throw new Error(payload?.details || payload?.error || payload?.message || fallbackMessage);
+  return payload;
+};
+
 // Safely extract first image url.
 const pickFirstImageUrl = (images) => {
   const imgs = images;
@@ -99,6 +113,23 @@ const fetchPublicProductDetail = async (column, value) => {
 };
 
 export const directoryApi = {
+  hybridSearch: async (params = {}) => {
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      query.set(key, String(value));
+    });
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return fetchDirectoryJson(`/api/dir/hybrid-search${suffix}`, 'Hybrid search failed');
+  },
+
+  autocomplete: async (q) => {
+    const value = String(q || '').trim();
+    if (value.length < 2) return [];
+    const payload = await fetchDirectoryJson(`/api/dir/autocomplete?q=${encodeURIComponent(value)}`, 'Autocomplete failed');
+    return payload?.suggestions || [];
+  },
+
   getHeadCategories: async () => {
     const { data, error } = await dbClient
       .from('head_categories')

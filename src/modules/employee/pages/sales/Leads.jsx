@@ -80,17 +80,21 @@ const Leads = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageInfo, setPageInfo] = useState({ hasMore: false, nextCursor: null });
   const [selectedLead, setSelectedLead] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [priceDialogOpen, setPriceDialogOpen] = useState(false);
   const [priceForm, setPriceForm] = useState({ budget: '', sales_note: '' });
   const [actionLoadingId, setActionLoadingId] = useState('');
 
-  const loadLeads = async () => {
+  const loadLeads = async ({ cursor = '', append = false } = {}) => {
     try {
-      setLoading(true);
-      const data = await salesApi.getAllLeads();
-      setLeads(Array.isArray(data) ? data : []);
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      const data = await salesApi.getLeadsPage({ limit: 120, cursor });
+      setLeads((prev) => (append ? [...prev, ...(data.leads || [])] : data.leads || []));
+      setPageInfo(data.pageInfo || { hasMore: false, nextCursor: null });
     } catch (error) {
       console.error('Failed to load leads:', error);
       toast({
@@ -101,12 +105,18 @@ const Leads = () => {
       setLeads([]);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
     loadLeads();
   }, []);
+
+  const loadMoreLeads = () => {
+    if (!pageInfo?.hasMore || !pageInfo?.nextCursor) return;
+    loadLeads({ cursor: pageInfo.nextCursor, append: true });
+  };
 
   const filteredLeads = useMemo(() => {
     const query = String(searchTerm || '').trim().toLowerCase();
@@ -334,6 +344,12 @@ const Leads = () => {
             <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
               {queueStats.won} won
             </span>
+            {pageInfo?.hasMore ? (
+              <Button variant="outline" size="sm" onClick={loadMoreLeads} disabled={loadingMore}>
+                {loadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Load more
+              </Button>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="p-0">

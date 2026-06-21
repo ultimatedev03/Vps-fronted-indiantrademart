@@ -47,13 +47,14 @@ import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AppAuthContext';
 import { productFavorites } from '@/modules/buyer/services/productFavorites';
 import { productRatings, PRODUCT_RATINGS_UPDATED_EVENT } from '@/shared/services/productRatings';
-import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
 import { getProductDetailPath, getProductDetailUrl } from '@/shared/utils/productRoutes';
 import { stripLegacyRandomSlugSuffix } from '@/shared/utils/slugUtils';
 import { getVendorProfilePath } from '@/shared/utils/vendorRoutes';
+import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
+import { setGlobalModalOpen, suppressQuotePopup } from '@/shared/utils/popupCoordinator';
 
 const normalizeProductImageUrl = (image) => {
   const raw =
@@ -115,11 +116,20 @@ const ProductDetail = () => {
         .filter(Boolean),
     [buyerId, profile?.email, profile?.id, profile?.user_id, user?.email, user?.id]
   );
+  const hasBuyerContactDetails = Boolean(
+    String(profile?.email || user?.email || '').trim() &&
+      isValidIndianPhone(profile?.phone || profile?.mobile_number || user?.user_metadata?.phone || user?.user_metadata?.mobile || '')
+  );
+  const shouldCollectEnquiryContact = !isBuyer || !hasBuyerContactDetails;
 
   // Enquiry modal
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [sendingEnquiry, setSendingEnquiry] = useState(false);
   const [enquiry, setEnquiry] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
     quantity: '',
     unit: 'pieces',
     budget: '',
@@ -148,6 +158,14 @@ const ProductDetail = () => {
     ],
     []
   );
+
+  useEffect(() => {
+    const hasOpenDialog = enquiryOpen || ratingDialogOpen;
+    if (!hasOpenDialog) return undefined;
+    setGlobalModalOpen(true);
+    suppressQuotePopup(enquiryOpen ? 180_000 : 90_000);
+    return () => setGlobalModalOpen(false);
+  }, [enquiryOpen, ratingDialogOpen]);
 
   // ✅ Helpers to partially mask contact info (SEO/Privacy friendly)
   const maskEmail = (email) => {
@@ -280,30 +298,19 @@ const ProductDetail = () => {
   };
 
   const openEnquiryModal = () => {
-    // Check if user is logged in
-    if (!user) {
-      toast({
-        title: 'Please Login',
-        description: 'You need to login as a buyer to send enquiry',
-        variant: 'destructive',
-      });
-      navigate('/buyer/login');
-      return;
-    }
-
-    // Check if user is a buyer
-    const role = String(userRole || user?.role || '').toUpperCase();
-    if (role !== 'BUYER') {
-      toast({
-        title: 'Buyer Account Required',
-        description: 'Only buyers can send enquiries',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     // Reset form every time modal opens
-    setEnquiry({ quantity: '', unit: 'pieces', budget: '', requirement: '' });
+    const email = String(profile?.email || user?.email || '').trim();
+    const metadata = user?.user_metadata || {};
+    setEnquiry({
+      name: profile?.full_name || profile?.company_name || metadata.full_name || metadata.name || (email ? email.split('@')[0] : ''),
+      email,
+      phone: profile?.phone || profile?.mobile_number || metadata.phone || metadata.mobile || '',
+      company: profile?.company_name || metadata.company_name || '',
+      quantity: '',
+      unit: 'pieces',
+      budget: '',
+      requirement: '',
+    });
     enquiryCaptcha.resetCaptcha();
     setEnquiryOpen(true);
   };
@@ -331,17 +338,42 @@ const ProductDetail = () => {
     const safeBudget = parseBudgetNumber(budgetRaw);
     const qtyWithUnit = safeQty ? `${safeQty} ${enquiry.unit || 'pieces'}`.trim() : null;
 
-    const buyerEmail = user?.email || '';
-    const buyerName =
-      user?.user_metadata?.company_name ||
-      user?.user_metadata?.full_name ||
-      user?.user_metadata?.name ||
-      (buyerEmail ? buyerEmail.split('@')[0] : 'Buyer');
-    const buyerPhone =
-      user?.user_metadata?.phone ||
-      user?.user_metadata?.mobile ||
-      '';
-    const buyerCompany = user?.user_metadata?.company_name || '';
+    const metadata = user?.user_metadata || {};
+    const isGuestEnquiry = !isBuyer;
+    const buyerEmail = String(
+      isGuestEnquiry ? enquiry.email : profile?.email || user?.email || enquiry.email
+    ).trim().toLowerCase();
+    const buyerName = String(
+      isGuestEnquiry
+        ? enquiry.name
+        : profile?.full_name ||
+            profile?.company_name ||
+            metadata.company_name ||
+            metadata.full_name ||
+            metadata.name ||
+            (buyerEmail ? buyerEmail.split('@')[0] : 'Buyer')
+    ).trim();
+    const buyerPhone = normalizeIndianPhone(
+      isGuestEnquiry
+        ? enquiry.phone
+        : profile?.phone || profile?.mobile_number || metadata.phone || metadata.mobile || enquiry.phone
+    );
+    const buyerCompany = String(
+      isGuestEnquiry ? enquiry.company : profile?.company_name || metadata.company_name || enquiry.company || ''
+    ).trim();
+
+    if (!buyerName) {
+      toast({ title: 'Name required', description: 'Please enter your name.', variant: 'destructive' });
+      return;
+    }
+    if (!buyerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) {
+      toast({ title: 'Valid email required', description: 'Please enter a correct email address.', variant: 'destructive' });
+      return;
+    }
+    if (!isValidIndianPhone(buyerPhone)) {
+      toast({ title: 'Valid phone required', description: 'Please enter a valid 10 digit Indian mobile number.', variant: 'destructive' });
+      return;
+    }
 
     const captchaError = enquiryCaptcha.getCaptchaError();
     if (captchaError) {
@@ -354,8 +386,11 @@ const ProductDetail = () => {
     }
 
     setSendingEnquiry(true);
+    suppressQuotePopup(180_000);
     try {
       const payload = {
+        vendor_id: data.vendors.id,
+        vendor_email: data.vendors?.email || '',
         title: data.name,
         product_name: data.name,
         product_interest: data.name,
@@ -370,20 +405,24 @@ const ProductDetail = () => {
         category: data.micro_categories?.name || 'General',
         category_slug: data.micro_categories?.slug || '',
         location: data.vendors?.city ? `${data.vendors.city}, ${data.vendors.state || ''}`.trim() : null,
+        city: data.vendors?.city || '',
+        state: data.vendors?.state || '',
+        source: isGuestEnquiry ? 'GUEST_PRODUCT_ENQUIRY' : 'PRODUCT_DETAIL_ENQUIRY',
+        lead_origin: isGuestEnquiry ? 'GUEST_BUYER_ENQUIRY' : 'BUYER_PRODUCT_ENQUIRY',
+        consent_source: isGuestEnquiry ? 'product_detail_guest_enquiry' : 'product_detail_buyer_enquiry',
         captcha_token: enquiryCaptcha.captchaToken,
         captcha_action: 'lead_submit',
       };
 
-      const response = await fetchWithCsrf(apiUrl(`/api/vendors/${data.vendors.id}/leads`), {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      const responseJson = await response.json().catch(() => null);
-      if (!response.ok || !responseJson?.success) {
-        throw new Error(responseJson?.error || 'Failed to send enquiry');
-      }
+      await submitPublicLead(payload);
+      suppressQuotePopup(180_000);
 
-      toast({ title: 'Enquiry Sent', description: 'Your enquiry has been submitted to the vendor' });
+      toast({
+        title: 'Enquiry Sent',
+        description: isGuestEnquiry
+          ? 'Your enquiry has been sent. We will email you a buyer account link too.'
+          : 'Your enquiry has been submitted to the vendor',
+      });
       setEnquiryOpen(false);
       enquiryCaptcha.resetCaptcha();
       navigate(getVendorProfilePath(data?.vendors) || '/directory/vendor');
@@ -924,11 +963,63 @@ const ProductDetail = () => {
           <DialogHeader>
             <DialogTitle>Send Enquiry</DialogTitle>
             <DialogDescription>
-              Fill your requirement details. This helps the supplier respond faster.
+              {isBuyer && !shouldCollectEnquiryContact
+                ? 'Fill your requirement details. Your buyer profile will be used for contact.'
+                : 'No buyer login needed. Add contact details and our sales team will help you create a buyer account.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {shouldCollectEnquiryContact ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="enquiry-name">Name</Label>
+                  <Input
+                    id="enquiry-name"
+                    placeholder="Your name"
+                    value={enquiry.name}
+                    onChange={(e) => setEnquiry((p) => ({ ...p, name: e.target.value }))}
+                    autoComplete="name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="enquiry-phone">Mobile Number</Label>
+                  <Input
+                    id="enquiry-phone"
+                    placeholder="10 digit mobile"
+                    value={enquiry.phone}
+                    onChange={(e) => setEnquiry((p) => ({ ...p, phone: e.target.value }))}
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="enquiry-email">Email</Label>
+                  <Input
+                    id="enquiry-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={enquiry.email}
+                    onChange={(e) => setEnquiry((p) => ({ ...p, email: e.target.value }))}
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="enquiry-company">Company</Label>
+                  <Input
+                    id="enquiry-company"
+                    placeholder="Company name"
+                    value={enquiry.company}
+                    onChange={(e) => setEnquiry((p) => ({ ...p, company: e.target.value }))}
+                    autoComplete="organization"
+                  />
+                </div>
+              </>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="qty">Quantity</Label>
               <Input

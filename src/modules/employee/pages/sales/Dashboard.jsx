@@ -100,6 +100,7 @@ const Dashboard = () => {
   const [dashboard, setDashboard] = useState(null);
   const [plans, setPlans] = useState([]);
   const [leads, setLeads] = useState([]);
+  const [leadsPageInfo, setLeadsPageInfo] = useState({ hasMore: false, nextCursor: null });
   const [vendorSearch, setVendorSearch] = useState('');
   const [noPlanVendors, setNoPlanVendors] = useState([]);
   const [shareVendor, setShareVendor] = useState(null);
@@ -124,15 +125,17 @@ const Dashboard = () => {
   const load = async () => {
     try {
       setLoading(true);
-      const [dashboardData, planRows, leadRows] = await Promise.all([
+      const [dashboardData, planRows] = await Promise.all([
         salesApi.getDashboard(),
         salesApi.getSalesPlans(),
-        salesApi.getAllLeads(),
       ]);
       setDashboard(dashboardData);
       setPlans(planRows || []);
-      setLeads(leadRows || []);
       setNoPlanVendors(dashboardData?.no_plan_vendors || []);
+      setLoading(false);
+      const leadData = await salesApi.getLeadsPage({ limit: 60 });
+      setLeads(leadData.leads || []);
+      setLeadsPageInfo(leadData.pageInfo || { hasMore: false, nextCursor: null });
     } catch (error) {
       toast({
         title: 'Sales dashboard load failed',
@@ -141,6 +144,20 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreLeads = async () => {
+    if (!leadsPageInfo?.hasMore || !leadsPageInfo?.nextCursor) return;
+    try {
+      setActionLoading('leads-more');
+      const leadData = await salesApi.getLeadsPage({ limit: 60, cursor: leadsPageInfo.nextCursor });
+      setLeads((prev) => [...prev, ...(leadData.leads || [])]);
+      setLeadsPageInfo(leadData.pageInfo || { hasMore: false, nextCursor: null });
+    } catch (error) {
+      toast({ title: 'Lead page failed', description: error?.message, variant: 'destructive' });
+    } finally {
+      setActionLoading('');
     }
   };
 
@@ -430,9 +447,22 @@ const Dashboard = () => {
             <CardTitle>Visitor Requirement Leads</CardTitle>
             <p className="mt-1 text-sm text-slate-500">Anonymous visitor/session context attached when a requirement form is submitted.</p>
           </div>
-          <Link to="/employee/sales/leads">
-            <Button variant="outline" size="sm">Open all leads</Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {leadsPageInfo?.hasMore ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadMoreLeads}
+                disabled={actionLoading === 'leads-more'}
+              >
+                {actionLoading === 'leads-more' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Load more
+              </Button>
+            ) : null}
+            <Link to="/employee/sales/leads">
+              <Button variant="outline" size="sm">Open all leads</Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           {visitorLeads.length === 0 ? (
