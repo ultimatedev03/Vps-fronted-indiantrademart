@@ -15,12 +15,24 @@ const isMissingColumnError = (err) => {
 const FEATURED_VENDOR_COLUMNS = [
   'id',
   'vendor_id',
+  'slug',
   'company_name',
   'owner_name',
   'city',
   'state',
   'kyc_status',
   'is_active',
+  'is_verified',
+  'verification_badge',
+  'profile_image',
+  'avatar_url',
+  'image_url',
+  'description',
+  'business_description',
+  'primary_business_type',
+  'secondary_business',
+  'seller_rating',
+  'trust_score',
   'created_at',
 ].join(', ');
 
@@ -45,6 +57,12 @@ const getFreshCache = (cache, key) => {
   return null;
 };
 
+const boolish = (value) => {
+  if (value === true || value === 1) return true;
+  const text = String(value ?? '').trim().toLowerCase();
+  return text === 'true' || text === '1' || text === 'yes' || text === 'y';
+};
+
 const mapVendorRow = (v) => {
   const companyName =
     v.company_name ||
@@ -55,7 +73,7 @@ const mapVendorRow = (v) => {
   const stateName = v?.state_ref?.name || v.state || '';
 
   const kyc = String(v.kyc_status || '').toUpperCase();
-  const verified = Boolean(v.is_verified || v.verification_badge) || ['APPROVED', 'VERIFIED'].includes(kyc);
+  const verified = boolish(v.is_verified) || boolish(v.verification_badge) || ['APPROVED', 'VERIFIED'].includes(kyc);
 
   return {
     ...v,
@@ -67,7 +85,7 @@ const mapVendorRow = (v) => {
     // best-effort fields used by older UI blocks
     rating: null,
     reviews: null,
-    description: v.description || v.primary_business_type || v.secondary_business || '',
+    description: v.description || v.business_description || v.primary_business_type || v.secondary_business || '',
   };
 };
 
@@ -115,7 +133,7 @@ const fetchVendorRows = async ({ onlyActive, from = 0, to = null, limit = null }
   let rows = Array.isArray(res.data) ? res.data : [];
   const hasIsActive = rows.some((r) => Object.prototype.hasOwnProperty.call(r || {}, 'is_active'));
   if (onlyActive && hasIsActive) {
-    rows = rows.filter((r) => r?.is_active === true);
+    rows = rows.filter((r) => boolish(r?.is_active));
   }
 
   return rows;
@@ -123,7 +141,7 @@ const fetchVendorRows = async ({ onlyActive, from = 0, to = null, limit = null }
 
 const isVerifiedVendor = (v) => {
   const kyc = String(v?.kyc_status || '').toUpperCase();
-  return Boolean(v?.is_verified || v?.verification_badge) || ['APPROVED', 'VERIFIED'].includes(kyc);
+  return boolish(v?.is_verified) || boolish(v?.verification_badge) || ['APPROVED', 'VERIFIED'].includes(kyc);
 };
 
 const sortFeaturedVendors = (rows = []) => {
