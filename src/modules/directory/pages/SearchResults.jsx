@@ -697,7 +697,7 @@ const SearchResults = () => {
             });
 
             setSearchNotice(
-              hybridPayload?.availability?.exactAvailable === false
+              hybridPayload?.availability?.exactAvailable === false && mappedHybridRows.length === 0
                 ? {
                     tone: 'amber',
                     title: 'This product is currently not available',
