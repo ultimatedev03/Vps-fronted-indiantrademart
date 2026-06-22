@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Package, Users, FileText, Settings, LogOut,
   Menu, X, Search, ShieldCheck, HelpCircle, ChevronRight, Boxes,
-  BarChart, Wallet, User as UserIcon, RefreshCw, Ban, MapPin, FolderKanban, MessageSquare, Home, UserCheck, Loader2
+  BarChart, Wallet, User as UserIcon, RefreshCw, Ban, MapPin, FolderKanban, MessageSquare, Home, UserCheck, Loader2, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -177,6 +177,7 @@ const PortalLayout = () => {
     { icon: MessageSquare, label: 'Messages', path: 'messages' },
     { icon: BarChart, label: 'Analytics', path: 'analytics' },
     { icon: Boxes, label: 'Subscriptions', path: 'subscriptions' },
+    { icon: Sparkles, label: 'Portfolio Studio', path: 'portfolio-studio' },
     { icon: Wallet, label: 'Referrals', path: 'referrals' },
     { icon: MapPin, label: 'Plan Business Preferences', path: 'coverage' },
     { icon: FolderKanban, label: 'Collections', path: 'collections' },

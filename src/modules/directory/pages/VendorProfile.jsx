@@ -41,6 +41,7 @@ import { getVendorProfilePath, getVendorProfileUrl } from '@/shared/utils/vendor
 import { getProductDetailPath } from '@/shared/utils/productRoutes';
 import { phoneUtils } from '@/shared/utils/phoneUtils';
 import {
+  asPlanObject,
   buildVendorPlanBenefitChips,
   getVendorCertificate,
   getVendorPlanBadgeLabel,
@@ -180,6 +181,7 @@ const mergeVendorWithPremiumBrand = (vendorData = {}, brand = null, options = {}
     highlights: Array.isArray(brand?.highlights) ? brand.highlights : [],
     profile_template: vendorData.profile_template || (brand ? 'PREMIUM' : 'STANDARD'),
     profile_template_override: vendorData.profile_template_override || 'AUTO',
+    portfolio_settings: vendorData.portfolio_settings || null,
     active_plan: vendorData.active_plan || null,
     active_subscription: vendorData.active_subscription || null,
     plan_entitlements: vendorData.plan_entitlements || vendorData.active_plan?.entitlements || null,
@@ -582,6 +584,20 @@ const VendorProfileContent = () => {
   const locationLabel = [displayVendor?.city, displayVendor?.state].filter(Boolean).join(', ') || 'India';
   const businessTypeLabel = displayVendor?.primary_business_type || 'Manufacturer, Supplier';
   const activePlanName = displayVendor?.active_plan?.name || 'Trial / Basic';
+  const portfolioSettings = asPlanObject(displayVendor?.portfolio_settings);
+  const customSeo = asPlanObject(portfolioSettings.seo);
+  const customSitemap = asPlanObject(portfolioSettings.sitemap);
+  const customHighlights = Array.isArray(portfolioSettings.featured_highlights)
+    ? portfolioSettings.featured_highlights.filter(Boolean)
+    : [];
+  const customSections = Array.isArray(portfolioSettings.custom_sections)
+    ? portfolioSettings.custom_sections
+        .map((section) => ({
+          title: String(section?.title || '').trim(),
+          body: String(section?.body || '').trim(),
+        }))
+        .filter((section) => section.title || section.body)
+    : [];
   const planEntitlements = getVendorPlanEntitlements(displayVendor || {});
   const planBadgeLabel = getVendorPlanBadgeLabel(displayVendor || {});
   const certificateMeta = getVendorCertificate(displayVendor || {});
@@ -594,7 +610,9 @@ const VendorProfileContent = () => {
     String(displayVendor?.profile_template || '').toUpperCase() === 'PREMIUM' ||
     planEntitlements.portfolio.premium;
   const heroDescription =
+    portfolioSettings.tagline ||
     displayVendor?.tagline ||
+    portfolioSettings.intro ||
     displayVendor?.description ||
     `${displayVendor?.company_name || 'This supplier'} is available for verified B2B enquiries on IndianTradeMart.`;
   const trustBadges = [
@@ -622,6 +640,8 @@ const VendorProfileContent = () => {
   const portfolioCapabilities = [
     businessTypeLabel,
     ...portfolioCategories,
+    ...customHighlights,
+    ...customSections.map((section) => section.title),
     displayVendor?.established ? `Established ${displayVendor.established}` : '',
     ...planBenefitChips,
   ].filter(Boolean).slice(0, 6);
@@ -639,8 +659,15 @@ const VendorProfileContent = () => {
   const seoProductKeywords = portfolioCategories.length
     ? portfolioCategories
     : (displayProducts || []).slice(0, 5).map((product) => product?.name).filter(Boolean);
-  const seoTitle = `${displayVendor?.company_name || 'Vendor'} - ${businessTypeLabel} in ${locationLabel} | IndianTradeMart`;
-  const seoDescription = `${displayVendor?.company_name || 'This supplier'} is a ${businessTypeLabel} in ${locationLabel}. View company portfolio, ${productCount || 'multiple'} products, contact details and business enquiry options on IndianTradeMart.`;
+  const seoTitle = customSeo.title || `${displayVendor?.company_name || 'Vendor'} - ${businessTypeLabel} in ${locationLabel} | IndianTradeMart`;
+  const seoDescription =
+    customSeo.description ||
+    portfolioSettings.intro ||
+    `${displayVendor?.company_name || 'This supplier'} is a ${businessTypeLabel} in ${locationLabel}. View company portfolio, ${productCount || 'multiple'} products, contact details and business enquiry options on IndianTradeMart.`;
+  const customSeoKeywords = Array.isArray(customSeo.keywords) ? customSeo.keywords : [];
+  const customSitemapKeywords = customSitemap.enabled === false
+    ? []
+    : (Array.isArray(customSitemap.priority_keywords) ? customSitemap.priority_keywords : []);
   const seoKeywords = [
     displayVendor?.company_name,
     businessTypeLabel,
@@ -649,6 +676,9 @@ const VendorProfileContent = () => {
     certificateMeta?.title,
     planBadgeLabel,
     planEntitlements.seo.enabled ? 'SEO ready supplier profile' : '',
+    ...customSeoKeywords,
+    ...customSitemapKeywords,
+    ...customHighlights,
     ...seoProductKeywords,
     'IndianTradeMart supplier',
     'B2B company profile',
@@ -1343,6 +1373,20 @@ const VendorProfileContent = () => {
               })}
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {isPremiumProfile && customSections.length > 0 ? (
+        <section className="mb-5 grid gap-3 md:grid-cols-2">
+          {customSections.map((section, index) => (
+            <div key={`${section.title}-${index}`} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#00A699] hover:shadow-md">
+              <p className="text-[11px] font-semibold uppercase text-[#00A699]">Portfolio highlight</p>
+              <h3 className="mt-1 text-lg font-extrabold leading-snug text-slate-950">{section.title || 'Company highlight'}</h3>
+              {section.body ? (
+                <p className="mt-2 text-sm leading-6 text-slate-600">{section.body}</p>
+              ) : null}
+            </div>
+          ))}
         </section>
       ) : null}
 

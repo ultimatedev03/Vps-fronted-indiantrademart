@@ -2636,6 +2636,20 @@ export const vendorApi = {
     }
   },
 
+  // --- PORTFOLIO STUDIO ---
+  portfolio: {
+    getSettings: async () => {
+      return fetchVendorJson('/api/vendors/me/portfolio-settings');
+    },
+
+    updateSettings: async (payload = {}) => {
+      return fetchVendorJson('/api/vendors/me/portfolio-settings', {
+        method: 'PUT',
+        body: JSON.stringify(payload || {}),
+      });
+    },
+  },
+
   // --- BANKING API ---
   banking: {
     list: async () => {

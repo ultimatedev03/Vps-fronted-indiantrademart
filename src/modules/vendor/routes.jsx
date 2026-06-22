@@ -26,6 +26,7 @@ const VendorAnalytics = lazy(() => import('@/modules/vendor/pages/Analytics'));
 const CoverageSettings = lazy(() => import('@/modules/vendor/pages/CoverageSettings'));
 const Collections = lazy(() => import('@/modules/vendor/pages/Collections'));
 const VendorReferrals = lazy(() => import('@/modules/vendor/pages/Referrals'));
+const PortfolioStudio = lazy(() => import('@/modules/vendor/pages/PortfolioStudio'));
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import PageStatusWrapper from '@/components/PageStatusWrapper';
@@ -132,6 +133,7 @@ export const VendorRoutes = () => {
             <Route path="analytics" element={<VendorAnalytics />} />
             <Route path="subscriptions" element={<VendorServices />} />
             <Route path="referrals" element={<VendorReferrals />} />
+            <Route path="portfolio-studio" element={<PortfolioStudio />} />
             <Route path="coverage" element={<CoverageSettings />} />
             <Route path="collections" element={<Collections />} />
           </Route>

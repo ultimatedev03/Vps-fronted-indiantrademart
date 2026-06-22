@@ -358,6 +358,14 @@ const Profile = () => {
     if (tabParam && tabParam !== activeTab) setActiveTab(tabParam);
   }, [searchParams, activeTab]);
 
+  useEffect(() => {
+    if (activeTab !== 'certificate') return;
+    if (typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }, [activeTab]);
+
   const loadData = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
       setLoading(true);
@@ -596,6 +604,7 @@ const Profile = () => {
     certificate: profile.certificate || null,
   };
   const planEntitlements = getVendorPlanEntitlements(enrichedProfileForPlan);
+  const isCertificateTab = activeTab === 'certificate';
   const subscriptionForBadge = subscription
     ? {
         ...subscription,
@@ -618,10 +627,10 @@ const Profile = () => {
         * { scrollbar-width: none !important; }
       `}</style>
 
-      <div className="mx-auto grid w-full min-w-0 grid-cols-1 gap-6 p-2 md:p-2 lg:grid-cols-12">
+      <div className="mx-auto grid w-full min-w-0 grid-cols-1 gap-4 p-2 md:p-2 lg:grid-cols-12">
 
         {/* === LEFT SIDEBAR (✅ FIXED: Both cards sticky together) === */}
-        <div className="min-w-0 lg:col-span-3 lg:self-start">
+        <div className={`min-w-0 lg:self-start ${isCertificateTab ? 'hidden' : 'lg:col-span-3'}`}>
           {/* ✅ Sticky wrapper: profile + subscription dono ek saath sticky */}
           <div className="space-y-6 lg:sticky lg:top-6">
             <Card className="border-t-4 border-t-[#003D82] shadow-sm">
@@ -753,7 +762,7 @@ const Profile = () => {
         </div>
 
         {/* === MAIN CONTENT === */}
-        <div className="min-w-0 lg:col-span-9">
+        <div className={`min-w-0 ${isCertificateTab ? 'lg:col-span-12' : 'lg:col-span-9'}`}>
           <Tabs
             value={activeTab}
             onValueChange={(val) => {
@@ -783,7 +792,7 @@ const Profile = () => {
               </TabsList>
             </div>
 
-            <div className="min-w-0 overflow-hidden bg-white rounded-b-lg border border-t-0 border-slate-200 shadow-sm min-h-[500px]">
+            <div className={`min-w-0 overflow-hidden bg-white rounded-b-lg border border-t-0 border-slate-200 shadow-sm ${isCertificateTab ? 'min-h-0' : 'min-h-[500px]'}`}>
               {/* 1. PRIMARY DETAILS */}
               <TabsContent value="primary" className="m-0 p-6">
                 <SectionHeader
@@ -1158,7 +1167,7 @@ const Profile = () => {
               </TabsContent>
 
               {/* 6. PLAN CERTIFICATE */}
-              <TabsContent value="certificate" className="m-0 p-6">
+              <TabsContent value="certificate" className="m-0 p-3 sm:p-4">
                 <VendorPlanTrustPanel
                   vendor={enrichedProfileForPlan}
                   subscription={subscriptionForBadge}
