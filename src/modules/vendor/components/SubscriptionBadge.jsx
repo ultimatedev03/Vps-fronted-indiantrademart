@@ -23,9 +23,12 @@ const SubscriptionBadge = ({ subscription, loading }) => {
   // Color based on plan type
   const getPlanColor = () => {
     const name = planName.toLowerCase();
-    if (name.includes('premium')) return 'bg-purple-100 text-purple-800 border-purple-300';
-    if (name.includes('pro')) return 'bg-blue-100 text-blue-800 border-blue-300';
-    if (name.includes('basic')) return 'bg-green-100 text-green-800 border-green-300';
+    if (name.includes('diamond') || name.includes('dimond')) return 'bg-cyan-50 text-cyan-800 border-cyan-200';
+    if (name.includes('gold')) return 'bg-amber-50 text-amber-800 border-amber-200';
+    if (name.includes('silver')) return 'bg-slate-100 text-slate-800 border-slate-300';
+    if (name.includes('premium')) return 'bg-indigo-50 text-indigo-800 border-indigo-200';
+    if (name.includes('pro')) return 'bg-blue-50 text-blue-800 border-blue-200';
+    if (name.includes('basic') || name.includes('starter')) return 'bg-green-50 text-green-800 border-green-200';
     return 'bg-amber-100 text-amber-800 border-amber-300';
   };
 

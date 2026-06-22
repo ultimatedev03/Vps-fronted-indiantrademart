@@ -142,6 +142,15 @@ export const salesApi = {
     };
   },
 
+  activatePlan: async (payload = {}) => {
+    const res = await fetchWithCsrf(apiUrl('/api/employee/sales/activate-plan'), {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await unwrap(res, 'Failed to activate plan');
+    return data || {};
+  },
+
   getAttributions: async (query = {}) => {
     const params = new URLSearchParams();
     Object.entries(query || {}).forEach(([key, value]) => {

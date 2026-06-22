@@ -29,6 +29,8 @@ import {
   Headphones,
   MapPin,
   BadgeCheck,
+  Award,
+  Download,
 } from 'lucide-react';
 
 // ✅ shadcn dialog (if you have it)
@@ -112,6 +114,62 @@ const getDiscountTag = (pricing) => {
   const percent = Number(pricing?.discountPercent || 0);
   if (percent > 0) return `${Math.round(percent)}% OFF`;
   return '';
+};
+
+const getPlanEntitlements = (plan) => {
+  const features = asObject(plan?.features);
+  const purchase = asObject(features.purchase);
+  const portfolio = asObject(features.portfolio);
+  const certificate = asObject(features.certificate);
+  const seo = asObject(features.seo);
+  const channel = String(purchase.channel || '').trim().toUpperCase();
+  const name = String(plan?.name || '').trim().toLowerCase();
+  const price = Number(plan?.price || 0);
+  const inferredSalesAssisted =
+    Object.keys(purchase).length === 0 &&
+    (price >= 75000 || ['silver', 'gold', 'diamond', 'dimond', 'platinum'].some((word) => name.includes(word)));
+  const salesAssisted =
+    channel === 'SALES_ASSISTED' ||
+    purchase.sales_assisted === true ||
+    purchase.public_purchase_enabled === false ||
+    inferredSalesAssisted;
+  const inferredTier = ['diamond', 'dimond', 'gold', 'silver', 'platinum', 'certified']
+    .find((word) => name.includes(word));
+  let certificateTier = String(certificate.tier || inferredTier || '').trim().toUpperCase();
+  if (certificateTier === 'DIMOND') certificateTier = 'DIAMOND';
+
+  return {
+    purchase: {
+      sales_assisted: salesAssisted,
+      public_purchase_enabled: !salesAssisted && purchase.public_purchase_enabled !== false,
+      cta_label: String(purchase.cta_label || (salesAssisted ? 'Contact sales' : 'Upgrade')).trim(),
+    },
+    portfolio: {
+      premium: String(portfolio.template || '').trim().toUpperCase() === 'PREMIUM',
+      customizable: portfolio.customizable === true,
+      custom_url: portfolio.custom_url === true,
+      sitemap_customization: portfolio.sitemap_customization === true,
+    },
+    certificate: {
+      enabled: certificate.enabled === true || Boolean(salesAssisted && certificateTier),
+      tier: certificateTier,
+      title: String(certificate.title || '').trim(),
+    },
+    seo: {
+      enabled: seo.enabled === true,
+      custom_keywords: seo.custom_keywords === true,
+      city_category_pages: Number(seo.city_category_pages || 0),
+      url_aliases: Number(seo.url_aliases || 0),
+    },
+  };
+};
+
+const isSalesAssistedPlan = (plan) => getPlanEntitlements(plan).purchase.sales_assisted;
+const isVisibleCatalogPlan = (plan) => {
+  const name = String(plan?.name || '').trim().toLowerCase();
+  if (!name || name.includes('trial')) return false;
+  const purchase = asObject(asObject(plan?.features).purchase);
+  return Object.keys(purchase).length > 0;
 };
 
 const getReferralDisplaySummary = (preview, baseAmount = 0, currency = DEFAULT_PLAN_CURRENCY) => {
@@ -276,7 +334,7 @@ const Services = () => {
   const mostPopularPlanId = useMemo(() => {
     if (!plans?.length) return null;
     const paid = plans
-      .filter((p) => Number(getPlanDisplayPricing(p, visitorMarket).nowPrice || 0) > 0)
+      .filter((p) => !isSalesAssistedPlan(p) && Number(getPlanDisplayPricing(p, visitorMarket).nowPrice || 0) > 0)
       .sort(
         (a, b) =>
           Number(getPlanDisplayPricing(a, visitorMarket).nowPrice || 0) -
@@ -321,6 +379,9 @@ const Services = () => {
     const support = [];
     const analytics = [];
     const coverage = [];
+    const portfolioMeta = asObject(f.portfolio);
+    const certificateMeta = asObject(f.certificate);
+    const seoMeta = asObject(f.seo);
 
     // Coverage
     const coverageMeta = asObject(f.coverage);
@@ -340,6 +401,10 @@ const Services = () => {
     }
     if (f.verification?.trust_seal) visibility.push('Trust seal');
     if (f.listing?.profile_verified_tick) visibility.push('Verified tick on profile');
+    if (String(portfolioMeta?.template || '').toUpperCase() === 'PREMIUM') visibility.push('Premium portfolio page');
+    if (portfolioMeta?.customizable) visibility.push('Customizable portfolio sections');
+    if (portfolioMeta?.custom_url) visibility.push('Custom vendor profile URL');
+    if (portfolioMeta?.sitemap_customization) visibility.push('Custom sitemap expansion');
 
     // Leads
     if (f.leads?.priority_leads) leads.push('Priority leads');
@@ -358,10 +423,18 @@ const Services = () => {
     if (f.analytics?.export_csv) analytics.push('Export reports (CSV)');
     if (f.analytics?.campaign_insights) analytics.push('Campaign insights');
     if (f.analytics?.competitor_insights) analytics.push('Competitor insights');
+    if (seoMeta?.enabled) analytics.push('SEO-ready profile structure');
+    if (seoMeta?.custom_keywords) analytics.push('Custom SEO keywords');
+    if (Number(seoMeta?.city_category_pages || 0) > 0) {
+      analytics.push(`${Math.floor(Number(seoMeta.city_category_pages))} SEO city/category pages`);
+    }
 
     const highlights = [];
     if (badge?.label) highlights.push(`Badge: ${badge.label}`);
     if (f.verification?.kyc_required) highlights.push('KYC required');
+    if (certificateMeta?.enabled) {
+      highlights.push(certificateMeta?.title || `${certificateMeta?.tier || 'Certified'} vendor certificate`);
+    }
 
     return { badge, highlights, visibility, leads, support, analytics, coverage };
   };
@@ -481,7 +554,7 @@ const Services = () => {
         .order('price', { ascending: true });
 
       if (plansErr) throw plansErr;
-      setPlans(plansData || []);
+      setPlans((plansData || []).filter(isVisibleCatalogPlan));
 
       try {
         const referralResponse = await fetchWithCsrf(apiUrl(`/api/payment/referral-offers/${vendorId}`));
@@ -546,6 +619,19 @@ const Services = () => {
   const handleSubscribe = async (plan, couponOverride = couponCode) => {
     if (!vendorId) {
       toast({ title: 'Error', description: 'Vendor ID not found', variant: 'destructive' });
+      return;
+    }
+
+    if (isSalesAssistedPlan(plan)) {
+      const planName = String(plan?.name || 'this plan').trim();
+      toast({
+        title: 'Sales-assisted plan',
+        description: `${planName} will be activated by the sales team after consultation.`,
+      });
+      setDetailsOpen(false);
+      const subject = encodeURIComponent(`Sales-assisted plan request: ${planName}`);
+      const body = encodeURIComponent(`Vendor ID: ${vendorId}\nPlan: ${planName}\nSales code: ${salesCode || '-'}\n\nPlease contact me for activation.`);
+      window.location.href = `mailto:sales@indiantrademart.com?subject=${subject}&body=${body}`;
       return;
     }
 
@@ -829,6 +915,10 @@ const Services = () => {
     }
   };
 
+  const handleDownloadCertificate = () => {
+    window.open(apiUrl('/api/vendors/me/certificate.pdf'), '_blank', 'noopener,noreferrer');
+  };
+
   const buildGroups = (plan) => {
     const meta = parsePlanMeta(plan);
 
@@ -893,6 +983,8 @@ const Services = () => {
   const selected = selectedPlan ? buildGroups(selectedPlan) : null;
   const selectedIsCurrent = selectedPlan && currentSub?.plan_id === selectedPlan.id;
   const selectedIsPopular = selectedPlan && selectedPlan.id === mostPopularPlanId;
+  const selectedPlanEntitlements = selectedPlan ? getPlanEntitlements(selectedPlan) : null;
+  const selectedSalesAssisted = Boolean(selectedPlanEntitlements?.purchase?.sales_assisted);
   const selectedPricing = selectedPlan
     ? getPlanDisplayPricing(selectedPlan, visitorMarket)
     : {
@@ -926,6 +1018,8 @@ const Services = () => {
   const selectedPayableBase = selectedHasReferralPreview
     ? selectedReferralNetAmount
     : selectedPricing.nowPrice;
+  const currentPlan = currentSub?.plan || plans.find((plan) => plan?.id === currentSub?.plan_id) || null;
+  const currentPlanEntitlements = currentPlan ? getPlanEntitlements(currentPlan) : null;
 
   if (!plans.length && !loading && !fatalError) {
     return (
@@ -980,6 +1074,16 @@ const Services = () => {
               <ShoppingCart className="w-4 h-4 mr-2" />
               Buy Leads
             </Button>
+            {currentPlanEntitlements?.certificate?.enabled ? (
+              <Button
+                variant="outline"
+                onClick={handleDownloadCertificate}
+                className="bg-white"
+              >
+                <Award className="w-4 h-4 mr-2" />
+                Certificate
+              </Button>
+            ) : null}
             <div className="bg-slate-50 text-slate-700 text-xs border border-dashed rounded-lg px-3 py-2 w-full sm:w-auto text-center sm:text-left">
               Tap a card or <span className="font-semibold">Upgrade</span> to open plan details and apply coupon before payment.
             </div>
@@ -989,7 +1093,8 @@ const Services = () => {
               onClick={handleOpenPaymentHistory}
               className="bg-white"
             >
-              📄 Invoice History
+              <Download className="w-4 h-4 mr-2" />
+              Invoice History
             </Button>
           </div>
         </div>
@@ -1043,6 +1148,8 @@ const Services = () => {
           const badge = meta.badge || {};
           const badgeLabel = badge.label || plan.name;
           const badgeVariant = badge.variant || 'neutral';
+          const planEntitlements = getPlanEntitlements(plan);
+          const salesAssisted = planEntitlements.purchase.sales_assisted;
 
           const compactBenefits = keyBenefits.slice(0, 3);
           const moreCount = Math.max(0, keyBenefits.length - compactBenefits.length);
@@ -1069,9 +1176,14 @@ const Services = () => {
             >
               {/* Top ribbon */}
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200" />
-              {isPopular && !isCurrent && (
+              {isPopular && !isCurrent && !salesAssisted && (
                 <div className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full border bg-blue-50 text-blue-700 border-blue-200 font-semibold">
                   MOST POPULAR
+                </div>
+              )}
+              {salesAssisted && !isCurrent && (
+                <div className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full border bg-slate-900 text-white border-slate-800 font-semibold">
+                  SALES ASSISTED
                 </div>
               )}
               {isCurrent && (
@@ -1111,6 +1223,11 @@ const Services = () => {
                       {formatPlanMoney(pricing.nowPrice, pricing.currency)}
                       <span className="text-xs font-medium text-slate-500">/year</span>
                     </div>
+                    {salesAssisted ? (
+                      <div className="mt-1 text-[11px] font-semibold text-slate-700">
+                        Managed activation by sales team
+                      </div>
+                    ) : null}
                     {hasReferralPreview ? (
                       <div className="mt-1 space-y-0.5">
                         <div className="text-[11px] font-semibold text-emerald-700">
@@ -1195,7 +1312,7 @@ const Services = () => {
                       openPlanDetails(plan);
                     }}
                   >
-                    Upgrade
+                    {salesAssisted ? 'Contact sales' : 'Upgrade'}
                   </Button>
                 )}
               </CardFooter>
@@ -1224,9 +1341,14 @@ const Services = () => {
                   </div>
 
                   <div className="flex flex-col items-end gap-2">
-                    {selectedIsPopular && !selectedIsCurrent && (
+                    {selectedIsPopular && !selectedIsCurrent && !selectedSalesAssisted && (
                       <div className="text-[11px] px-2.5 py-1 rounded-full border bg-blue-50 text-blue-700 border-blue-200 font-semibold">
                         MOST POPULAR
+                      </div>
+                    )}
+                    {selectedSalesAssisted && !selectedIsCurrent && (
+                      <div className="text-[11px] px-2.5 py-1 rounded-full border bg-slate-900 text-white border-slate-800 font-semibold">
+                        SALES ASSISTED
                       </div>
                     )}
                     {selectedIsCurrent && (
@@ -1241,7 +1363,7 @@ const Services = () => {
                   <div className="rounded-xl border bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-800 text-white px-4 py-2.5 flex items-center justify-between gap-3 shadow-md">
                     <div>
                       <div className="text-xs uppercase tracking-[0.15em] text-white/70 font-semibold">
-                        Annual Billing
+                        {selectedSalesAssisted ? 'Managed activation' : 'Annual Billing'}
                       </div>
                       {selectedPricing.originalPrice > selectedPricing.nowPrice ? (
                         <div className="text-xs text-white/60 line-through">
@@ -1257,6 +1379,11 @@ const Services = () => {
                         {formatPlanMoney(selectedPayableBase, selectedPricing.currency)}
                         <span className="text-sm font-medium text-white/80"> / year</span>
                       </div>
+                      {selectedSalesAssisted ? (
+                        <div className="mt-1 text-xs font-medium text-white/80">
+                          Sales team activates this plan with portfolio, SEO and certificate setup.
+                        </div>
+                      ) : null}
                       {selectedDiscountTag ? (
                         <div className="mt-1 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                           {selectedDiscountTag}
@@ -1474,9 +1601,9 @@ const Services = () => {
                         className="w-full rounded-xl h-12 font-semibold text-base"
                         onClick={() => handleSubscribe(selectedPlan)}
                       >
-                        {couponCode.trim() ? 'Apply & Proceed' : 'Proceed to Pay'}
+                        {selectedSalesAssisted ? 'Contact sales' : couponCode.trim() ? 'Apply & Proceed' : 'Proceed to Pay'}
                       </Button>
-                      {couponCode.trim() && (
+                      {!selectedSalesAssisted && couponCode.trim() && (
                         <Button
                           variant="ghost"
                           className="w-full h-12 border border-dashed border-slate-200"

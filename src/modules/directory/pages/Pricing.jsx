@@ -110,6 +110,41 @@ const getDiscountTag = (pricing) => {
   return '';
 };
 
+const getPlanEntitlements = (plan) => {
+  const features = asObject(plan?.features);
+  const purchase = asObject(features.purchase);
+  const portfolio = asObject(features.portfolio);
+  const certificate = asObject(features.certificate);
+  const seo = asObject(features.seo);
+  const channel = String(purchase.channel || '').trim().toUpperCase();
+  const name = String(plan?.name || '').trim().toLowerCase();
+  const price = Number(plan?.price || 0);
+  const inferredSalesAssisted =
+    Object.keys(purchase).length === 0 &&
+    (price >= 75000 || ['silver', 'gold', 'diamond', 'dimond', 'platinum'].some((word) => name.includes(word)));
+  const salesAssisted =
+    channel === 'SALES_ASSISTED' ||
+    purchase.sales_assisted === true ||
+    purchase.public_purchase_enabled === false ||
+    inferredSalesAssisted;
+
+  return {
+    sales_assisted: salesAssisted,
+    cta_label: String(purchase.cta_label || (salesAssisted ? 'Talk to sales' : 'Buy online')).trim(),
+    portfolio,
+    certificate,
+    seo,
+  };
+};
+
+const isSalesAssistedPlan = (plan) => getPlanEntitlements(plan).sales_assisted;
+const isVisibleCatalogPlan = (plan) => {
+  const name = String(plan?.name || '').trim().toLowerCase();
+  if (!name || name.includes('trial')) return false;
+  const purchase = asObject(asObject(plan?.features).purchase);
+  return Object.keys(purchase).length > 0;
+};
+
 const getCoverage = (plan) => {
   const features = asObject(plan?.features);
   const coverage = asObject(features?.coverage);
@@ -143,6 +178,9 @@ const parsePlanMeta = (plan) => {
   const leadsConfig = asObject(features?.leads);
   const supportConfig = asObject(features?.support);
   const analyticsConfig = asObject(features?.analytics);
+  const portfolioConfig = asObject(features?.portfolio);
+  const certificateConfig = asObject(features?.certificate);
+  const seoConfig = asObject(features?.seo);
   const coverage = getCoverage(plan);
   const visibility = [];
   const leads = [];
@@ -153,6 +191,7 @@ const parsePlanMeta = (plan) => {
 
   if (badge?.label) highlights.push(`Badge: ${badge.label}`);
   if (verification?.kyc_required) highlights.push('KYC required');
+  if (certificateConfig?.enabled) highlights.push(certificateConfig?.title || `${certificateConfig?.tier || 'Certified'} vendor certificate`);
 
   if (listing?.highlight) visibility.push('Highlighted listing');
   if (listing?.featured) visibility.push('Featured listing');
@@ -162,6 +201,10 @@ const parsePlanMeta = (plan) => {
   if (Number(listing?.top_slots) > 0) visibility.push(`${Math.floor(Number(listing.top_slots))} top slots`);
   if (verification?.trust_seal) visibility.push('Trust seal');
   if (listing?.profile_verified_tick) visibility.push('Verified tick on profile');
+  if (String(portfolioConfig?.template || '').toUpperCase() === 'PREMIUM') visibility.push('Premium portfolio page');
+  if (portfolioConfig?.customizable) visibility.push('Customizable portfolio sections');
+  if (portfolioConfig?.custom_url) visibility.push('Custom vendor profile URL');
+  if (portfolioConfig?.sitemap_customization) visibility.push('Custom sitemap expansion');
 
   if (leadsConfig?.priority_leads) leads.push('Priority leads');
   if (leadsConfig?.exclusive_leads) leads.push('Exclusive leads');
@@ -177,6 +220,11 @@ const parsePlanMeta = (plan) => {
   if (analyticsConfig?.export_csv) analytics.push('Export reports (CSV)');
   if (analyticsConfig?.campaign_insights) analytics.push('Campaign insights');
   if (analyticsConfig?.competitor_insights) analytics.push('Competitor insights');
+  if (seoConfig?.enabled) analytics.push('SEO-ready profile structure');
+  if (seoConfig?.custom_keywords) analytics.push('Custom SEO keywords');
+  if (Number(seoConfig?.city_category_pages || 0) > 0) {
+    analytics.push(`${Math.floor(Number(seoConfig.city_category_pages))} SEO city/category pages`);
+  }
 
   if (coverage.states > 0) coverageItems.push(`Up to ${coverage.states} states`);
   if (coverage.cities > 0) coverageItems.push(`Up to ${coverage.cities} cities`);
@@ -274,7 +322,7 @@ const Pricing = () => {
             : [];
 
         const nextPlans = rawList
-          .filter((plan) => plan && plan.is_active !== false)
+          .filter((plan) => plan && plan.is_active !== false && isVisibleCatalogPlan(plan))
           .sort((a, b) => toNonNegativeNumber(a?.price, 0) - toNonNegativeNumber(b?.price, 0));
 
         if (!cancelled) {
@@ -301,7 +349,7 @@ const Pricing = () => {
   const mostPopularPlanId = useMemo(() => {
     if (!plans.length) return null;
     const paid = plans
-      .filter((p) => toNonNegativeNumber(p?.price, 0) > 0)
+      .filter((p) => !isSalesAssistedPlan(p) && toNonNegativeNumber(p?.price, 0) > 0)
       .sort((a, b) => toNonNegativeNumber(a?.price, 0) - toNonNegativeNumber(b?.price, 0));
     if (paid.length >= 2) return paid[Math.max(0, paid.length - 2)].id;
     if (paid.length === 1) return paid[0].id;
@@ -317,6 +365,11 @@ const Pricing = () => {
     if (!selectedPlan) return null;
     return getBillingPricing(selectedPlan, billing);
   }, [selectedPlan, billing]);
+
+  const selectedEntitlements = useMemo(() => {
+    if (!selectedPlan) return null;
+    return getPlanEntitlements(selectedPlan);
+  }, [selectedPlan]);
 
   const selectedCoverage = useMemo(() => {
     if (!selectedPlan) return { states: 0, cities: 0 };
@@ -414,9 +467,11 @@ const Pricing = () => {
                 const featureSummary = getPlanFeatureSummary(plan);
                 const discountTag = getDiscountTag(pricing);
                 const isFree = toNonNegativeNumber(pricing?.nowPrice, 0) === 0;
+                const entitlements = getPlanEntitlements(plan);
+                const salesAssisted = entitlements.sales_assisted;
                 const hasOldPrice =
                   toNonNegativeNumber(pricing?.originalPrice, 0) > toNonNegativeNumber(pricing?.nowPrice, 0);
-                const isPopular = plan?.id === mostPopularPlanId || isPlanPopularFromBadge(plan);
+                const isPopular = !salesAssisted && (plan?.id === mostPopularPlanId || isPlanPopularFromBadge(plan));
                 const compactFeatures = featureSummary.slice(0, 5);
                 const hiddenFeatures = Math.max(0, featureSummary.length - compactFeatures.length);
 
@@ -471,6 +526,11 @@ const Pricing = () => {
                               MOST POPULAR
                             </div>
                           ) : null}
+                          {salesAssisted ? (
+                            <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-900 text-white border border-slate-800">
+                              SALES ASSISTED
+                            </div>
+                          ) : null}
                         </div>
 
                         <div className="mt-4 flex items-end justify-between gap-3">
@@ -494,6 +554,11 @@ const Pricing = () => {
                                     <Sparkles className="w-3.5 h-3.5" /> {discountTag}
                                   </span>
                                 ) : null}
+                              </div>
+                            ) : null}
+                            {salesAssisted ? (
+                              <div className="mt-1 text-xs font-semibold text-slate-700">
+                                Managed by IndianTradeMart sales team
                               </div>
                             ) : null}
                           </div>
@@ -572,7 +637,11 @@ const Pricing = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between gap-3">
                   <span className="text-slate-900 font-extrabold">{selectedPlan.name} Plan Details</span>
-                  {selectedPlan.id === mostPopularPlanId || isPlanPopularFromBadge(selectedPlan) ? (
+                  {selectedEntitlements?.sales_assisted ? (
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-900 text-white border border-slate-800">
+                      SALES ASSISTED
+                    </span>
+                  ) : selectedPlan.id === mostPopularPlanId || isPlanPopularFromBadge(selectedPlan) ? (
                     <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                       MOST POPULAR
                     </span>
@@ -584,7 +653,11 @@ const Pricing = () => {
                 <div className="rounded-2xl border bg-gradient-to-b from-slate-50 to-white p-5">
                   <div className="text-xs text-slate-500">Billing</div>
                   <div className="mt-1 text-sm font-semibold text-slate-800">
-                    {billing === 'monthly' ? 'Monthly (derived from yearly)' : 'Yearly (superadmin value)'}
+                    {selectedEntitlements?.sales_assisted
+                      ? 'Sales-assisted yearly activation'
+                      : billing === 'monthly'
+                        ? 'Monthly (derived from yearly)'
+                        : 'Yearly (superadmin value)'}
                   </div>
 
                   <div className="mt-4">
@@ -607,14 +680,25 @@ const Pricing = () => {
                   </div>
 
                   <div className="mt-5 grid grid-cols-2 gap-3">
-                    <Link to="/vendor/register">
-                      <Button className="w-full">Register as Vendor</Button>
-                    </Link>
-                    <Link to="/vendor/login">
-                      <Button variant="outline" className="w-full">
-                        Vendor Login
-                      </Button>
-                    </Link>
+                    {selectedEntitlements?.sales_assisted ? (
+                      <a
+                        href={`mailto:sales@indiantrademart.com?subject=${encodeURIComponent(`Sales-assisted plan request: ${selectedPlan.name}`)}`}
+                        className="col-span-2"
+                      >
+                        <Button className="w-full">Talk to sales</Button>
+                      </a>
+                    ) : (
+                      <>
+                        <Link to="/vendor/register">
+                          <Button className="w-full">Register as Vendor</Button>
+                        </Link>
+                        <Link to="/vendor/login">
+                          <Button variant="outline" className="w-full">
+                            Vendor Login
+                          </Button>
+                        </Link>
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-4 text-xs text-slate-500">

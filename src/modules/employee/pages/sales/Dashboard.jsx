@@ -51,6 +51,30 @@ const getLeadTitle = (lead) =>
 const getRegion = (row) =>
   [row?.city, row?.state].filter(Boolean).join(', ') || row?.location || row?.vendor?.city || row?.vendor?.state || '-';
 
+const asObject = (value) => {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === 'object' && !Array.isArray(value) ? value : {};
+};
+
+const isSalesAssistedPlan = (plan) => {
+  const purchase = asObject(asObject(plan?.features).purchase);
+  const channel = String(purchase.channel || '').trim().toUpperCase();
+  const name = String(plan?.name || '').trim().toLowerCase();
+  const price = Number(plan?.price || 0);
+  const inferred =
+    Object.keys(purchase).length === 0 &&
+    (price >= 75000 || ['silver', 'gold', 'diamond', 'dimond', 'platinum'].some((word) => name.includes(word)));
+  return channel === 'SALES_ASSISTED' || purchase.sales_assisted === true || purchase.public_purchase_enabled === false || inferred;
+};
+
 const statusClass = (status) => {
   const value = String(status || '').toUpperCase();
   if (['CLOSED', 'COMPLETED', 'CONVERTED'].includes(value)) return 'border-emerald-200 bg-emerald-50 text-emerald-700';
@@ -105,7 +129,7 @@ const Dashboard = () => {
   const [noPlanVendors, setNoPlanVendors] = useState([]);
   const [shareVendor, setShareVendor] = useState(null);
   const [reminderVendor, setReminderVendor] = useState(null);
-  const [shareForm, setShareForm] = useState({ plan_id: '', channel: 'WHATSAPP', next_follow_up_at: '', notes: '' });
+  const [shareForm, setShareForm] = useState({ plan_id: '', channel: 'WHATSAPP', next_follow_up_at: '', notes: '', amount: '' });
   const [reminderForm, setReminderForm] = useState({ channel: 'CALL', next_follow_up_at: '', notes: '' });
   const [lastShareLink, setLastShareLink] = useState('');
 
@@ -178,9 +202,19 @@ const Dashboard = () => {
   };
 
   const openShare = (vendor) => {
-    const defaultPlan = (plans || []).find((plan) => Number(plan?.price || 0) > 0) || plans?.[0] || null;
+    const defaultPlan =
+      (plans || []).find((plan) => isSalesAssistedPlan(plan)) ||
+      (plans || []).find((plan) => Number(plan?.price || 0) > 0) ||
+      plans?.[0] ||
+      null;
     setShareVendor(vendor);
-    setShareForm({ plan_id: defaultPlan?.id || '', channel: 'WHATSAPP', next_follow_up_at: '', notes: '' });
+    setShareForm({
+      plan_id: defaultPlan?.id || '',
+      channel: 'WHATSAPP',
+      next_follow_up_at: '',
+      notes: '',
+      amount: defaultPlan?.price || '',
+    });
     setLastShareLink('');
   };
 
@@ -226,6 +260,29 @@ const Dashboard = () => {
       await load();
     } catch (error) {
       toast({ title: 'Reminder failed', description: error?.message, variant: 'destructive' });
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleActivatePlan = async () => {
+    if (!shareVendor?.id || !shareForm.plan_id) {
+      toast({ title: 'Vendor and plan are required', variant: 'destructive' });
+      return;
+    }
+    try {
+      setActionLoading('activate-plan');
+      await salesApi.activatePlan({
+        vendor_id: shareVendor.id,
+        plan_id: shareForm.plan_id,
+        amount: Number(shareForm.amount || 0),
+        notes: shareForm.notes,
+      });
+      toast({ title: 'Plan activated', description: 'Vendor subscription and quota were updated.' });
+      setShareVendor(null);
+      await load();
+    } catch (error) {
+      toast({ title: 'Activation failed', description: error?.message, variant: 'destructive' });
     } finally {
       setActionLoading('');
     }
@@ -506,12 +563,15 @@ const Dashboard = () => {
                 <select
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   value={shareForm.plan_id}
-                  onChange={(e) => setShareForm((prev) => ({ ...prev, plan_id: e.target.value }))}
+                  onChange={(e) => {
+                    const nextPlan = plans.find((plan) => String(plan.id) === String(e.target.value));
+                    setShareForm((prev) => ({ ...prev, plan_id: e.target.value, amount: nextPlan?.price || prev.amount }));
+                  }}
                 >
                   <option value="">Select plan</option>
                   {plans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
-                      {plan.name} - {fmtMoney(plan.price)}
+                      {plan.name} - {fmtMoney(plan.price)}{isSalesAssistedPlan(plan) ? ' - Sales assisted' : ''}
                     </option>
                   ))}
                 </select>
@@ -529,6 +589,17 @@ const Dashboard = () => {
                   <option value="SMS">SMS</option>
                 </select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Activation Amount</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={shareForm.amount}
+                onChange={(e) => setShareForm((prev) => ({ ...prev, amount: e.target.value }))}
+                placeholder="Offline amount collected"
+              />
             </div>
             <div className="space-y-2">
               <Label>Follow-up Time</Label>
@@ -560,6 +631,10 @@ const Dashboard = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShareVendor(null)}>Close</Button>
+            <Button variant="outline" onClick={handleActivatePlan} disabled={actionLoading === 'activate-plan'}>
+              {actionLoading === 'activate-plan' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              Activate Plan
+            </Button>
             <Button onClick={handleSharePlan} disabled={actionLoading === 'share-plan'}>
               {actionLoading === 'share-plan' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               Create Link
