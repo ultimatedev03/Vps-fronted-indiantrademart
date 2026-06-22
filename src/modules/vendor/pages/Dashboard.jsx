@@ -18,6 +18,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { useAuth } from '@/modules/vendor/context/AuthContext';
 import SubscriptionBadge from '@/modules/vendor/components/SubscriptionBadge';
+import VendorPlanTrustPanel from '@/modules/vendor/components/VendorPlanTrustPanel';
+import { getVendorPlanEntitlements } from '@/shared/utils/vendorPlanEntitlements';
 import { toast } from '@/components/ui/use-toast';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 
@@ -106,15 +108,17 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const [vendorProfile, setVendorProfile] = useState(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [data, products, sub, performance] = await Promise.all([
+        const [data, products, sub, performance, profile] = await Promise.all([
           vendorApi.dashboard.getStats(),
           vendorApi.products.list(),
           vendorApi.subscriptions.getCurrent(),
-          vendorApi.dashboard.getPerformance7Days()
+          vendorApi.dashboard.getPerformance7Days(),
+          vendorApi.auth.me().catch(() => null)
         ]);
 
         const normalized = {
@@ -135,6 +139,7 @@ const Dashboard = () => {
 
         setRecentProducts(products?.slice(0, 3) || []);
         setSubscription(sub || null);
+        setVendorProfile(profile || null);
         setPerformanceData(Array.isArray(performance) ? performance : []);
 
         if (vendId && !paramVendorId) {
@@ -188,6 +193,32 @@ const Dashboard = () => {
     );
   }, [user]);
 
+  const enrichedVendorProfile = useMemo(() => ({
+    ...(vendorProfile || {}),
+    active_plan: vendorProfile?.active_plan || subscription?.plan || null,
+    plan_entitlements:
+      vendorProfile?.plan_entitlements ||
+      vendorProfile?.active_plan?.entitlements ||
+      subscription?.plan?.entitlements ||
+      null,
+    certificate: vendorProfile?.certificate || null,
+  }), [vendorProfile, subscription]);
+
+  const planEntitlements = useMemo(
+    () => getVendorPlanEntitlements(enrichedVendorProfile),
+    [enrichedVendorProfile]
+  );
+
+  const subscriptionForBadge = subscription
+    ? {
+        ...subscription,
+        plan: {
+          ...(subscription.plan || {}),
+          entitlements: planEntitlements,
+        },
+      }
+    : null;
+
   // ✅ Profile completion explanation (40% ka meaning)
   const profileHint = useMemo(() => {
     const p = Number(stats.profileCompletion || 0);
@@ -205,6 +236,7 @@ const Dashboard = () => {
   const profilePath = resolvePath('profile', 'vendor');
   const profileKycPath = `${profilePath}?tab=kyc`;
   const profilePrimaryPath = `${profilePath}?tab=primary`;
+  const profileCertificatePath = `${profilePath}?tab=certificate`;
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden">
@@ -218,7 +250,7 @@ const Dashboard = () => {
         <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
           {/* Subscription Status */}
           <Link to={subscriptionsPath} className="block">
-            <SubscriptionBadge subscription={subscription} loading={subscriptionLoading} />
+            <SubscriptionBadge subscription={subscriptionForBadge} loading={subscriptionLoading} />
           </Link>
 
           {/* KYC Status */}
@@ -303,6 +335,15 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      <VendorPlanTrustPanel
+        vendor={enrichedVendorProfile}
+        subscription={subscriptionForBadge}
+        loading={subscriptionLoading}
+        variant="dashboard"
+        editProfilePath={profileCertificatePath}
+        managePlanPath={subscriptionsPath}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -11,16 +11,11 @@ import { toast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import PreferencesSection from '@/modules/vendor/components/PreferencesSection';
 import SubscriptionBadge from '@/modules/vendor/components/SubscriptionBadge';
-import {
-  buildVendorPlanBenefitChips,
-  getVendorCertificate,
-  getVendorPlanBadgeLabel,
-  getVendorPlanEntitlements,
-} from '@/shared/utils/vendorPlanEntitlements';
-import { apiUrl } from '@/lib/apiBase';
+import VendorPlanTrustPanel from '@/modules/vendor/components/VendorPlanTrustPanel';
+import { getVendorPlanEntitlements } from '@/shared/utils/vendorPlanEntitlements';
 import {
   Loader2, Save, Camera, Pencil, MapPin, Phone, Mail,
-  Plus, Trash2, Check, ExternalLink, FileText, CheckCircle, X, Award, ShieldCheck
+  Plus, Trash2, Check, ExternalLink, FileText, CheckCircle, X
 } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
@@ -601,9 +596,6 @@ const Profile = () => {
     certificate: profile.certificate || null,
   };
   const planEntitlements = getVendorPlanEntitlements(enrichedProfileForPlan);
-  const planBadgeLabel = getVendorPlanBadgeLabel(enrichedProfileForPlan);
-  const certificateMeta = getVendorCertificate(enrichedProfileForPlan);
-  const planBenefitChips = buildVendorPlanBenefitChips(enrichedProfileForPlan);
   const subscriptionForBadge = subscription
     ? {
         ...subscription,
@@ -613,10 +605,7 @@ const Profile = () => {
         },
       }
     : null;
-
-  const openCertificate = () => {
-    window.open(apiUrl('/api/vendors/me/certificate.pdf'), '_blank', 'noopener,noreferrer');
-  };
+  const certificateTabPath = '?tab=certificate';
 
   return (
     <div className="min-w-0 bg-slate-50 pb-12 font-sans text-slate-900">
@@ -753,59 +742,13 @@ const Profile = () => {
               </div>
             </Card>
 
-            {(planBenefitChips.length > 0 || certificateMeta?.title || planBadgeLabel) ? (
-              <Card className="shadow-sm">
-                <div className="p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-[#003D82]" />
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan benefits active</p>
-                  </div>
-
-                  {planBadgeLabel ? (
-                    <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
-                      <p className="text-[11px] font-semibold uppercase text-blue-600">Vendor badge</p>
-                      <p className="mt-0.5 text-sm font-bold text-blue-950">{planBadgeLabel}</p>
-                    </div>
-                  ) : null}
-
-                  {certificateMeta?.title ? (
-                    <div className="mb-3 rounded-lg border border-amber-100 bg-amber-50 p-3">
-                      <div className="flex items-start gap-2">
-                        <Award className="mt-0.5 h-4 w-4 text-amber-700" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-amber-950">{certificateMeta.title}</p>
-                          {certificateMeta.certificate_number ? (
-                            <p className="mt-0.5 break-all text-xs text-amber-800">#{certificateMeta.certificate_number}</p>
-                          ) : null}
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-3 h-8 w-full border-amber-200 bg-white text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                        onClick={openCertificate}
-                      >
-                        Download certificate
-                      </Button>
-                    </div>
-                  ) : null}
-
-                  <div className="flex flex-wrap gap-2">
-                    {planBenefitChips.map((chip) => (
-                      <span key={chip} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                        {chip}
-                      </span>
-                    ))}
-                  </div>
-
-                  {planEntitlements.sitemap.customizable || planEntitlements.seo.enabled ? (
-                    <p className="mt-3 text-xs leading-5 text-slate-500">
-                      Your public profile, sitemap signals and SEO-ready profile data are applied from the active plan.
-                    </p>
-                  ) : null}
-                </div>
-              </Card>
-            ) : null}
+            <VendorPlanTrustPanel
+              vendor={enrichedProfileForPlan}
+              subscription={subscriptionForBadge}
+              loading={subscriptionLoading}
+              variant="compact"
+              editProfilePath={certificateTabPath}
+            />
           </div>
         </div>
 
@@ -827,6 +770,7 @@ const Profile = () => {
                   { label: 'Bank Details', value: 'bank' },
                   { label: 'Business Preferences', value: 'preferences' },
                   { label: 'KYC Documents', value: 'kyc' },
+                  { label: 'Plan Certificate', value: 'certificate' },
                 ].map(t => (
                   <TabsTrigger
                     key={t.value}
@@ -1210,6 +1154,16 @@ const Profile = () => {
                   documents={documents}
                   onRefresh={refreshProfileData}
                   kycStatus={kycStatus}
+                />
+              </TabsContent>
+
+              {/* 6. PLAN CERTIFICATE */}
+              <TabsContent value="certificate" className="m-0 p-6">
+                <VendorPlanTrustPanel
+                  vendor={enrichedProfileForPlan}
+                  subscription={subscriptionForBadge}
+                  loading={subscriptionLoading}
+                  variant="profile"
                 />
               </TabsContent>
             </div>
