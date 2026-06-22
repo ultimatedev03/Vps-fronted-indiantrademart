@@ -631,163 +631,198 @@ const Pricing = () => {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] w-[52vw] overflow-y-auto">
+        <DialogContent className="!w-[min(1040px,calc(100vw-2rem))] sm:!w-[min(1040px,calc(100vw-2rem))] max-w-none max-h-[92vh] overflow-hidden gap-0 p-0 bg-white">
           {selectedPlan && selectedPricing ? (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center justify-between gap-3">
-                  <span className="text-slate-900 font-extrabold">{selectedPlan.name} Plan Details</span>
-                  {selectedEntitlements?.sales_assisted ? (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-900 text-white border border-slate-800">
-                      SALES ASSISTED
-                    </span>
-                  ) : selectedPlan.id === mostPopularPlanId || isPlanPopularFromBadge(selectedPlan) ? (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                      MOST POPULAR
-                    </span>
-                  ) : null}
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="grid md:grid-cols-2 gap-6 mt-2">
-                <div className="rounded-2xl border bg-gradient-to-b from-slate-50 to-white p-5">
-                  <div className="text-xs text-slate-500">Billing</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-800">
-                    {selectedEntitlements?.sales_assisted
-                      ? 'Sales-assisted yearly activation'
-                      : billing === 'monthly'
-                        ? 'Monthly (derived from yearly)'
-                        : 'Yearly (superadmin value)'}
-                  </div>
-
-                  <div className="mt-4">
-                    {toNonNegativeNumber(selectedPricing.nowPrice, 0) <= 0 ? (
-                      <div className="text-4xl font-extrabold text-slate-900">Rs.0</div>
-                    ) : (
-                      <>
-                        <div className="flex items-end gap-2">
-                          <div className="text-4xl font-extrabold text-slate-900">Rs.{formatINR(selectedPricing.nowPrice)}</div>
-                          <div className="text-sm text-slate-500">/{billing === 'monthly' ? 'month' : 'year'}</div>
-                        </div>
-                        {toNonNegativeNumber(selectedPricing.originalPrice, 0) > toNonNegativeNumber(selectedPricing.nowPrice, 0) ? (
-                          <div className="mt-1 text-sm text-slate-500">
-                            <span className="line-through mr-2">Rs.{formatINR(selectedPricing.originalPrice)}</span>
-                            <span className="text-emerald-700 font-semibold">{getDiscountTag(selectedPricing) || 'Discount active'}</span>
-                          </div>
-                        ) : null}
-                      </>
-                    )}
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    {selectedEntitlements?.sales_assisted ? (
-                      <a
-                        href={`mailto:sales@indiantrademart.com?subject=${encodeURIComponent(`Sales-assisted plan request: ${selectedPlan.name}`)}`}
-                        className="col-span-2"
-                      >
-                        <Button className="w-full">Talk to sales</Button>
-                      </a>
-                    ) : (
-                      <>
-                        <Link to="/vendor/register">
-                          <Button className="w-full">Register as Vendor</Button>
-                        </Link>
-                        <Link to="/vendor/login">
-                          <Button variant="outline" className="w-full">
-                            Vendor Login
-                          </Button>
-                        </Link>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="mt-4 text-xs text-slate-500">
-                    Note: Final activation depends on payment and verification (if applicable).
-                  </div>
+              <div className="max-h-[92vh] overflow-y-auto">
+                <div className="border-b bg-slate-50/90 px-5 py-4 sm:px-6">
+                  <DialogHeader className="pr-8">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {selectedEntitlements?.sales_assisted ? (
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
+                          SALES ASSISTED
+                        </span>
+                      ) : selectedPlan.id === mostPopularPlanId || isPlanPopularFromBadge(selectedPlan) ? (
+                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                          MOST POPULAR
+                        </span>
+                      ) : null}
+                      <span className="inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                        {getPlanTag(selectedPlan)}
+                      </span>
+                    </div>
+                    <DialogTitle className="mt-2 text-left text-xl font-extrabold leading-tight text-slate-950 sm:text-2xl">
+                      {selectedPlan.name}
+                    </DialogTitle>
+                    <p className="text-left text-sm text-slate-600">
+                      {selectedEntitlements?.sales_assisted
+                        ? 'Managed activation with portfolio, certificate and SEO setup support.'
+                        : 'Self-serve vendor plan with online activation and listing benefits.'}
+                    </p>
+                  </DialogHeader>
                 </div>
 
-                <div className="rounded-2xl border bg-white p-5">
-                  <div className="text-sm font-bold text-slate-900 mb-3">What you get</div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-xl border bg-slate-50 p-3">
-                      <div className="text-xs text-slate-500">Daily Bonus</div>
-                      <div className="text-lg font-extrabold text-slate-900">{Math.floor(toNonNegativeNumber(selectedPlan?.daily_limit, 0))}</div>
-                    </div>
-                    <div className="rounded-xl border bg-slate-50 p-3">
-                      <div className="text-xs text-slate-500">Weekly Leads</div>
-                      <div className="text-lg font-extrabold text-slate-900">{Math.floor(toNonNegativeNumber(selectedPlan?.weekly_limit, 0))}</div>
-                    </div>
-                    <div className="rounded-xl border bg-slate-50 p-3">
-                      <div className="text-xs text-slate-500">States</div>
-                      <div className="text-lg font-extrabold text-slate-900">{selectedCoverage.states}</div>
-                    </div>
-                    <div className="rounded-xl border bg-slate-50 p-3">
-                      <div className="text-xs text-slate-500">Cities</div>
-                      <div className="text-lg font-extrabold text-slate-900">{selectedCoverage.cities}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-sm text-slate-700">
-                    <div className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-emerald-600" />
-                      <span>Ranking: {getRankingText(selectedPlan) || '-'}</span>
-                    </div>
-
-                    {selectedTopSlots > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-emerald-600" />
-                        <span>Top Level (City/Services): {selectedTopSlots}</span>
+                <div className="grid lg:grid-cols-[320px_1fr]">
+                  <aside className="border-b bg-slate-50/70 p-5 lg:border-b-0 lg:border-r">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {selectedEntitlements?.sales_assisted ? 'Managed billing' : 'Billing'}
                       </div>
-                    ) : null}
-                  </div>
-
-                  {selectedPlanMeta.highlights.length > 0 ? (
-                    <div className="mt-5 rounded-xl border bg-amber-50 p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                        <Sparkles className="w-4 h-4 text-amber-600" />
-                        Highlights
+                      <div className="mt-1 text-sm font-semibold text-slate-800">
+                        {selectedEntitlements?.sales_assisted
+                          ? 'Yearly sales activation'
+                          : billing === 'monthly'
+                            ? 'Monthly view'
+                            : 'Yearly activation'}
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {selectedPlanMeta.highlights.map((item, index) => (
-                          <span key={index} className="rounded-full border border-amber-100 bg-white px-2.5 py-1 text-xs font-medium text-amber-800">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
 
-                  {selectedPlanMeta.groups.length > 0 ? (
-                    <div className="mt-5 space-y-3">
-                      {selectedPlanMeta.groups.map(({ title, Icon, items }) => (
-                        <div key={title} className="rounded-xl border bg-slate-50 p-4">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                            <Icon className="w-4 h-4 text-[#003D82]" />
-                            {title}
-                          </div>
-                          <div className="mt-3 space-y-2">
-                            {items.map((item, index) => (
-                              <div key={index} className="flex items-start gap-2 text-sm text-slate-700">
-                                <Check className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
-                                <span>{item}</span>
+                      <div className="mt-4">
+                        {toNonNegativeNumber(selectedPricing.nowPrice, 0) <= 0 ? (
+                          <div className="text-4xl font-extrabold text-slate-950">Rs.0</div>
+                        ) : (
+                          <>
+                            <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
+                              <div className="text-4xl font-extrabold tracking-tight text-slate-950">
+                                Rs.{formatINR(selectedPricing.nowPrice)}
                               </div>
-                            ))}
+                              <div className="pb-1 text-sm font-medium text-slate-500">
+                                /{billing === 'monthly' && !selectedEntitlements?.sales_assisted ? 'month' : 'year'}
+                              </div>
+                            </div>
+                            {toNonNegativeNumber(selectedPricing.originalPrice, 0) > toNonNegativeNumber(selectedPricing.nowPrice, 0) ? (
+                              <div className="mt-1 text-sm text-slate-500">
+                                <span className="mr-2 line-through">Rs.{formatINR(selectedPricing.originalPrice)}</span>
+                                <span className="font-semibold text-emerald-700">{getDiscountTag(selectedPricing) || 'Discount active'}</span>
+                              </div>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+
+                      <div className="mt-4">
+                        {selectedEntitlements?.sales_assisted ? (
+                          <a
+                            href={`mailto:sales@indiantrademart.com?subject=${encodeURIComponent(`Sales-assisted plan request: ${selectedPlan.name}`)}`}
+                            className="block"
+                          >
+                            <Button className="h-11 w-full rounded-xl font-semibold">
+                              {selectedEntitlements?.cta_label || 'Talk to sales'}
+                            </Button>
+                          </a>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2">
+                            <Link to="/vendor/register">
+                              <Button className="h-11 w-full rounded-xl font-semibold">Register</Button>
+                            </Link>
+                            <Link to="/vendor/login">
+                              <Button variant="outline" className="h-11 w-full rounded-xl font-semibold">
+                                Login
+                              </Button>
+                            </Link>
                           </div>
+                        )}
+                      </div>
+
+                      <p className="mt-3 text-xs leading-5 text-slate-500">
+                        Final activation depends on payment, verification and applicable sales approval.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {[
+                        ['Daily leads', Math.floor(toNonNegativeNumber(selectedPlan?.daily_limit, 0))],
+                        ['Weekly leads', Math.floor(toNonNegativeNumber(selectedPlan?.weekly_limit, 0))],
+                        ['States', selectedCoverage.states || 'All'],
+                        ['Cities', selectedCoverage.cities || 'All'],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-xl border border-slate-200 bg-white p-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+                          <div className="mt-1 text-xl font-extrabold text-slate-950">{value}</div>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="mt-5 rounded-xl border bg-slate-50 p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                        <Sparkles className="w-4 h-4 text-emerald-600" />
-                        Plan visibility
+                  </aside>
+
+                  <main className="p-5 sm:p-6">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                          <Star className="h-4 w-4 text-[#003D82]" />
+                          Search ranking
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">{getRankingText(selectedPlan) || '-'}</p>
                       </div>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Higher plans get better placement and stronger profile trust to improve conversions.
-                      </p>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                          <Rocket className="h-4 w-4 text-[#003D82]" />
+                          Placement slots
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">
+                          {selectedTopSlots > 0
+                            ? `${selectedTopSlots} top level city/service placements`
+                            : 'Standard listing placement'}
+                        </p>
+                      </div>
                     </div>
-                  )}
+
+                    {selectedPlanMeta.highlights.length > 0 ? (
+                      <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                            <Sparkles className="h-4 w-4 text-emerald-600" />
+                            Plan highlights
+                          </div>
+                          <span className="text-xs font-medium text-slate-500">
+                            {selectedPlanMeta.highlights.length} included
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectedPlanMeta.highlights.map((item, index) => (
+                            <span
+                              key={index}
+                              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </section>
+                    ) : null}
+
+                    {selectedPlanMeta.groups.length > 0 ? (
+                      <section className="mt-4 grid gap-3 md:grid-cols-2">
+                        {selectedPlanMeta.groups.map(({ title, Icon, items }) => (
+                          <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                              <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100">
+                                <Icon className="h-4 w-4 text-[#003D82]" />
+                              </span>
+                              {title}
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {items.map((item, index) => (
+                                <div key={index} className="flex items-start gap-2 text-sm leading-5 text-slate-700">
+                                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                                  <span>{item}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </section>
+                    ) : (
+                      <section className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                          <Sparkles className="h-4 w-4 text-emerald-600" />
+                          Plan visibility
+                        </div>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          Higher plans get better placement and stronger profile trust to improve conversions.
+                        </p>
+                      </section>
+                    )}
+                  </main>
                 </div>
               </div>
             </>
