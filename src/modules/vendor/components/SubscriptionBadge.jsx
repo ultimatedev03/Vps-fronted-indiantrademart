@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Crown, Check, AlertCircle } from 'lucide-react';
+import { Crown, AlertCircle, Award } from 'lucide-react';
+import { normalizeVendorPlanEntitlements } from '@/shared/utils/vendorPlanEntitlements';
 
 const SubscriptionBadge = ({ subscription, loading }) => {
   if (loading) {
@@ -17,6 +18,9 @@ const SubscriptionBadge = ({ subscription, loading }) => {
   }
 
   const planName = subscription.plan?.name || 'Plan';
+  const entitlements = normalizeVendorPlanEntitlements(subscription.plan?.entitlements || {}, subscription.plan || {});
+  const badgeLabel = entitlements.badge.label || planName;
+  const certificateTitle = entitlements.certificate.enabled ? entitlements.certificate.title : '';
   const endDate = subscription.end_date ? new Date(subscription.end_date) : null;
   const daysLeft = endDate ? Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)) : 0;
 
@@ -33,11 +37,17 @@ const SubscriptionBadge = ({ subscription, loading }) => {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Badge className={`gap-2 border ${getPlanColor()}`}>
         <Crown className="h-3.5 w-3.5" />
-        {planName}
+        {badgeLabel}
       </Badge>
+      {certificateTitle ? (
+        <Badge variant="outline" className="gap-1.5 border-amber-200 bg-amber-50 text-amber-800">
+          <Award className="h-3.5 w-3.5" />
+          Certified
+        </Badge>
+      ) : null}
       {daysLeft > 0 && (
         <span className="text-xs text-gray-600 whitespace-nowrap">
           {daysLeft} days left

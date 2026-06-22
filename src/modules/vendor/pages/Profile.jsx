@@ -12,8 +12,15 @@ import { Badge } from '@/components/ui/badge';
 import PreferencesSection from '@/modules/vendor/components/PreferencesSection';
 import SubscriptionBadge from '@/modules/vendor/components/SubscriptionBadge';
 import {
+  buildVendorPlanBenefitChips,
+  getVendorCertificate,
+  getVendorPlanBadgeLabel,
+  getVendorPlanEntitlements,
+} from '@/shared/utils/vendorPlanEntitlements';
+import { apiUrl } from '@/lib/apiBase';
+import {
   Loader2, Save, Camera, Pencil, MapPin, Phone, Mail,
-  Plus, Trash2, Check, ExternalLink, FileText, CheckCircle, X
+  Plus, Trash2, Check, ExternalLink, FileText, CheckCircle, X, Award, ShieldCheck
 } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
@@ -587,6 +594,29 @@ const Profile = () => {
 
   const companyTitle = profile.companyName || profile.company_name || 'My Company';
   const ownerTitle = profile.ownerName || profile.owner_name || '';
+  const enrichedProfileForPlan = {
+    ...profile,
+    active_plan: profile.active_plan || subscription?.plan || null,
+    plan_entitlements: profile.plan_entitlements || profile.active_plan?.entitlements || subscription?.plan?.entitlements || null,
+    certificate: profile.certificate || null,
+  };
+  const planEntitlements = getVendorPlanEntitlements(enrichedProfileForPlan);
+  const planBadgeLabel = getVendorPlanBadgeLabel(enrichedProfileForPlan);
+  const certificateMeta = getVendorCertificate(enrichedProfileForPlan);
+  const planBenefitChips = buildVendorPlanBenefitChips(enrichedProfileForPlan);
+  const subscriptionForBadge = subscription
+    ? {
+        ...subscription,
+        plan: {
+          ...(subscription.plan || {}),
+          entitlements: planEntitlements,
+        },
+      }
+    : null;
+
+  const openCertificate = () => {
+    window.open(apiUrl('/api/vendors/me/certificate.pdf'), '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="min-w-0 bg-slate-50 pb-12 font-sans text-slate-900">
@@ -719,9 +749,63 @@ const Profile = () => {
             <Card className="shadow-sm">
               <div className="p-5">
                 <p className="text-xs text-slate-500 font-semibold mb-3">Subscription Status</p>
-                <SubscriptionBadge subscription={subscription} loading={subscriptionLoading} />
+                <SubscriptionBadge subscription={subscriptionForBadge} loading={subscriptionLoading} />
               </div>
             </Card>
+
+            {(planBenefitChips.length > 0 || certificateMeta?.title || planBadgeLabel) ? (
+              <Card className="shadow-sm">
+                <div className="p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-[#003D82]" />
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan benefits active</p>
+                  </div>
+
+                  {planBadgeLabel ? (
+                    <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase text-blue-600">Vendor badge</p>
+                      <p className="mt-0.5 text-sm font-bold text-blue-950">{planBadgeLabel}</p>
+                    </div>
+                  ) : null}
+
+                  {certificateMeta?.title ? (
+                    <div className="mb-3 rounded-lg border border-amber-100 bg-amber-50 p-3">
+                      <div className="flex items-start gap-2">
+                        <Award className="mt-0.5 h-4 w-4 text-amber-700" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-amber-950">{certificateMeta.title}</p>
+                          {certificateMeta.certificate_number ? (
+                            <p className="mt-0.5 break-all text-xs text-amber-800">#{certificateMeta.certificate_number}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3 h-8 w-full border-amber-200 bg-white text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                        onClick={openCertificate}
+                      >
+                        Download certificate
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-2">
+                    {planBenefitChips.map((chip) => (
+                      <span key={chip} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+
+                  {planEntitlements.sitemap.customizable || planEntitlements.seo.enabled ? (
+                    <p className="mt-3 text-xs leading-5 text-slate-500">
+                      Your public profile, sitemap signals and SEO-ready profile data are applied from the active plan.
+                    </p>
+                  ) : null}
+                </div>
+              </Card>
+            ) : null}
           </div>
         </div>
 

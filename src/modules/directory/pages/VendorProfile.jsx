@@ -40,6 +40,12 @@ import { toast } from '@/components/ui/use-toast';
 import { getVendorProfilePath, getVendorProfileUrl } from '@/shared/utils/vendorRoutes';
 import { getProductDetailPath } from '@/shared/utils/productRoutes';
 import { phoneUtils } from '@/shared/utils/phoneUtils';
+import {
+  buildVendorPlanBenefitChips,
+  getVendorCertificate,
+  getVendorPlanBadgeLabel,
+  getVendorPlanEntitlements,
+} from '@/shared/utils/vendorPlanEntitlements';
 import { productRatings, PRODUCT_RATINGS_UPDATED_EVENT } from '@/shared/services/productRatings';
 import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
 import { setGlobalModalOpen, suppressQuotePopup } from '@/shared/utils/popupCoordinator';
@@ -176,6 +182,8 @@ const mergeVendorWithPremiumBrand = (vendorData = {}, brand = null, options = {}
     profile_template_override: vendorData.profile_template_override || 'AUTO',
     active_plan: vendorData.active_plan || null,
     active_subscription: vendorData.active_subscription || null,
+    plan_entitlements: vendorData.plan_entitlements || vendorData.active_plan?.entitlements || null,
+    certificate: vendorData.certificate || null,
     is_brand_fallback: false,
   };
 };
@@ -574,14 +582,26 @@ const VendorProfileContent = () => {
   const locationLabel = [displayVendor?.city, displayVendor?.state].filter(Boolean).join(', ') || 'India';
   const businessTypeLabel = displayVendor?.primary_business_type || 'Manufacturer, Supplier';
   const activePlanName = displayVendor?.active_plan?.name || 'Trial / Basic';
-  const isPremiumProfile = String(displayVendor?.profile_template || '').toUpperCase() === 'PREMIUM';
+  const planEntitlements = getVendorPlanEntitlements(displayVendor || {});
+  const planBadgeLabel = getVendorPlanBadgeLabel(displayVendor || {});
+  const certificateMeta = getVendorCertificate(displayVendor || {});
+  const planBenefitChips = buildVendorPlanBenefitChips(displayVendor || {});
+  const hasPlanVerifiedSignal =
+    Boolean(displayVendor?.verified) ||
+    Boolean(planEntitlements.badge.label) ||
+    Boolean(certificateMeta?.title);
+  const isPremiumProfile =
+    String(displayVendor?.profile_template || '').toUpperCase() === 'PREMIUM' ||
+    planEntitlements.portfolio.premium;
   const heroDescription =
     displayVendor?.tagline ||
     displayVendor?.description ||
     `${displayVendor?.company_name || 'This supplier'} is available for verified B2B enquiries on IndianTradeMart.`;
   const trustBadges = [
-    isPremiumProfile ? 'Premium profile' : 'Business profile',
-    displayVendor?.verified ? 'Verified supplier' : 'Supplier profile',
+    planBadgeLabel || (isPremiumProfile ? 'Premium profile' : 'Business profile'),
+    certificateMeta?.title || '',
+    hasPlanVerifiedSignal ? 'Trusted supplier' : 'Supplier profile',
+    planEntitlements.seo.enabled ? 'SEO-ready profile' : '',
     businessTypeLabel,
     displayVendor?.established ? `Since ${displayVendor.established}` : '',
     locationLabel,
@@ -590,7 +610,7 @@ const VendorProfileContent = () => {
     { label: 'Listed products', value: productCount || 'New', icon: PackageCheck },
     { label: 'Active plan', value: activePlanName, icon: Award },
     { label: 'Location', value: locationLabel, icon: MapPin },
-    { label: 'Buyer rating', value: `${Number(displayVendor?.rating || 4).toFixed(1)} / 5`, icon: Star },
+    { label: certificateMeta?.title ? 'Certificate' : 'Buyer rating', value: certificateMeta?.tier || `${Number(displayVendor?.rating || 4).toFixed(1)} / 5`, icon: certificateMeta?.title ? ShieldCheck : Star },
   ];
   const portfolioCategories = Array.from(
     new Set(
@@ -603,12 +623,18 @@ const VendorProfileContent = () => {
     businessTypeLabel,
     ...portfolioCategories,
     displayVendor?.established ? `Established ${displayVendor.established}` : '',
+    ...planBenefitChips,
   ].filter(Boolean).slice(0, 6);
   const portfolioMetrics = [
     { label: 'Catalogue Range', value: `${productCount || 0}+`, helper: 'listed offerings', icon: PackageCheck },
     { label: 'Operating Base', value: locationLabel, helper: 'supplier location', icon: MapPin },
     { label: 'Business Focus', value: businessTypeLabel, helper: 'primary capability', icon: Briefcase },
-    { label: 'Profile Trust', value: displayVendor?.verified ? 'Verified' : 'Listed', helper: activePlanName, icon: ShieldCheck },
+    {
+      label: certificateMeta?.title ? 'Vendor Certificate' : 'Profile Trust',
+      value: certificateMeta?.tier || (hasPlanVerifiedSignal ? 'Verified' : 'Listed'),
+      helper: certificateMeta?.title || activePlanName,
+      icon: ShieldCheck,
+    },
   ];
   const seoProductKeywords = portfolioCategories.length
     ? portfolioCategories
@@ -620,6 +646,9 @@ const VendorProfileContent = () => {
     businessTypeLabel,
     locationLabel,
     activePlanName,
+    certificateMeta?.title,
+    planBadgeLabel,
+    planEntitlements.seo.enabled ? 'SEO ready supplier profile' : '',
     ...seoProductKeywords,
     'IndianTradeMart supplier',
     'B2B company profile',
@@ -659,6 +688,13 @@ const VendorProfileContent = () => {
       price: String(product?.price || '').replace(/[^\d.]/g, '') || undefined,
       priceCurrency: 'INR',
     })),
+    award: certificateMeta?.title || planBadgeLabel || undefined,
+    additionalProperty: [
+      planBadgeLabel ? { '@type': 'PropertyValue', name: 'Vendor badge', value: planBadgeLabel } : null,
+      certificateMeta?.title ? { '@type': 'PropertyValue', name: 'Certificate', value: certificateMeta.title } : null,
+      planEntitlements.portfolio.custom_url ? { '@type': 'PropertyValue', name: 'Custom profile URL', value: 'Enabled' } : null,
+      planEntitlements.seo.enabled ? { '@type': 'PropertyValue', name: 'SEO profile', value: 'Enabled' } : null,
+    ].filter(Boolean),
   };
   const tabsListClass = isPremiumProfile
     ? 'flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border border-slate-300 bg-slate-200/70 p-2 shadow-sm'
@@ -1024,25 +1060,31 @@ const VendorProfileContent = () => {
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-[#00A699]/20 bg-[#00A699]/10 px-2.5 py-1 text-[11px] font-semibold text-[#007a70]">
                     <Store className="h-3.5 w-3.5" />
-                    Premium Portfolio
+                    {planEntitlements.portfolio.showcase_label || 'Premium Portfolio'}
                   </span>
-                  {displayVendor.verified ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Verified
+                  {planBadgeLabel ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-[11px] font-semibold text-cyan-800">
+                      <Award className="h-3.5 w-3.5" />
+                      {planBadgeLabel}
                     </span>
                   ) : null}
-                  {displayVendor.brand_slug ? (
+                  {hasPlanVerifiedSignal ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Verified profile
+                    </span>
+                  ) : null}
+                  {certificateMeta?.title ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                      <Award className="h-3.5 w-3.5" />
-                      Premium Brand
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                      {certificateMeta.title}
                     </span>
                   ) : null}
                 </div>
 
                 <h1 className="max-w-4xl text-2xl font-extrabold leading-tight tracking-normal text-slate-950 lg:text-3xl">
                   {displayVendor.company_name || 'Company Name'}
-                  {displayVendor.verified && <BadgeCheck className="ml-2 inline h-5 w-5 fill-blue-100 text-blue-500 align-[-2px] sm:h-6 sm:w-6" />}
+                  {hasPlanVerifiedSignal && <BadgeCheck className="ml-2 inline h-5 w-5 fill-blue-100 text-blue-500 align-[-2px] sm:h-6 sm:w-6" />}
                 </h1>
 
                 <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
@@ -1153,19 +1195,25 @@ const VendorProfileContent = () => {
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
                   <Award className="h-3.5 w-3.5" />
-                  {activePlanName}
+                  {planBadgeLabel || activePlanName}
                 </span>
-                {displayVendor.verified ? (
+                {certificateMeta?.title ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    {certificateMeta.title}
+                  </span>
+                ) : null}
+                {hasPlanVerifiedSignal ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    Verified
+                    Verified profile
                   </span>
                 ) : null}
               </div>
 
               <h1 className="text-xl font-extrabold text-slate-950 sm:text-2xl">
                 {displayVendor.company_name || 'Company Name'}
-                {displayVendor.verified && <BadgeCheck className="ml-2 inline h-5 w-5 fill-blue-50 text-blue-500 align-[-2px]" />}
+                {hasPlanVerifiedSignal && <BadgeCheck className="ml-2 inline h-5 w-5 fill-blue-50 text-blue-500 align-[-2px]" />}
               </h1>
 
               <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
@@ -1239,6 +1287,11 @@ const VendorProfileContent = () => {
                 <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">
                   {activePlanName} profile
                 </span>
+                {certificateMeta?.certificate_number ? (
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm">
+                    Certificate #{certificateMeta.certificate_number}
+                  </span>
+                ) : null}
               </div>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
                 {displayVendor.company_name} showcases {productCount || 'multiple'} offerings in {businessTypeLabel} from {locationLabel}.
@@ -1529,8 +1582,20 @@ const VendorProfileContent = () => {
                       <div className="mt-4 space-y-3 text-sm text-slate-600">
                         <div className="flex items-center justify-between gap-4">
                           <span>Verification</span>
-                          <span className="font-semibold text-slate-950">{displayVendor.verified ? 'Verified' : 'Listed'}</span>
+                          <span className="font-semibold text-slate-950">{hasPlanVerifiedSignal ? 'Verified profile' : 'Listed'}</span>
                         </div>
+                        {planBadgeLabel ? (
+                          <div className="flex items-center justify-between gap-4">
+                            <span>Plan badge</span>
+                            <span className="font-semibold text-slate-950">{planBadgeLabel}</span>
+                          </div>
+                        ) : null}
+                        {certificateMeta?.title ? (
+                          <div className="flex items-center justify-between gap-4">
+                            <span>Certificate</span>
+                            <span className="text-right font-semibold text-slate-950">{certificateMeta.title}</span>
+                          </div>
+                        ) : null}
                         <div className="flex items-center justify-between gap-4">
                           <span>Products</span>
                           <span className="font-semibold text-slate-950">{productCount}</span>
