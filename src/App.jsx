@@ -13,6 +13,7 @@ import { PageStatusProvider } from '@/contexts/PageStatusContext';
 import { locationService } from '@/shared/services/locationService';
 import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
+import { booleanValue } from '@/lib/booleanValue';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import DeferredAIChatWidget from '@/shared/components/DeferredAIChatWidget';
 import ScrollToTopButton from '@/shared/components/ScrollToTopButton';
@@ -62,6 +63,8 @@ const fetchPublicConfig = async () => {
   return {
     ...DEFAULT_PUBLIC_CONFIG,
     ...(payload?.config || {}),
+    maintenance_mode: booleanValue(payload?.config?.maintenance_mode, false),
+    public_notice_enabled: booleanValue(payload?.config?.public_notice_enabled, false),
   };
 };
 
@@ -196,7 +199,7 @@ const MaintenanceGate = ({ children }) => {
       try {
         const data = await fetchPublicConfig();
 
-        setIsMaintenance(data?.maintenance_mode === true);
+        setIsMaintenance(booleanValue(data?.maintenance_mode, false));
         setMessage(data?.maintenance_message || '');
       } catch (e) {
         if (import.meta.env.DEV) {
@@ -210,6 +213,8 @@ const MaintenanceGate = ({ children }) => {
     };
 
     run();
+    const interval = window.setInterval(run, 30000);
+    return () => window.clearInterval(interval);
   }, []);
 
   // Always allow admin/management
@@ -251,8 +256,8 @@ const PublicNoticeGate = ({ children }) => {
         const data = await fetchPublicConfig();
 
         setNotice({
-          maintenance: data?.maintenance_mode === true,
-          enabled: data?.public_notice_enabled === true,
+          maintenance: booleanValue(data?.maintenance_mode, false),
+          enabled: booleanValue(data?.public_notice_enabled, false),
           message: data?.public_notice_message || '',
           variant: data?.public_notice_variant || 'info',
         });
@@ -267,6 +272,8 @@ const PublicNoticeGate = ({ children }) => {
     };
 
     run();
+    const interval = window.setInterval(run, 30000);
+    return () => window.clearInterval(interval);
   }, []);
 
   if (loading) return children;
@@ -290,6 +297,80 @@ const PublicNoticeGate = ({ children }) => {
       {children}
     </>
   );
+};
+
+const PAGE_STATUS_BYPASS_PREFIXES = ['/superadmin', '/management', '/migration-tools', '/unauthorized'];
+
+const shouldBypassPageStatus = (path = '') => {
+  const normalized = path || '/';
+  return PAGE_STATUS_BYPASS_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  );
+};
+
+const PublicRouteStatusGate = ({ children }) => {
+  const location = useLocation();
+  const [status, setStatus] = useState({ blocked: false, message: '' });
+
+  useEffect(() => {
+    const path = location.pathname || '/';
+
+    if (shouldBypassPageStatus(path)) {
+      setStatus({ blocked: false, message: '' });
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const checkPageStatus = async () => {
+      try {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          if (!cancelled) setStatus({ blocked: false, message: '' });
+          return;
+        }
+
+        const res = await fetch(apiUrl(`/api/public/page-status?route=${encodeURIComponent(path)}`), {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        const payload = await res.json().catch(() => null);
+        const row = res.ok && payload?.success !== false && Array.isArray(payload?.statuses)
+          ? payload.statuses[0]
+          : null;
+
+        if (!cancelled) {
+          setStatus({
+            blocked: booleanValue(row?.is_blanked, false),
+            message: row?.error_message || '',
+          });
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('[PublicRouteStatusGate] fetch failed:', error);
+        }
+        if (!cancelled) setStatus({ blocked: false, message: '' });
+      }
+    };
+
+    checkPageStatus();
+    const interval = window.setInterval(checkPageStatus, 10000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [location.pathname]);
+
+  if (status.blocked) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+        <MaintenancePage message={status.message} />
+      </Suspense>
+    );
+  }
+
+  return children;
 };
 
 const ScrollToTop = () => {
@@ -393,14 +474,16 @@ function App() {
                     <EmployeeAuthProvider>
                       <SuperAdminProvider>
                         <PublicNoticeGate>
-                          {/* ✅ Vendor suspended gate added here */}
-                          <VendorSuspensionGate>
-                            <Suspense fallback={null}>
-                              <AppRoutes />
-                            </Suspense>
-                            <ScrollToTopButton />
-                            <DeferredAIChatWidget />
-                          </VendorSuspensionGate>
+                          <PublicRouteStatusGate>
+                            {/* ✅ Vendor suspended gate added here */}
+                            <VendorSuspensionGate>
+                              <Suspense fallback={null}>
+                                <AppRoutes />
+                              </Suspense>
+                              <ScrollToTopButton />
+                              <DeferredAIChatWidget />
+                            </VendorSuspensionGate>
+                          </PublicRouteStatusGate>
                         </PublicNoticeGate>
                       </SuperAdminProvider>
                     </EmployeeAuthProvider>

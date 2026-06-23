@@ -16,6 +16,7 @@ import NotificationBell from '@/shared/components/NotificationBell';
 import { getPublicSiteUrl } from '@/shared/lib/publicSite';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 import { apiUrl } from '@/lib/apiBase';
+import { booleanValue } from '@/lib/booleanValue';
 
 const parseSidebarPath = (path = '') => {
   const [pathnamePart, hashPart] = String(path || '').split('#');
@@ -134,7 +135,7 @@ const PortalLayout = ({ role }) => {
           ? payload.statuses[0]
           : null;
 
-        if (data && data.is_blanked) {
+        if (data && booleanValue(data.is_blanked, false)) {
           setPageStatus({ isBlocked: true, message: data.error_message });
         } else {
           setPageStatus({ isBlocked: false, message: '' });
@@ -147,6 +148,7 @@ const PortalLayout = ({ role }) => {
     };
 
     checkPageStatus();
+    const interval = window.setInterval(checkPageStatus, 15000);
 
     const channel = dbClient
       .channel('portal_status_check')
@@ -158,7 +160,7 @@ const PortalLayout = ({ role }) => {
 
         if (payload.new.page_route === routeToCheck) {
           setPageStatus({
-            isBlocked: payload.new.is_blanked,
+            isBlocked: booleanValue(payload.new.is_blanked, false),
             message: payload.new.error_message,
           });
         }
@@ -166,6 +168,7 @@ const PortalLayout = ({ role }) => {
       .subscribe();
 
     return () => {
+      window.clearInterval(interval);
       dbClient.removeChannel(channel);
     };
   }, [location.pathname, role]);

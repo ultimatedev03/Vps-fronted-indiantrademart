@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { dbClient } from '@/lib/dbClient';
 import { apiUrl } from '@/lib/apiBase';
+import { booleanValue } from '@/lib/booleanValue';
 
 const PageStatusContext = createContext(null);
 
@@ -44,7 +45,7 @@ export const PageStatusProvider = ({ children }) => {
         if (data) {
           data.forEach(page => {
             statusMap[page.page_route] = {
-              is_blanked: page.is_blanked === true,
+              is_blanked: booleanValue(page.is_blanked, false),
               error_message: page.error_message || ''
             };
             if (DEBUG) console.log('[PageStatusContext] Loaded:', page.page_route, { is_blanked: page.is_blanked });
@@ -72,7 +73,7 @@ export const PageStatusProvider = ({ children }) => {
 
           if (payload.new) {
             const route = payload.new.page_route;
-            const isBlanked = payload.new.is_blanked === true;
+            const isBlanked = booleanValue(payload.new.is_blanked, false);
 
             setPageStatuses(prev => ({
               ...prev,
@@ -92,7 +93,7 @@ export const PageStatusProvider = ({ children }) => {
 
           if (payload.new) {
             const route = payload.new.page_route;
-            const isBlanked = payload.new.is_blanked === true;
+            const isBlanked = booleanValue(payload.new.is_blanked, false);
 
             setPageStatuses(prev => ({
               ...prev,
@@ -101,6 +102,24 @@ export const PageStatusProvider = ({ children }) => {
                 error_message: payload.new.error_message || ''
               }
             }));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'page_status' },
+        (payload) => {
+          if (DEBUG) console.log('[PageStatusContext] Realtime DELETE received:', payload);
+
+          const route = payload.old?.page_route;
+          if (route) {
+            setPageStatuses((prev) => {
+              const next = { ...prev };
+              delete next[route];
+              return next;
+            });
+          } else {
+            fetchAllPageStatuses();
           }
         }
       )
@@ -134,7 +153,7 @@ export const PageStatusProvider = ({ children }) => {
   };
 
   const isPageOffline = (pageRoute) => {
-    return pageStatuses[pageRoute]?.is_blanked === true;
+    return booleanValue(pageStatuses[pageRoute]?.is_blanked, false);
   };
 
   return (

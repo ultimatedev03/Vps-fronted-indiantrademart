@@ -301,6 +301,22 @@ const featureBool = (value, fallback = false) => {
   return fallback;
 };
 
+const normalizeSystemConfig = (config = {}, fallback = {}) => ({
+  ...fallback,
+  ...config,
+  maintenance_mode: featureBool(config?.maintenance_mode, false),
+  maintenance_message: config?.maintenance_message || '',
+  public_notice_enabled: featureBool(config?.public_notice_enabled, false),
+  public_notice_message: config?.public_notice_message || '',
+  public_notice_variant: config?.public_notice_variant || fallback?.public_notice_variant || 'info',
+});
+
+const normalizePageControl = (page = {}) => ({
+  ...page,
+  is_blanked: featureBool(page?.is_blanked, false),
+  error_message: page?.error_message || '',
+});
+
 const normalizePurchaseChannel = (value, salesAssisted = false) => {
   const token = String(value || '').trim().toUpperCase().replace(/[^A-Z_]/g, '_');
   if (['SALES', 'SALES_ASSISTED', 'ASSISTED', 'MANUAL'].includes(token) || salesAssisted) {
@@ -371,7 +387,7 @@ const planToDraft = (plan) => {
     weekly_limit: Number(plan?.weekly_limit || 0),
     yearly_limit: Number(plan?.yearly_limit || 0),
     duration_days: Number(plan?.duration_days || 365),
-    is_active: plan?.is_active !== false,
+    is_active: featureBool(plan?.is_active, true),
     original_price: Number(pricing.original_price || 0),
     discount_percent: Number(pricing.discount_percent || 0),
     discount_label: pricing.discount_label,
@@ -837,15 +853,7 @@ export default function SuperAdminDashboard() {
     try {
       const { config } = await superAdminServerApi.system.getConfig();
       if (config) {
-        setSystemConfig((prev) => ({
-          ...prev,
-          ...config,
-          maintenance_mode: config.maintenance_mode === true,
-          maintenance_message: config.maintenance_message || '',
-          public_notice_enabled: config.public_notice_enabled === true,
-          public_notice_message: config.public_notice_message || '',
-          public_notice_variant: config.public_notice_variant || prev.public_notice_variant,
-        }));
+        setSystemConfig((prev) => normalizeSystemConfig(config, prev));
       }
     } catch (error) {
       handleError(error, 'Failed to load system config');
@@ -858,7 +866,7 @@ export default function SuperAdminDashboard() {
     setPagesLoading(true);
     try {
       const { pages: pageList } = await superAdminServerApi.pages.list();
-      setPages(pageList || []);
+      setPages((pageList || []).map(normalizePageControl));
     } catch (error) {
       handleError(error, 'Failed to load page controls');
     } finally {
@@ -1868,13 +1876,16 @@ export default function SuperAdminDashboard() {
   const saveSystemConfig = async () => {
     setSystemSaving(true);
     try {
-      await superAdminServerApi.system.updateConfig({
-        maintenance_mode: systemConfig.maintenance_mode === true,
+      const { config } = await superAdminServerApi.system.updateConfig({
+        maintenance_mode: featureBool(systemConfig.maintenance_mode, false),
         maintenance_message: systemConfig.maintenance_message || '',
-        public_notice_enabled: systemConfig.public_notice_enabled === true,
+        public_notice_enabled: featureBool(systemConfig.public_notice_enabled, false),
         public_notice_message: systemConfig.public_notice_message || '',
         public_notice_variant: systemConfig.public_notice_variant || 'info',
       });
+      if (config) {
+        setSystemConfig((prev) => normalizeSystemConfig(config, prev));
+      }
       toast({ title: 'Saved', description: 'System configuration updated.' });
       await fetchAuditLogs();
     } catch (error) {
@@ -1888,7 +1899,11 @@ export default function SuperAdminDashboard() {
     setPageBusyId(pageId);
     try {
       const { page } = await superAdminServerApi.pages.update(pageId, updates);
-      setPages((prev) => (prev || []).map((p) => (p.id === pageId ? { ...p, ...page } : p)));
+      setPages((prev) =>
+        (prev || []).map((p) =>
+          p.id === pageId ? normalizePageControl({ ...p, ...(page || updates) }) : p
+        )
+      );
       await fetchAuditLogs();
     } catch (error) {
       handleError(error, 'Failed to update page');
@@ -2244,7 +2259,7 @@ export default function SuperAdminDashboard() {
                 <div className="flex items-center justify-between">
                   <Label className="text-neutral-300">Maintenance Mode</Label>
                   <Switch
-                    checked={systemConfig.maintenance_mode === true}
+                    checked={featureBool(systemConfig.maintenance_mode, false)}
                     onCheckedChange={(checked) =>
                       setSystemConfig((prev) => ({ ...prev, maintenance_mode: checked }))
                     }
@@ -2288,7 +2303,7 @@ export default function SuperAdminDashboard() {
                 <div className="flex items-center justify-between">
                   <Label className="text-neutral-300">Enable Public Notice</Label>
                   <Switch
-                    checked={systemConfig.public_notice_enabled === true}
+                    checked={featureBool(systemConfig.public_notice_enabled, false)}
                     onCheckedChange={(checked) =>
                       setSystemConfig((prev) => ({ ...prev, public_notice_enabled: checked }))
                     }
@@ -2377,7 +2392,8 @@ export default function SuperAdminDashboard() {
                       <TableBody>
                         {(pages || []).map((page) => {
                           const busy = pageBusyId === page.id;
-                          const isOnline = page.is_blanked !== true;
+                          const isBlanked = featureBool(page.is_blanked, false);
+                          const isOnline = !isBlanked;
                           return (
                             <TableRow key={page.id} className="hover:bg-neutral-800/50">
                               <TableCell className="text-white font-medium">
@@ -2403,7 +2419,7 @@ export default function SuperAdminDashboard() {
                                   onBlur={(e) =>
                                     updatePageStatus(page.id, {
                                       error_message: e.target.value,
-                                      is_blanked: page.is_blanked === true,
+                                      is_blanked: isBlanked,
                                     })
                                   }
                                   className="bg-neutral-800 border-neutral-700 text-neutral-200 h-9"

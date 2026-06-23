@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { usePageStatusContext } from '@/contexts/PageStatusContext';
 import { apiUrl } from '@/lib/apiBase';
+import { booleanValue } from '@/lib/booleanValue';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
 const DEBUG = Boolean(import.meta?.env?.VITE_DEBUG_PAGE_STATUS === 'true');
@@ -44,7 +45,7 @@ const PageStatusWrapper = ({ pageRoute, children }) => {
         } else if (Array.isArray(payload?.statuses) && payload.statuses[0]) {
           const data = payload.statuses[0];
           setLocalStatus({
-            is_blanked: data.is_blanked === true,
+            is_blanked: booleanValue(data.is_blanked, false),
             error_message: data.error_message || ''
           });
         } else {
@@ -64,7 +65,7 @@ const PageStatusWrapper = ({ pageRoute, children }) => {
   }, [pageRoute]);
 
   const status = localStatus || contextPageStatus;
-  const isOffline = status?.is_blanked === true;
+  const isOffline = booleanValue(status?.is_blanked, false);
   const errorMessage = status?.error_message || '';
 
   if (isLoading) {
