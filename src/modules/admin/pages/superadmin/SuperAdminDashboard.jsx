@@ -101,6 +101,13 @@ const PLAN_LIMIT_GUIDE = [
     body: 'How many selected cities across those states can show the vendor products in search.',
   },
 ];
+const VENDOR_FILTERS = [
+  { value: 'all', label: 'All vendors' },
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This week' },
+  { value: 'month', label: 'This month' },
+  { value: 'active', label: 'Active' },
+];
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -299,6 +306,32 @@ const featureBool = (value, fallback = false) => {
   if (['true', '1', 'yes', 'y', 'on'].includes(token)) return true;
   if (['false', '0', 'no', 'n', 'off'].includes(token)) return false;
   return fallback;
+};
+
+const getVendorCreatedDate = (vendor) => {
+  const date = new Date(vendor?.created_at || vendor?.createdAt || vendor?.created || '');
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getLocalDayStart = (date = new Date()) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const getRollingWeekStart = (date = new Date()) => {
+  const start = getLocalDayStart(date);
+  start.setDate(start.getDate() - 6);
+  return start;
+};
+
+const getMonthStart = (date = new Date()) => new Date(date.getFullYear(), date.getMonth(), 1);
+
+const vendorCreatedSince = (vendor, since) => {
+  const created = getVendorCreatedDate(vendor);
+  return Boolean(created && created >= since);
+};
+
+const isVendorActive = (vendor) => {
+  const status = String(vendor?.status || vendor?.account_status || '').trim().toUpperCase();
+  if (['INACTIVE', 'SUSPENDED', 'DELETED', 'DISABLED'].includes(status)) return false;
+  return featureBool(vendor?.is_active, true);
 };
 
 const normalizeSystemConfig = (config = {}, fallback = {}) => ({
@@ -625,6 +658,7 @@ export default function SuperAdminDashboard() {
   const [vendors, setVendors] = useState([]);
   const [vendorsLoading, setVendorsLoading] = useState(false);
   const [vendorSearch, setVendorSearch] = useState('');
+  const [vendorFilter, setVendorFilter] = useState('all');
   const [vendorDeletingId, setVendorDeletingId] = useState(null);
 
   // Plans
@@ -1083,7 +1117,7 @@ export default function SuperAdminDashboard() {
     });
   }, [employees, employeeSearch]);
 
-  const filteredVendors = useMemo(() => {
+  const searchedVendors = useMemo(() => {
     if (!vendorSearch.trim()) return vendors;
     return filterRecordsBySearch(vendors, vendorSearch, {
       exactIdKeys: ['id', 'vendor_id'],
@@ -1091,6 +1125,38 @@ export default function SuperAdminDashboard() {
       broadKeys: ['id', 'vendor_id', 'company_name', 'owner_name', 'email', 'city', 'state'],
     });
   }, [vendors, vendorSearch]);
+
+  const vendorMetrics = useMemo(() => {
+    const now = new Date();
+    const todayStart = getLocalDayStart(now);
+    const weekStart = getRollingWeekStart(now);
+    const monthStart = getMonthStart(now);
+
+    return vendors.reduce(
+      (acc, vendor) => {
+        acc.total += 1;
+        if (isVendorActive(vendor)) acc.active += 1;
+        if (vendorCreatedSince(vendor, todayStart)) acc.today += 1;
+        if (vendorCreatedSince(vendor, weekStart)) acc.week += 1;
+        if (vendorCreatedSince(vendor, monthStart)) acc.month += 1;
+        return acc;
+      },
+      { total: 0, active: 0, today: 0, week: 0, month: 0 }
+    );
+  }, [vendors]);
+
+  const filteredVendors = useMemo(() => {
+    const now = new Date();
+    const todayStart = getLocalDayStart(now);
+    const weekStart = getRollingWeekStart(now);
+    const monthStart = getMonthStart(now);
+
+    if (vendorFilter === 'today') return searchedVendors.filter((vendor) => vendorCreatedSince(vendor, todayStart));
+    if (vendorFilter === 'week') return searchedVendors.filter((vendor) => vendorCreatedSince(vendor, weekStart));
+    if (vendorFilter === 'month') return searchedVendors.filter((vendor) => vendorCreatedSince(vendor, monthStart));
+    if (vendorFilter === 'active') return searchedVendors.filter(isVendorActive);
+    return searchedVendors;
+  }, [searchedVendors, vendorFilter]);
 
   const filteredPlans = useMemo(() => {
     const term = planSearch.trim().toLowerCase();
@@ -2173,6 +2239,9 @@ export default function SuperAdminDashboard() {
     if (value === 'monitoring' && !monitoringOverview && !monitoringLoading) {
       fetchMonitoring();
     }
+    if (value === 'vendors' && !(visitorActivity.events || []).length && !visitorActivityLoading) {
+      fetchVisitorActivity(monitoringActivityDays);
+    }
     if (value === 'godmode' && !(visitorActivity.events || []).length && !visitorActivityLoading) {
       fetchVisitorActivity(monitoringActivityDays);
     }
@@ -2683,6 +2752,58 @@ export default function SuperAdminDashboard() {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                  {[
+                    { label: 'Total vendors', value: vendorMetrics.total, hint: 'All onboarded vendor accounts' },
+                    { label: 'Active vendors', value: vendorMetrics.active, hint: 'Currently active on website' },
+                    { label: 'Onboarded today', value: vendorMetrics.today, hint: 'Created since today midnight' },
+                    { label: 'This week', value: vendorMetrics.week, hint: 'Created in the last 7 days' },
+                    { label: 'This month', value: vendorMetrics.month, hint: 'Created from month start' },
+                    {
+                      label: 'Website visitors',
+                      value: visitorActivityLoading ? '...' : Number(visitorActivity.stats?.unique_visitors || 0),
+                      hint: `Unique visitors in ${monitoringActivityDays} days`,
+                    },
+                  ].map((metric) => (
+                    <div
+                      key={metric.label}
+                      className="rounded-lg border border-neutral-800 bg-neutral-950/70 p-4 shadow-sm"
+                    >
+                      <div className="text-xs uppercase tracking-wide text-neutral-500">{metric.label}</div>
+                      <div className="mt-2 text-2xl font-semibold text-white">{metric.value}</div>
+                      <div className="mt-1 text-xs text-neutral-500">{metric.hint}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    {VENDOR_FILTERS.map((filter) => {
+                      const active = vendorFilter === filter.value;
+                      return (
+                        <Button
+                          key={filter.value}
+                          type="button"
+                          size="sm"
+                          variant={active ? 'default' : 'outline'}
+                          onClick={() => setVendorFilter(filter.value)}
+                          className={
+                            active
+                              ? 'bg-blue-600 text-white hover:bg-blue-500'
+                              : 'border-neutral-700 bg-neutral-950 text-neutral-300 hover:bg-neutral-800'
+                          }
+                        >
+                          {filter.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <div className="text-sm text-neutral-500">
+                    Showing <span className="font-semibold text-neutral-200">{filteredVendors.length}</span> of{' '}
+                    <span className="font-semibold text-neutral-200">{vendors.length}</span> vendors
+                  </div>
+                </div>
+
                 <Input
                   value={vendorSearch}
                   onChange={(e) => setVendorSearch(e.target.value)}
@@ -2716,7 +2837,7 @@ export default function SuperAdminDashboard() {
                         filteredVendors.map((vendor) => {
                           const busy = vendorDeletingId === vendor.id;
                           const kyc = String(vendor.kyc_status || 'PENDING').toUpperCase();
-                          const active = vendor.is_active !== false;
+                          const active = isVendorActive(vendor);
                           const stats = vendor.lead_stats || {};
                           return (
                             <TableRow key={vendor.id} className="hover:bg-neutral-800/50">
