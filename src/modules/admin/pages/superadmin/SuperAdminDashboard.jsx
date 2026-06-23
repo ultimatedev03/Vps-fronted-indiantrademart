@@ -2736,26 +2736,17 @@ export default function SuperAdminDashboard() {
 
           <TabsContent value="vendors" className="space-y-4">
             <Card className="bg-neutral-900 border-neutral-800">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-white">Vendor Deletion</CardTitle>
-                  <CardDescription className="text-neutral-400">
-                    Permanently delete vendor accounts and related data.
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={fetchVendors}
-                  className="border-neutral-700 text-neutral-300 hover:bg-neutral-800"
-                >
-                  <RefreshCw className={`h-4 w-4 ${vendorsLoading ? 'animate-spin' : ''}`} />
-                </Button>
+              <CardHeader className="space-y-2">
+                <CardTitle className="text-white">Vendor Onboarding Summary</CardTitle>
+                <CardDescription className="text-neutral-400">
+                  Track new vendors by day, week, month, active status, and recent website visitor reach.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
                   {[
                     { label: 'Total vendors', value: vendorMetrics.total, hint: 'All onboarded vendor accounts' },
-                    { label: 'Active vendors', value: vendorMetrics.active, hint: 'Currently active on website' },
+                    { label: 'Active vendors', value: vendorMetrics.active, hint: 'Currently active vendor accounts' },
                     { label: 'Onboarded today', value: vendorMetrics.today, hint: 'Created since today midnight' },
                     { label: 'This week', value: vendorMetrics.week, hint: 'Created in the last 7 days' },
                     { label: 'This month', value: vendorMetrics.month, hint: 'Created from month start' },
@@ -2803,7 +2794,26 @@ export default function SuperAdminDashboard() {
                     <span className="font-semibold text-neutral-200">{vendors.length}</span> vendors
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
+            <Card className="bg-neutral-900 border-neutral-800">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-white">Vendor Deletion</CardTitle>
+                  <CardDescription className="text-neutral-400">
+                    Permanently delete vendor accounts and related data.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={fetchVendors}
+                  className="border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                >
+                  <RefreshCw className={`h-4 w-4 ${vendorsLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <Input
                   value={vendorSearch}
                   onChange={(e) => setVendorSearch(e.target.value)}
