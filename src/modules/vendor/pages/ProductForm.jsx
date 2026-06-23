@@ -1,5 +1,5 @@
 // ✅ File: src/modules/vendor/pages/ProductForm.jsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { vendorApi as vendorDataApi } from '@/modules/vendor/services/vendorApi';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/use-toast';
 import CategoryTypeahead from '@/shared/components/CategoryTypeahead';
 import { generateSlug, generateUniqueSlug, needsProductSlugNormalization } from '@/shared/utils/slugUtils';
-import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, ChevronDown, Loader2, Upload, X, Plus } from 'lucide-react';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 
@@ -128,9 +127,6 @@ const ProductForm = () => {
   const [showAddCityDialog, setShowAddCityDialog] = useState(false);
   const [customCityInput, setCustomCityInput] = useState('');
 
-  // ✅ UI clean: Pan India details show/hide
-  const [showPanIndiaDetails, setShowPanIndiaDetails] = useState(false);
-
   const [formData, setFormData] = useState({
     name: '',
     category_path: '',
@@ -160,7 +156,6 @@ const ProductForm = () => {
     },
   });
 
-  const isPanIndia = !!formData.target_locations?.pan_india;
   const originalPriceValue = toNonNegativeNumber(formData.original_price);
   const sellingPriceValue = toNonNegativeNumber(formData.price);
   const enteredDiscountPercent = clampDiscountPercent(formData.discount_percent);
@@ -187,111 +182,6 @@ const ProductForm = () => {
       ? Number((effectiveOriginalPrice - effectiveSellingPrice).toFixed(2))
       : null;
 
-  // ✅ Pan India auto-fill guard (avoid re-fetch loop)
-  const panIndiaAutoFilledRef = useRef(false);
-
-  // ✅ Small concurrency pool to avoid too many API calls at once
-  const asyncPool = async (poolLimit, array, iteratorFn) => {
-    const ret = [];
-    const executing = [];
-    for (const item of array) {
-      const p = Promise.resolve().then(() => iteratorFn(item));
-      ret.push(p);
-
-      if (poolLimit <= array.length) {
-        const e = p.then(() => executing.splice(executing.indexOf(e), 1));
-        executing.push(e);
-        if (executing.length >= poolLimit) {
-          await Promise.race(executing);
-        }
-      }
-    }
-    return Promise.all(ret);
-  };
-
-  const loadAllStatesAndCities = async () => {
-    setBulkCityLoading(true);
-    try {
-      // 1) Ensure states list
-      let stList = states;
-      if (!stList || stList.length === 0) {
-        stList = (await vendorApi.getStates()) || [];
-        setStates(stList);
-      }
-
-      const allStatesSlim = (stList || [])
-        .filter((s) => s?.id)
-        .map((s) => ({ id: s.id, name: s.name }));
-
-      // 2) Load all cities for all states (concurrency limited)
-      const cityBuckets = [];
-      await asyncPool(6, stList || [], async (st) => {
-        if (!st?.id) return;
-        const list = await vendorApi.getCities(st.id);
-        (list || []).forEach((c) => cityBuckets.push(c));
-      });
-
-      const cityMap = new Map();
-      for (const c of cityBuckets) {
-        if (c?.id) cityMap.set(String(c.id), c);
-      }
-
-      const allCitiesSlim = Array.from(cityMap.values()).map((c) => ({
-        id: c.id,
-        name: c.name,
-      }));
-
-      setFormData((p) => ({
-        ...p,
-        target_locations: {
-          pan_india: true,
-          states: allStatesSlim,
-          cities: allCitiesSlim,
-        },
-      }));
-
-      // ✅ UI reset for state/city dropdown (now everything selected)
-      setSelectedStateId('');
-      setStatePickerValue('');
-      setCityPickerValue('');
-      setCities([]);
-      setShowAddCityDialog(false);
-      setCustomCityInput('');
-
-      // ✅ UI clean: by default hide huge lists
-      setShowPanIndiaDetails(false);
-
-      toast({
-        title: 'Pan India enabled',
-        description: `All states (${allStatesSlim.length}) & all cities (${allCitiesSlim.length}) selected.`,
-      });
-
-      panIndiaAutoFilledRef.current = true;
-    } catch (e) {
-      console.error(e);
-      toast({
-        title: 'Pan India failed',
-        description: 'All states/cities load nahi ho paya. Please try again.',
-        variant: 'destructive',
-      });
-
-      setFormData((p) => ({
-        ...p,
-        target_locations: {
-          ...p.target_locations,
-          pan_india: false,
-        },
-      }));
-
-      panIndiaAutoFilledRef.current = false;
-    } finally {
-      setBulkCityLoading(false);
-    }
-  };
-
-  const statesCount = (formData.target_locations?.states || []).length;
-  const citiesCount = (formData.target_locations?.cities || []).length;
-
   // Score
   const score = useMemo(() => {
     let s = 0;
@@ -302,8 +192,7 @@ const ProductForm = () => {
     else if (formData.images?.length > 0) s += 10;
     if (formData.category_path || formData.category_other) s += 10;
 
-    if (formData.target_locations?.pan_india) s += 10;
-    else if (
+    if (
       (formData.target_locations?.states?.length || 0) > 0 ||
       (formData.target_locations?.cities?.length || 0) > 0
     ) s += 10;
@@ -370,7 +259,7 @@ const ProductForm = () => {
             ? data.specifications
             : [{ key: '', value: '' }];
         const safeTargets = {
-          pan_india: !!data?.target_locations?.pan_india,
+          pan_india: false,
           states: data?.target_locations?.states || [],
           cities: data?.target_locations?.cities || [],
         };
@@ -399,8 +288,6 @@ const ProductForm = () => {
           loadCities(lastState.id);
         }
 
-        panIndiaAutoFilledRef.current = !!data?.target_locations?.pan_india;
-        setShowPanIndiaDetails(false);
       }
     } catch (e) {
       console.error(e);
@@ -438,7 +325,6 @@ const ProductForm = () => {
       };
     });
 
-    panIndiaAutoFilledRef.current = false;
   };
 
   const addLocation = (type, item) => addLocations(type, item ? [item] : []);
@@ -451,7 +337,6 @@ const ProductForm = () => {
     addLocation('states', state);
     setSelectedStateId(value);
     setCityPickerValue('');
-    setShowAddCityDialog(false);
     loadCities(value);
     setStatePickerValue('');
   };
@@ -482,52 +367,6 @@ const ProductForm = () => {
         ),
       },
     }));
-    panIndiaAutoFilledRef.current = false;
-  };
-
-  // ✅ Pan India ON -> auto select ALL states + ALL cities
-  // ✅ Pan India OFF -> clear selections
-  const togglePanIndia = async (checked) => {
-    if (!checked) {
-      panIndiaAutoFilledRef.current = false;
-      setShowPanIndiaDetails(false);
-
-      setFormData((p) => ({
-        ...p,
-        target_locations: {
-          pan_india: false,
-          states: [],
-          cities: [],
-        },
-      }));
-
-      setSelectedStateId('');
-      setStatePickerValue('');
-      setCityPickerValue('');
-      setCities([]);
-      setShowAddCityDialog(false);
-      setCustomCityInput('');
-
-      toast({
-        title: 'Pan India disabled',
-        description: 'Ab aap manually states/cities select kar sakte ho.',
-      });
-      return;
-    }
-
-    if (panIndiaAutoFilledRef.current && formData.target_locations?.pan_india) {
-      return;
-    }
-
-    setFormData((p) => ({
-      ...p,
-      target_locations: {
-        ...p.target_locations,
-        pan_india: true,
-      },
-    }));
-
-    await loadAllStatesAndCities();
   };
 
   // ✅ ONLY ONE “Select All Cities” (Selected States)
@@ -786,6 +625,10 @@ const ProductForm = () => {
     setLoading(true);
     try {
       const payload = { ...formData };
+      payload.target_locations = {
+        ...(payload.target_locations || {}),
+        pan_india: false,
+      };
       delete payload.qty_unit;
       delete payload.head_category;
       delete payload.sub_category;
@@ -1481,94 +1324,7 @@ const ProductForm = () => {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {/* ✅ Pan India toggle (clean) */}
-                  <div className="flex items-center justify-between rounded-md border p-3 bg-slate-50">
-                    <div>
-                      <div className="text-sm font-medium flex items-center gap-2">
-                        Pan India
-                        {bulkCityLoading ? (
-                          <span className="inline-flex items-center gap-2 text-xs text-slate-500">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Loading...
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        Enable karo to pure India me delivery/service available maana jayega.
-                      </div>
-                    </div>
-
-                    <Switch
-                      checked={isPanIndia}
-                      onCheckedChange={togglePanIndia}
-                      disabled={bulkCityLoading}
-                    />
-                  </div>
-
-                  {/* ✅ CLEAN UI when Pan India is ON */}
-                  {isPanIndia ? (
-                    <div className="rounded-md border bg-white p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-slate-900">
-                            ✅ Pan India Enabled
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            Aapka product/service <b>All India</b> ke liye available hai.
-                          </div>
-                          <div className="text-xs text-slate-500 mt-2">
-                            Selected: <b>{statesCount}</b> States, <b>{citiesCount}</b> Cities
-                          </div>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowPanIndiaDetails((p) => !p)}
-                        >
-                          {showPanIndiaDetails ? 'Hide details' : 'View details'}
-                        </Button>
-                      </div>
-
-                      {showPanIndiaDetails && (
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="rounded-md border p-3 bg-slate-50">
-                            <div className="text-xs font-semibold text-slate-700 mb-2">
-                              States (scroll)
-                            </div>
-                            <div className="max-h-40 overflow-auto flex flex-wrap gap-2">
-                              {(formData.target_locations.states || []).map((s) => (
-                                <span
-                                  key={s.id}
-                                  className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs"
-                                >
-                                  {s.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="rounded-md border p-3 bg-slate-50">
-                            <div className="text-xs font-semibold text-slate-700 mb-2">
-                              Cities (scroll)
-                            </div>
-                            <div className="max-h-40 overflow-auto flex flex-wrap gap-2">
-                              {(formData.target_locations.cities || []).map((c) => (
-                                <span
-                                  key={c.id}
-                                  className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs"
-                                >
-                                  {c.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    // ✅ Normal (Pan India OFF) UI
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* States */}
                       <div>
                         <Label>Select multiple states</Label>
@@ -1693,8 +1449,7 @@ const ProductForm = () => {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1735,7 +1490,6 @@ const ProductForm = () => {
                 <div className={formData.category_path ? 'text-emerald-600' : ''}>• Category Selected</div>
                 <div
                   className={
-                    formData.target_locations?.pan_india ||
                     (formData.target_locations?.states || []).length ||
                     (formData.target_locations?.cities || []).length
                       ? 'text-emerald-600'

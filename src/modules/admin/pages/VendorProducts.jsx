@@ -103,7 +103,7 @@ const normalizeTargetLocations = (raw) => {
       })
       .filter(Boolean);
   return {
-    pan_india: !!obj.pan_india,
+    pan_india: false,
     states: normList(obj.states),
     cities: normList(obj.cities),
   };
@@ -542,16 +542,12 @@ export default function VendorProducts() {
 
                 <div className="md:col-span-2">
                   <span className="text-gray-500">Target Locations:</span>{" "}
-                  {viewTargets?.pan_india ? (
-                    <span className="font-medium">Pan India</span>
-                  ) : (
-                    <span className="font-medium">
-                      {viewStates.length || viewCities.length
-                        ? `${viewStates.length} States, ${viewCities.length} Cities`
-                        : "—"}
-                    </span>
-                  )}
-                  {!viewTargets?.pan_india && (viewStates.length || viewCities.length) ? (
+                  <span className="font-medium">
+                    {viewStates.length || viewCities.length
+                      ? `${viewStates.length} States, ${viewCities.length} Cities`
+                      : "—"}
+                  </span>
+                  {viewStates.length || viewCities.length ? (
                     <div className="text-xs text-gray-500 mt-1">
                       {viewStates.length ? `States: ${viewStates.slice(0, 6).join(", ")}${viewStates.length > 6 ? " +" + (viewStates.length - 6) : ""}` : null}
                       {viewCities.length ? ` • Cities: ${viewCities.slice(0, 6).join(", ")}${viewCities.length > 6 ? " +" + (viewCities.length - 6) : ""}` : null}
@@ -773,83 +769,71 @@ export default function VendorProducts() {
 
               <div className="space-y-2">
                 <Label>Target Locations</Label>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={!!editProduct.target_locations?.pan_india}
-                    onCheckedChange={(checked) =>
-                      updateTargetLocations((tl) => ({ ...tl, pan_india: !!checked }))
-                    }
-                  />
-                  <span className="text-sm text-gray-600">Pan India</span>
-                </div>
-
-                {!editProduct.target_locations?.pan_india ? (
-                  <div className="space-y-3 border rounded-md p-3">
-                    <div>
-                      <Label className="text-xs">Add State</Label>
-                      <Select
-                        value={selectedStateId}
-                        onValueChange={(v) => {
-                          const st = states.find((x) => String(x.id) === String(v));
-                          if (!st) return;
-                          addLocation("states", st);
-                          setSelectedStateId(String(st.id));
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select state" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {states.map((s) => (
-                            <SelectItem key={s.id} value={String(s.id)}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(editProduct.target_locations?.states || []).map((s) => (
-                          <div key={s.id} className="bg-slate-100 px-2 py-1 rounded-full text-xs flex items-center gap-2">
-                            {s.name || s.id}
-                            <X className="w-3 h-3 cursor-pointer" onClick={() => removeLocation("states", s.id)} />
-                          </div>
+                <div className="space-y-3 border rounded-md p-3">
+                  <div>
+                    <Label className="text-xs">Add State</Label>
+                    <Select
+                      value={selectedStateId}
+                      onValueChange={(v) => {
+                        const st = states.find((x) => String(x.id) === String(v));
+                        if (!st) return;
+                        addLocation("states", st);
+                        setSelectedStateId(String(st.id));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {states.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>
+                            {s.name}
+                          </SelectItem>
                         ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs">Add City (by selected state)</Label>
-                      <Select
-                        value=""
-                        onValueChange={(v) => {
-                          const city = cities.find((c) => String(c.id) === String(v));
-                          if (!city) return;
-                          addLocation("cities", city);
-                        }}
-                        disabled={!selectedStateId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={selectedStateId ? "Select city" : "Select state first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cities.map((c) => (
-                            <SelectItem key={c.id} value={String(c.id)}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(editProduct.target_locations?.cities || []).map((c) => (
-                          <div key={c.id} className="bg-slate-100 px-2 py-1 rounded-full text-xs flex items-center gap-2">
-                            {c.name || c.id}
-                            <X className="w-3 h-3 cursor-pointer" onClick={() => removeLocation("cities", c.id)} />
-                          </div>
-                        ))}
-                      </div>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {(editProduct.target_locations?.states || []).map((s) => (
+                        <div key={s.id} className="bg-slate-100 px-2 py-1 rounded-full text-xs flex items-center gap-2">
+                          {s.name || s.id}
+                          <X className="w-3 h-3 cursor-pointer" onClick={() => removeLocation("states", s.id)} />
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ) : null}
+
+                  <div>
+                    <Label className="text-xs">Add City (by selected state)</Label>
+                    <Select
+                      value=""
+                      onValueChange={(v) => {
+                        const city = cities.find((c) => String(c.id) === String(v));
+                        if (!city) return;
+                        addLocation("cities", city);
+                      }}
+                      disabled={!selectedStateId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedStateId ? "Select city" : "Select state first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cities.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {(editProduct.target_locations?.cities || []).map((c) => (
+                        <div key={c.id} className="bg-slate-100 px-2 py-1 rounded-full text-xs flex items-center gap-2">
+                          {c.name || c.id}
+                          <X className="w-3 h-3 cursor-pointer" onClick={() => removeLocation("cities", c.id)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
