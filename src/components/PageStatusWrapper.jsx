@@ -34,6 +34,7 @@ const PageStatusWrapper = ({ pageRoute, children }) => {
 
         const res = await fetch(apiUrl(`/api/public/page-status?route=${encodeURIComponent(pageRoute)}`), {
           method: 'GET',
+          cache: 'no-store',
           credentials: 'include',
           headers: { Accept: 'application/json' },
         });

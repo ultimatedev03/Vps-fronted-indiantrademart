@@ -51,6 +51,7 @@ const fetchPublicConfig = async () => {
 
   const res = await fetch(apiUrl('/api/public/system-config'), {
     method: 'GET',
+    cache: 'no-store',
     credentials: 'include',
     headers: { Accept: 'application/json' },
   });
@@ -331,6 +332,7 @@ const PublicRouteStatusGate = ({ children }) => {
 
         const res = await fetch(apiUrl(`/api/public/page-status?route=${encodeURIComponent(path)}`), {
           method: 'GET',
+          cache: 'no-store',
           credentials: 'include',
           headers: { Accept: 'application/json' },
         });

@@ -127,6 +127,7 @@ const PortalLayout = ({ role }) => {
 
         const res = await fetch(apiUrl(`/api/public/page-status?route=${encodeURIComponent(routeToCheck)}`), {
           method: 'GET',
+          cache: 'no-store',
           credentials: 'include',
           headers: { Accept: 'application/json' },
         });

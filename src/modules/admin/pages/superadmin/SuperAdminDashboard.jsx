@@ -1873,23 +1873,30 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const saveSystemConfig = async () => {
+  const saveSystemConfig = async (configOverride = null, options = {}) => {
     setSystemSaving(true);
+    const nextConfig = normalizeSystemConfig(configOverride || systemConfig, systemConfig);
     try {
       const { config } = await superAdminServerApi.system.updateConfig({
-        maintenance_mode: featureBool(systemConfig.maintenance_mode, false),
-        maintenance_message: systemConfig.maintenance_message || '',
-        public_notice_enabled: featureBool(systemConfig.public_notice_enabled, false),
-        public_notice_message: systemConfig.public_notice_message || '',
-        public_notice_variant: systemConfig.public_notice_variant || 'info',
+        maintenance_mode: featureBool(nextConfig.maintenance_mode, false),
+        maintenance_message: nextConfig.maintenance_message || '',
+        public_notice_enabled: featureBool(nextConfig.public_notice_enabled, false),
+        public_notice_message: nextConfig.public_notice_message || '',
+        public_notice_variant: nextConfig.public_notice_variant || 'info',
       });
       if (config) {
         setSystemConfig((prev) => normalizeSystemConfig(config, prev));
       }
-      toast({ title: 'Saved', description: 'System configuration updated.' });
+      if (!options.silent) {
+        toast({
+          title: 'Saved',
+          description: options.description || 'System configuration updated.',
+        });
+      }
       await fetchAuditLogs();
     } catch (error) {
       handleError(error, 'Failed to save system config');
+      await fetchSystemConfig();
     } finally {
       setSystemSaving(false);
     }
@@ -2260,9 +2267,17 @@ export default function SuperAdminDashboard() {
                   <Label className="text-neutral-300">Maintenance Mode</Label>
                   <Switch
                     checked={featureBool(systemConfig.maintenance_mode, false)}
-                    onCheckedChange={(checked) =>
-                      setSystemConfig((prev) => ({ ...prev, maintenance_mode: checked }))
-                    }
+                    disabled={systemSaving}
+                    onCheckedChange={(checked) => {
+                      const nextConfig = normalizeSystemConfig(
+                        { ...systemConfig, maintenance_mode: checked },
+                        systemConfig
+                      );
+                      setSystemConfig(nextConfig);
+                      saveSystemConfig(nextConfig, {
+                        description: checked ? 'Maintenance mode enabled.' : 'Maintenance mode disabled.',
+                      });
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
@@ -2304,9 +2319,17 @@ export default function SuperAdminDashboard() {
                   <Label className="text-neutral-300">Enable Public Notice</Label>
                   <Switch
                     checked={featureBool(systemConfig.public_notice_enabled, false)}
-                    onCheckedChange={(checked) =>
-                      setSystemConfig((prev) => ({ ...prev, public_notice_enabled: checked }))
-                    }
+                    disabled={systemSaving}
+                    onCheckedChange={(checked) => {
+                      const nextConfig = normalizeSystemConfig(
+                        { ...systemConfig, public_notice_enabled: checked },
+                        systemConfig
+                      );
+                      setSystemConfig(nextConfig);
+                      saveSystemConfig(nextConfig, {
+                        description: checked ? 'Public notice enabled.' : 'Public notice disabled.',
+                      });
+                    }}
                   />
                 </div>
                 <div className="space-y-2">

@@ -29,6 +29,7 @@ export const PageStatusProvider = ({ children }) => {
 
         const res = await fetch(apiUrl('/api/public/page-status'), {
           method: 'GET',
+          cache: 'no-store',
           credentials: 'include',
           headers: { Accept: 'application/json' },
         });

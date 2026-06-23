@@ -93,6 +93,7 @@ export async function superAdminFetch(path, options = {}) {
   const url = joinBaseAndPath(base, path);
 
   const requestConfig = {
+    cache: 'no-store',
     ...options,
     headers,
   };
