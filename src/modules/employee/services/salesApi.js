@@ -181,6 +181,31 @@ export const salesApi = {
     return data?.lead || null;
   },
 
+  searchLeadVendors: async ({ leadId = '', q = '', limit = 30 } = {}) => {
+    const params = new URLSearchParams();
+    if (leadId) params.set('lead_id', String(leadId));
+    if (q) params.set('q', String(q));
+    params.set('limit', String(limit || 30));
+    const res = await fetchWithCsrf(apiUrl(`/api/employee/sales/lead-vendor-matches?${params.toString()}`));
+    const data = await unwrap(res, 'Failed to search matching vendors');
+    return {
+      vendors: data?.vendors || [],
+      query: data?.query || '',
+    };
+  },
+
+  assignLeadToVendor: async (leadId, payload = {}) => {
+    const normalizedLeadId = String(leadId || '').trim();
+    if (!normalizedLeadId) throw new Error('leadId is required');
+
+    const res = await fetchWithCsrf(apiUrl(`/api/employee/sales/leads/${normalizedLeadId}/assign-vendor`), {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await unwrap(res, 'Failed to assign lead to vendor');
+    return data?.lead || null;
+  },
+
   updateLead: async (id, updates = {}) => {
     const leadId = String(id || '').trim();
     if (!leadId) {

@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/use-toast';
 import { salesApi } from '@/modules/employee/services/salesApi';
-import { Search, Send, DollarSign, Eye, Loader2 } from 'lucide-react';
+import { Building2, Crown, DollarSign, Eye, Loader2, Search, Send } from 'lucide-react';
 
 const formatDate = (value) => {
   if (!value) return '-';
@@ -85,7 +85,13 @@ const Leads = () => {
   const [selectedLead, setSelectedLead] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [priceDialogOpen, setPriceDialogOpen] = useState(false);
+  const [vendorDialogOpen, setVendorDialogOpen] = useState(false);
   const [priceForm, setPriceForm] = useState({ budget: '', sales_note: '' });
+  const [vendorSearchTerm, setVendorSearchTerm] = useState('');
+  const [vendorOptions, setVendorOptions] = useState([]);
+  const [vendorSearchLoading, setVendorSearchLoading] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState('');
+  const [vendorAssignNote, setVendorAssignNote] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState('');
 
   const loadLeads = async ({ cursor = '', append = false } = {}) => {
@@ -204,22 +210,91 @@ const Leads = () => {
     setPriceDialogOpen(true);
   };
 
-  const handleSendToVendor = async (lead) => {
+  const buildVendorSearchSeed = (lead) =>
+    [
+      getLeadTitle(lead),
+      getLeadCategory(lead) !== '-' ? getLeadCategory(lead) : '',
+      lead?.product_name,
+      lead?.product_interest,
+      lead?.company_name,
+      lead?.city,
+      lead?.state,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120);
+
+  const loadVendorMatches = async (lead = selectedLead, query = vendorSearchTerm) => {
     const leadId = String(lead?.id || '').trim();
     if (!leadId) return;
 
-    setActionLoadingId(`send:${leadId}`);
+    setVendorSearchLoading(true);
     try {
-      const updatedLead = await salesApi.updateLeadStatus(leadId, 'SENT_TO_VENDOR');
+      const data = await salesApi.searchLeadVendors({
+        leadId,
+        q: String(query || '').trim(),
+        limit: 50,
+      });
+      setVendorOptions(data.vendors || []);
+    } catch (error) {
+      toast({
+        title: 'Vendor search failed',
+        description: error?.message || 'Could not find matching vendors',
+        variant: 'destructive',
+      });
+      setVendorOptions([]);
+    } finally {
+      setVendorSearchLoading(false);
+    }
+  };
+
+  const openVendorDialog = async (lead) => {
+    const leadId = String(lead?.id || '').trim();
+    if (!leadId) return;
+
+    const seed = buildVendorSearchSeed(lead);
+    setSelectedLead(lead);
+    setSelectedVendorId('');
+    setVendorAssignNote('');
+    setVendorOptions([]);
+    setVendorSearchTerm(seed);
+    setVendorDialogOpen(true);
+    await loadVendorMatches(lead, seed);
+  };
+
+  const handleAssignToVendor = async () => {
+    const leadId = String(selectedLead?.id || '').trim();
+    const vendorId = String(selectedVendorId || '').trim();
+    if (!leadId || !vendorId) {
+      toast({
+        title: 'Select vendor',
+        description: 'Choose a vendor before forwarding this lead.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const selectedVendor = vendorOptions.find((vendor) => String(vendor?.id || '') === vendorId);
+    setActionLoadingId(`assign:${leadId}`);
+    try {
+      const updatedLead = await salesApi.assignLeadToVendor(leadId, {
+        vendor_id: vendorId,
+        sales_note:
+          String(vendorAssignNote || '').trim() ||
+          `Forwarded by sales to ${selectedVendor?.company_name || 'selected vendor'}.`,
+      });
       updateLeadRow(updatedLead);
+      setVendorDialogOpen(false);
       toast({
         title: 'Lead forwarded',
-        description: 'Lead status updated to Sent To Vendor.',
+        description: `${getLeadTitle(selectedLead)} sent to ${selectedVendor?.company_name || 'vendor'}.`,
       });
     } catch (error) {
       toast({
         title: 'Forward failed',
-        description: error?.message || 'Could not update lead status',
+        description: error?.message || 'Could not assign lead to vendor',
         variant: 'destructive',
       });
     } finally {
@@ -444,10 +519,10 @@ const Leads = () => {
                           size="icon"
                           variant="ghost"
                           title="Send to Vendor"
-                          onClick={() => handleSendToVendor(lead)}
-                          disabled={actionLoadingId === `send:${lead.id}`}
+                          onClick={() => openVendorDialog(lead)}
+                          disabled={actionLoadingId === `assign:${lead.id}`}
                         >
-                          {actionLoadingId === `send:${lead.id}` ? (
+                          {actionLoadingId === `assign:${lead.id}` ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin text-green-600" />
                           ) : (
                             <Send className="h-3.5 w-3.5 text-green-600" />
@@ -543,6 +618,130 @@ const Leads = () => {
               ) : null}
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={vendorDialogOpen} onOpenChange={setVendorDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Send Lead to Vendor</DialogTitle>
+          </DialogHeader>
+          {selectedLead ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-semibold text-slate-950">{getLeadTitle(selectedLead)}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {getLeadCategory(selectedLead)} · {getLeadRegion(selectedLead)} · {formatLeadBudget(selectedLead)}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    value={vendorSearchTerm}
+                    onChange={(e) => setVendorSearchTerm(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        loadVendorMatches(selectedLead, vendorSearchTerm);
+                      }
+                    }}
+                    className="pl-9"
+                    placeholder="Search by product, company, category, location, or plan..."
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => loadVendorMatches(selectedLead, vendorSearchTerm)}
+                  disabled={vendorSearchLoading}
+                >
+                  {vendorSearchLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                  Search
+                </Button>
+              </div>
+
+              <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                {vendorSearchLoading ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">
+                    <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
+                    Searching matching vendors...
+                  </div>
+                ) : vendorOptions.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center text-sm text-slate-500">
+                    No matching vendors found. Try company name, product name, category, city, or plan name.
+                  </div>
+                ) : (
+                  vendorOptions.map((vendor) => {
+                    const checked = selectedVendorId === vendor.id;
+                    return (
+                      <button
+                        key={vendor.id}
+                        type="button"
+                        onClick={() => setSelectedVendorId(vendor.id)}
+                        className={`w-full rounded-lg border p-3 text-left transition ${
+                          checked
+                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-blue-600" />
+                              <p className="truncate text-sm font-semibold text-slate-950">
+                                {vendor.company_name || 'Unnamed vendor'}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {[vendor.city, vendor.state].filter(Boolean).join(', ') || 'Location not set'} · {vendor.email || vendor.phone || vendor.vendor_id || '-'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="bg-slate-50">
+                              <Crown className="mr-1 h-3 w-3 text-amber-500" />
+                              {vendor.active_plan_name || 'No active plan'}
+                            </Badge>
+                            <Badge variant="outline">
+                              ₹{Number(vendor.active_plan_price || 0).toLocaleString('en-IN')}
+                            </Badge>
+                            <Badge variant="outline">
+                              {Number(vendor.matched_products || 0)} product match
+                            </Badge>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="assign-note">Sales note</Label>
+                <Textarea
+                  id="assign-note"
+                  rows={3}
+                  value={vendorAssignNote}
+                  onChange={(e) => setVendorAssignNote(e.target.value)}
+                  placeholder="Optional note for this handoff..."
+                />
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVendorDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignToVendor} disabled={!selectedVendorId || actionLoadingId === `assign:${selectedLead?.id}`}>
+              {actionLoadingId === `assign:${selectedLead?.id}` ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Send to vendor
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

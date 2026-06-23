@@ -167,7 +167,7 @@ const getPlanEntitlements = (plan) => {
 const isSalesAssistedPlan = (plan) => getPlanEntitlements(plan).purchase.sales_assisted;
 const isVisibleCatalogPlan = (plan) => {
   const name = String(plan?.name || '').trim().toLowerCase();
-  if (!name || name.includes('trial')) return false;
+  if (!name) return false;
   const purchase = asObject(asObject(plan?.features).purchase);
   return Object.keys(purchase).length > 0;
 };

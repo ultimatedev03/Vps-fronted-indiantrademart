@@ -73,14 +73,34 @@ import {
   Download,
   Search,
   ExternalLink,
+  Info,
+  Pencil,
 } from 'lucide-react';
 
 // SUPERADMIN (ITM Owner) can only create ADMIN employees.
 // ADMIN creates HR/FINANCE. HR creates SALES/SUPPORT/DATA_ENTRY/MANAGER/VP.
 const EMPLOYEE_ROLES = ['ADMIN'];
 const NOTICE_VARIANTS = ['info', 'warning', 'critical'];
-const PLAN_BADGE_VARIANTS = ['neutral', 'green', 'blue', 'purple', 'gold', 'diamond', 'slate'];
+const PLAN_BADGE_VARIANTS = ['neutral', 'green', 'blue', 'purple', 'silver', 'gold', 'diamond', 'slate'];
 const VENDOR_FETCH_BATCH_SIZE = 500;
+const PLAN_LIMIT_GUIDE = [
+  {
+    title: 'Daily leads',
+    body: 'How many marketplace leads a vendor can unlock each day from the included quota.',
+  },
+  {
+    title: 'Weekly leads',
+    body: 'Maximum included lead unlocks allowed in one week. Keep this greater than or equal to daily.',
+  },
+  {
+    title: 'States',
+    body: 'How many states the vendor can target from Plan Business Preferences.',
+  },
+  {
+    title: 'Cities',
+    body: 'How many selected cities across those states can show the vendor products in search.',
+  },
+];
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -272,9 +292,77 @@ const getPlanCoverageMeta = (plan) => {
   };
 };
 
+const featureBool = (value, fallback = false) => {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  const token = String(value ?? '').trim().toLowerCase();
+  if (['true', '1', 'yes', 'y', 'on'].includes(token)) return true;
+  if (['false', '0', 'no', 'n', 'off'].includes(token)) return false;
+  return fallback;
+};
+
+const normalizePurchaseChannel = (value, salesAssisted = false) => {
+  const token = String(value || '').trim().toUpperCase().replace(/[^A-Z_]/g, '_');
+  if (['SALES', 'SALES_ASSISTED', 'ASSISTED', 'MANUAL'].includes(token) || salesAssisted) {
+    return 'SALES_ASSISTED';
+  }
+  return 'DIRECT';
+};
+
+const getPlanBenefitMeta = (plan) => {
+  const features = asObject(plan?.features);
+  const purchase = asObject(features.purchase);
+  const listing = asObject(features.listing);
+  const verification = asObject(features.verification);
+  const leads = asObject(features.leads);
+  const support = asObject(features.support);
+  const analytics = asObject(features.analytics);
+  const portfolio = asObject(features.portfolio);
+  const certificate = asObject(features.certificate);
+  const seo = asObject(features.seo);
+  const salesAssisted = featureBool(purchase.sales_assisted, false);
+  const purchaseChannel = normalizePurchaseChannel(purchase.channel, salesAssisted);
+
+  return {
+    purchase_channel: purchaseChannel,
+    public_purchase_enabled:
+      purchaseChannel === 'SALES_ASSISTED' ? false : featureBool(purchase.public_purchase_enabled, true),
+    sales_cta_label: String(purchase.cta_label || (purchaseChannel === 'SALES_ASSISTED' ? 'Talk to sales' : 'Buy online')).trim(),
+    listing_ranking_label: String(listing.ranking_label || '').trim(),
+    listing_top_slots: Number(listing.top_slots || 0),
+    listing_highlight: featureBool(listing.highlight, false),
+    listing_featured: featureBool(listing.featured, false),
+    listing_category_top_ranking: featureBool(listing.category_top_ranking, false),
+    listing_verified_tick: featureBool(listing.profile_verified_tick, false),
+    listing_trust_seal: featureBool(verification.trust_seal, featureBool(listing.trust_seal, false)),
+    leads_priority: featureBool(leads.priority_leads, false),
+    leads_early_access: featureBool(leads.early_access_leads, false),
+    leads_rfq_access: featureBool(leads.rfq_access, true),
+    leads_direct_call_whatsapp: featureBool(leads.direct_call_whatsapp, false),
+    support_level: String(support.level || 'standard').trim().toLowerCase(),
+    support_sla_hours: Number(support.response_sla_hours || 0),
+    analytics_enabled: featureBool(analytics.enabled, false),
+    analytics_export_csv: featureBool(analytics.export_csv, false),
+    portfolio_template: String(portfolio.template || 'STANDARD').trim().toUpperCase() === 'PREMIUM' ? 'PREMIUM' : 'STANDARD',
+    portfolio_customizable: featureBool(portfolio.customizable, false),
+    custom_url_enabled: featureBool(portfolio.custom_url, false),
+    portfolio_custom_sections: featureBool(portfolio.custom_sections, false),
+    sitemap_customization: featureBool(portfolio.sitemap_customization, false),
+    sitemap_url_boost: Number(portfolio.sitemap_url_boost || 0),
+    certificate_enabled: featureBool(certificate.enabled, false),
+    certificate_tier: String(certificate.tier || '').trim().toUpperCase(),
+    certificate_title: String(certificate.title || '').trim(),
+    certificate_label: String(certificate.label || '').trim(),
+    seo_enabled: featureBool(seo.enabled, false),
+    seo_url_aliases: Number(seo.url_aliases || 0),
+    seo_city_category_pages: Number(seo.city_category_pages || 0),
+  };
+};
+
 const planToDraft = (plan) => {
   const pricing = getPlanPricingMeta(plan);
   const coverage = getPlanCoverageMeta(plan);
+  const benefits = getPlanBenefitMeta(plan);
   return {
     name: String(plan?.name || ''),
     description: String(plan?.description || ''),
@@ -294,6 +382,7 @@ const planToDraft = (plan) => {
     badge_variant: pricing.badge_variant,
     states_limit: Number(coverage.states_limit || 0),
     cities_limit: Number(coverage.cities_limit || 0),
+    ...benefits,
   };
 };
 
@@ -526,6 +615,9 @@ export default function SuperAdminDashboard() {
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [planSavingId, setPlanSavingId] = useState(null);
+  const [planDeletingId, setPlanDeletingId] = useState(null);
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [planEditorOpen, setPlanEditorOpen] = useState(false);
   const [planSearch, setPlanSearch] = useState('');
   const [planDrafts, setPlanDrafts] = useState({});
   const [planCreateOpen, setPlanCreateOpen] = useState(false);
@@ -553,6 +645,37 @@ export default function SuperAdminDashboard() {
     badge_variant: 'neutral',
     states_limit: 0,
     cities_limit: 0,
+    purchase_channel: 'DIRECT',
+    public_purchase_enabled: true,
+    sales_cta_label: 'Buy online',
+    listing_ranking_label: '',
+    listing_top_slots: 0,
+    listing_highlight: false,
+    listing_featured: false,
+    listing_category_top_ranking: false,
+    listing_verified_tick: false,
+    listing_trust_seal: false,
+    leads_priority: false,
+    leads_early_access: false,
+    leads_rfq_access: true,
+    leads_direct_call_whatsapp: false,
+    support_level: 'standard',
+    support_sla_hours: 0,
+    analytics_enabled: false,
+    analytics_export_csv: false,
+    portfolio_template: 'STANDARD',
+    portfolio_customizable: false,
+    custom_url_enabled: false,
+    portfolio_custom_sections: false,
+    sitemap_customization: false,
+    sitemap_url_boost: 0,
+    certificate_enabled: false,
+    certificate_tier: '',
+    certificate_title: '',
+    certificate_label: '',
+    seo_enabled: false,
+    seo_url_aliases: 0,
+    seo_city_category_pages: 0,
   });
 
   // Finance
@@ -795,7 +918,7 @@ export default function SuperAdminDashboard() {
     setPlansLoading(true);
     try {
       const { plans: list } = await superAdminServerApi.plans.list({
-        include_inactive: true,
+        include_inactive: false,
         limit: 500,
       });
       const next = list || [];
@@ -971,26 +1094,122 @@ export default function SuperAdminDashboard() {
     );
   }, [plans, planSearch]);
 
-  const draftToPayload = (draft) => ({
-    name: String(draft?.name || '').trim(),
-    description: String(draft?.description || '').trim(),
-    price: Number(draft?.price || 0),
-    daily_limit: Number(draft?.daily_limit || 0),
-    weekly_limit: Number(draft?.weekly_limit || 0),
-    yearly_limit: Number(draft?.yearly_limit || 0),
-    duration_days: Number(draft?.duration_days || 365),
-    is_active: draft?.is_active === true,
-    original_price: Number(draft?.original_price || 0),
-    discount_percent: Number(draft?.discount_percent || 0),
-    discount_label: String(draft?.discount_label || '').trim(),
-    currency: DEFAULT_PLAN_CURRENCY,
-    regional_prices: regionalPriceDraftsToPayload(draft?.regional_prices),
-    extra_lead_price: Number(draft?.extra_lead_price || 0),
-    badge_label: String(draft?.badge_label || '').trim(),
-    badge_variant: String(draft?.badge_variant || 'neutral').trim() || 'neutral',
-    states_limit: Number(draft?.states_limit || 0),
-    cities_limit: Number(draft?.cities_limit || 0),
-  });
+  const selectedPlan = useMemo(() => {
+    if (!filteredPlans.length) return null;
+    return filteredPlans.find((plan) => plan?.id === selectedPlanId) || filteredPlans[0];
+  }, [filteredPlans, selectedPlanId]);
+
+  useEffect(() => {
+    if (!filteredPlans.length) {
+      if (selectedPlanId) setSelectedPlanId(null);
+      return;
+    }
+    if (!selectedPlanId || !filteredPlans.some((plan) => plan?.id === selectedPlanId)) {
+      setSelectedPlanId(filteredPlans[0]?.id || null);
+    }
+  }, [filteredPlans, selectedPlanId]);
+
+  const draftToPayload = (draft) => {
+    const purchaseChannel = normalizePurchaseChannel(draft?.purchase_channel, draft?.sales_assisted === true);
+    const certificateTier = String(draft?.certificate_tier || '').trim().toUpperCase();
+    const certificateLabel = String(draft?.certificate_label || certificateTier || '').trim();
+    const features = {
+      purchase: {
+        channel: purchaseChannel,
+        sales_assisted: purchaseChannel === 'SALES_ASSISTED',
+        public_purchase_enabled:
+          purchaseChannel === 'SALES_ASSISTED' ? false : draft?.public_purchase_enabled !== false,
+        cta_label: String(draft?.sales_cta_label || (purchaseChannel === 'SALES_ASSISTED' ? 'Talk to sales' : 'Buy online')).trim(),
+      },
+      badge: {
+        label: String(draft?.badge_label || '').trim(),
+        variant: String(draft?.badge_variant || 'neutral').trim() || 'neutral',
+      },
+      listing: {
+        ranking_label: String(draft?.listing_ranking_label || '').trim(),
+        highlight: draft?.listing_highlight === true,
+        featured: draft?.listing_featured === true,
+        category_top_ranking: draft?.listing_category_top_ranking === true,
+        profile_verified_tick: draft?.listing_verified_tick === true,
+        trust_seal: draft?.listing_trust_seal === true,
+        top_slots: Number(draft?.listing_top_slots || 0),
+      },
+      verification: {
+        kyc_required: draft?.listing_trust_seal === true || draft?.certificate_enabled === true,
+        trust_seal: draft?.listing_trust_seal === true,
+      },
+      leads: {
+        priority_leads: draft?.leads_priority === true,
+        early_access_leads: draft?.leads_early_access === true,
+        rfq_access: draft?.leads_rfq_access !== false,
+        direct_call_whatsapp: draft?.leads_direct_call_whatsapp === true,
+      },
+      support: {
+        level: String(draft?.support_level || 'standard').trim().toLowerCase(),
+        response_sla_hours: Number(draft?.support_sla_hours || 0),
+      },
+      analytics: {
+        enabled: draft?.analytics_enabled === true,
+        export_csv: draft?.analytics_export_csv === true,
+      },
+      coverage: {
+        states_limit: Number(draft?.states_limit || 0),
+        cities_limit: Number(draft?.cities_limit || 0),
+      },
+      pricing: {
+        currency: DEFAULT_PLAN_CURRENCY,
+        original_price: Number(draft?.original_price || 0),
+        discount_percent: Number(draft?.discount_percent || 0),
+        discount_label: String(draft?.discount_label || '').trim(),
+        regional_prices: regionalPriceDraftsToPayload(draft?.regional_prices),
+        extra_lead_price: Number(draft?.extra_lead_price || 0),
+      },
+      portfolio: {
+        enabled: true,
+        template: String(draft?.portfolio_template || 'STANDARD').trim().toUpperCase() === 'PREMIUM' ? 'PREMIUM' : 'STANDARD',
+        customizable: draft?.portfolio_customizable === true,
+        custom_url: draft?.custom_url_enabled === true,
+        custom_sections: draft?.portfolio_custom_sections === true,
+        sitemap_customization: draft?.sitemap_customization === true,
+        sitemap_url_boost: Number(draft?.sitemap_url_boost || 0),
+      },
+      certificate: {
+        enabled: draft?.certificate_enabled === true,
+        tier: certificateTier,
+        title: String(draft?.certificate_title || '').trim(),
+        label: certificateLabel,
+      },
+      seo: {
+        enabled: draft?.seo_enabled === true,
+        sitemap: draft?.seo_enabled === true,
+        portfolio_schema: draft?.seo_enabled === true,
+        url_aliases: Number(draft?.seo_url_aliases || 0),
+        city_category_pages: Number(draft?.seo_city_category_pages || 0),
+      },
+    };
+
+    return {
+      name: String(draft?.name || '').trim(),
+      description: String(draft?.description || '').trim(),
+      price: Number(draft?.price || 0),
+      daily_limit: Number(draft?.daily_limit || 0),
+      weekly_limit: Number(draft?.weekly_limit || 0),
+      yearly_limit: Number(draft?.yearly_limit || 0),
+      duration_days: Number(draft?.duration_days || 365),
+      is_active: draft?.is_active === true,
+      original_price: Number(draft?.original_price || 0),
+      discount_percent: Number(draft?.discount_percent || 0),
+      discount_label: String(draft?.discount_label || '').trim(),
+      currency: DEFAULT_PLAN_CURRENCY,
+      regional_prices: regionalPriceDraftsToPayload(draft?.regional_prices),
+      extra_lead_price: Number(draft?.extra_lead_price || 0),
+      badge_label: features.badge.label,
+      badge_variant: features.badge.variant,
+      states_limit: features.coverage.states_limit,
+      cities_limit: features.coverage.cities_limit,
+      features,
+    };
+  };
 
   const dirtyPlanIds = useMemo(() => {
     const changed = [];
@@ -1300,6 +1519,37 @@ export default function SuperAdminDashboard() {
       badge_variant: 'neutral',
       states_limit: 0,
       cities_limit: 0,
+      purchase_channel: 'DIRECT',
+      public_purchase_enabled: true,
+      sales_cta_label: 'Buy online',
+      listing_ranking_label: '',
+      listing_top_slots: 0,
+      listing_highlight: false,
+      listing_featured: false,
+      listing_category_top_ranking: false,
+      listing_verified_tick: false,
+      listing_trust_seal: false,
+      leads_priority: false,
+      leads_early_access: false,
+      leads_rfq_access: true,
+      leads_direct_call_whatsapp: false,
+      support_level: 'standard',
+      support_sla_hours: 0,
+      analytics_enabled: false,
+      analytics_export_csv: false,
+      portfolio_template: 'STANDARD',
+      portfolio_customizable: false,
+      custom_url_enabled: false,
+      portfolio_custom_sections: false,
+      sitemap_customization: false,
+      sitemap_url_boost: 0,
+      certificate_enabled: false,
+      certificate_tier: '',
+      certificate_title: '',
+      certificate_label: '',
+      seo_enabled: false,
+      seo_url_aliases: 0,
+      seo_city_category_pages: 0,
     });
   };
 
@@ -1508,6 +1758,71 @@ export default function SuperAdminDashboard() {
       }
     } finally {
       setDeletingSelectedPlans(false);
+    }
+  };
+
+  const hidePlan = async (plan) => {
+    if (!plan?.id) return;
+    const planName = String(plan?.name || '').trim() || `Plan ${plan.id}`;
+    setPlanDeletingId(plan.id);
+    try {
+      const { plan: updatedPlan } = await superAdminServerApi.plans.update(plan.id, { is_active: false });
+      if (updatedPlan) {
+        setPlans((prev) => (prev || []).map((item) => (item.id === plan.id ? updatedPlan : item)));
+        setPlanDrafts((prev) => ({
+          ...prev,
+          [plan.id]: planToDraft(updatedPlan),
+        }));
+      }
+      toast({
+        title: 'Plan hidden',
+        description: `${planName} is no longer visible for vendor purchase.`,
+      });
+      await fetchAuditLogs();
+    } catch (error) {
+      handleError(error, 'Failed to hide plan');
+    } finally {
+      setPlanDeletingId(null);
+    }
+  };
+
+  const deletePlan = async (plan) => {
+    if (!plan?.id) return;
+    const planName = String(plan?.name || '').trim() || `Plan ${plan.id}`;
+    const isDirty = dirtyPlanIds.includes(plan.id);
+    const confirmText = window.prompt(
+      `Type DELETE to delete "${planName}".${
+        isDirty ? ' Unsaved changes on this plan will be lost.' : ''
+      }\n\nUnused plans are removed permanently. Plans with active vendors or payment history are hidden from the active catalog.`
+    );
+    if (confirmText !== 'DELETE') return;
+
+    setPlanDeletingId(plan.id);
+    try {
+      const result = await superAdminServerApi.plans.delete(plan.id);
+      toast({
+        title: result?.soft_deleted ? 'Plan hidden' : 'Plan deleted',
+        description: result?.message || `${planName} was removed from the active catalog.`,
+      });
+      await fetchPlans();
+      await fetchAuditLogs();
+    } catch (error) {
+      const message = error?.message || 'Delete failed';
+      const canHideInstead = window.confirm(
+        `${message}\n\nThis plan may have active subscriptions or payment history. Hide it instead so vendors cannot buy it?`
+      );
+      setPlanDeletingId(null);
+      if (canHideInstead) {
+        await hidePlan(plan);
+      } else {
+        toast({
+          title: 'Plan not deleted',
+          description: message,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setPlanDeletingId(null);
     }
   };
 
@@ -2344,6 +2659,9 @@ export default function SuperAdminDashboard() {
                         <TableHead className="text-neutral-300">KYC</TableHead>
                         <TableHead className="text-neutral-300">Active</TableHead>
                         <TableHead className="text-neutral-300">Location</TableHead>
+                        <TableHead className="text-neutral-300">Direct Leads</TableHead>
+                        <TableHead className="text-neutral-300">Purchased Leads</TableHead>
+                        <TableHead className="text-neutral-300">Opened / Unopened</TableHead>
                         <TableHead className="text-neutral-300">Created</TableHead>
                         <TableHead className="text-right text-neutral-300">Delete</TableHead>
                       </TableRow>
@@ -2351,7 +2669,7 @@ export default function SuperAdminDashboard() {
                     <TableBody>
                       {filteredVendors.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-neutral-500 py-10">
+                          <TableCell colSpan={9} className="text-center text-neutral-500 py-10">
                             {vendorsLoading ? 'Loading vendors...' : 'No vendors found'}
                           </TableCell>
                         </TableRow>
@@ -2360,6 +2678,7 @@ export default function SuperAdminDashboard() {
                           const busy = vendorDeletingId === vendor.id;
                           const kyc = String(vendor.kyc_status || 'PENDING').toUpperCase();
                           const active = vendor.is_active !== false;
+                          const stats = vendor.lead_stats || {};
                           return (
                             <TableRow key={vendor.id} className="hover:bg-neutral-800/50">
                               <TableCell>
@@ -2394,6 +2713,26 @@ export default function SuperAdminDashboard() {
                               </TableCell>
                               <TableCell className="text-neutral-300 text-sm">
                                 {[vendor.city, vendor.state].filter(Boolean).join(', ') || '—'}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                <div className="font-semibold text-white">{Number(stats.direct_total || 0)}</div>
+                                <div className="text-[11px] text-neutral-500">
+                                  {Number(stats.direct_opened || 0)} opened · {Number(stats.direct_unopened || 0)} unopened
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                <div className="font-semibold text-white">{Number(stats.purchased_total || 0)}</div>
+                                <div className="text-[11px] text-neutral-500">
+                                  {Number(stats.purchased_opened || 0)} opened · {Number(stats.purchased_unopened || 0)} unopened
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className="border-blue-900 bg-blue-900/20 text-blue-300"
+                                >
+                                  {Number(stats.total_opened || 0)} / {Number(stats.total_unopened || 0)}
+                                </Badge>
                               </TableCell>
                               <TableCell className="text-neutral-400 text-xs">
                                 {formatDateTime(vendor.created_at)}
@@ -2438,43 +2777,12 @@ export default function SuperAdminDashboard() {
                     <Button
                       variant="outline"
                       onClick={fetchPlans}
-                      disabled={deletingSelectedPlans}
+                      disabled={deletingSelectedPlans || planDeletingId !== null}
                       className="border-neutral-700 text-neutral-300 hover:bg-neutral-800 w-full sm:w-auto"
                     >
                       <RefreshCw className={`h-4 w-4 mr-2 ${plansLoading ? 'animate-spin' : ''}`} />
                       Refresh
                     </Button>
-                    <Button
-                      variant={planSelectionMode ? 'secondary' : 'outline'}
-                      onClick={togglePlanSelectionMode}
-                      disabled={savingAllPlans || plansLoading || planSavingId !== null || deletingSelectedPlans}
-                      className="border-neutral-700 text-neutral-300 hover:bg-neutral-800 w-full sm:w-auto"
-                    >
-                      {planSelectionMode ? 'Cancel Select' : 'Select Plans'}
-                    </Button>
-                    {planSelectionMode ? (
-                      <Button
-                        variant="destructive"
-                        onClick={deleteSelectedPlans}
-                        disabled={
-                          deletingSelectedPlans ||
-                          savingAllPlans ||
-                          plansLoading ||
-                          planSavingId !== null ||
-                          selectedPlanIds.length === 0
-                        }
-                        className="bg-red-700 hover:bg-red-600 w-full sm:w-auto disabled:opacity-60"
-                      >
-                        {deletingSelectedPlans ? (
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4 mr-2" />
-                        )}
-                        {deletingSelectedPlans
-                          ? 'Deleting...'
-                          : `Delete Selected (${selectedPlanIds.length})`}
-                      </Button>
-                    ) : null}
                     <Button
                       onClick={saveAllPlans}
                       disabled={
@@ -2482,6 +2790,7 @@ export default function SuperAdminDashboard() {
                         deletingSelectedPlans ||
                         plansLoading ||
                         planSavingId !== null ||
+                        planDeletingId !== null ||
                         dirtyPlanIds.length === 0
                       }
                       className="bg-emerald-700 hover:bg-emerald-600 w-full sm:w-auto disabled:opacity-60"
@@ -2495,7 +2804,7 @@ export default function SuperAdminDashboard() {
                     </Button>
                     <Button
                       onClick={() => setPlanCreateOpen(true)}
-                      disabled={deletingSelectedPlans}
+                      disabled={deletingSelectedPlans || planDeletingId !== null}
                       className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                     >
                       <Plus className="h-4 w-4 mr-2" /> Create Plan
@@ -2509,6 +2818,21 @@ export default function SuperAdminDashboard() {
                   placeholder="Search plans by name or description..."
                   className="bg-neutral-800 border-neutral-700 text-white"
                 />
+
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  {PLAN_LIMIT_GUIDE.map((item) => (
+                    <div
+                      key={item.title}
+                      className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3"
+                    >
+                      <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-neutral-100">
+                        <Info className="h-4 w-4 text-blue-300" />
+                        {item.title}
+                      </div>
+                      <p className="text-xs leading-5 text-neutral-400">{item.body}</p>
+                    </div>
+                  ))}
+                </div>
               </CardHeader>
 
               <CardContent className="space-y-4">
@@ -2517,11 +2841,159 @@ export default function SuperAdminDashboard() {
                     {plansLoading ? 'Loading plans...' : 'No plans found'}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                    {filteredPlans.map((plan) => {
+                  <div className="space-y-5">
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-white">Choose a plan to edit</p>
+                          <p className="text-xs text-neutral-500">
+                            Click a card to open that plan editor. Use delete only for unused plans.
+                          </p>
+                        </div>
+                        <div className="text-xs text-neutral-500">
+                          {filteredPlans.length} plan{filteredPlans.length === 1 ? '' : 's'}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        {filteredPlans.map((plan) => {
+                          const draft = planDrafts?.[plan.id] || planToDraft(plan);
+                          const isSelected = selectedPlan?.id === plan.id;
+                          const deleting = planDeletingId === plan.id;
+                          const isDirty = dirtyPlanIds.includes(plan.id);
+
+                          const openEditor = () => {
+                            setSelectedPlanId(plan.id);
+                            setPlanEditorOpen(true);
+                          };
+
+                          return (
+                            <div
+                              key={plan.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={openEditor}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  openEditor();
+                                }
+                              }}
+                              className={`group cursor-pointer rounded-xl border p-4 transition-colors ${
+                                isSelected
+                                  ? 'border-blue-500 bg-blue-950/25 ring-1 ring-blue-500/30'
+                                  : 'border-neutral-800 bg-neutral-950/45 hover:border-neutral-700 hover:bg-neutral-900/70'
+                              }`}
+                            >
+                              <div className="mb-4 flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="truncate text-base font-semibold text-white">
+                                    {draft.name || 'Untitled plan'}
+                                  </div>
+                                  <p className="mt-1 line-clamp-2 min-h-8 text-xs leading-4 text-neutral-500">
+                                    {draft.description || 'No description added yet.'}
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openEditor();
+                                    }}
+                                    disabled={plansLoading || deleting || savingAllPlans}
+                                    className="h-8 bg-blue-600 px-2.5 text-white hover:bg-blue-700"
+                                    title="Edit this plan"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    <span className="ml-1.5">Edit</span>
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      deletePlan(plan);
+                                    }}
+                                    disabled={
+                                      deleting ||
+                                      planSavingId === plan.id ||
+                                      savingAllPlans ||
+                                      deletingSelectedPlans ||
+                                      plansLoading
+                                    }
+                                    className="h-8 border-red-900/70 bg-red-950/20 px-2 text-red-200 hover:bg-red-950/50 hover:text-red-100"
+                                    title="Delete this plan"
+                                  >
+                                    {deleting ? (
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {[
+                                  { label: 'Daily', value: draft.daily_limit || 0 },
+                                  { label: 'Weekly', value: draft.weekly_limit || 0 },
+                                  { label: 'States', value: draft.states_limit || 0 },
+                                  { label: 'Cities', value: draft.cities_limit || 0 },
+                                ].map((item) => (
+                                  <div key={item.label} className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-2">
+                                    <div className="text-[10px] uppercase tracking-wide text-neutral-500">{item.label}</div>
+                                    <div className="mt-0.5 text-sm font-semibold text-neutral-100">{item.value}</div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant="secondary"
+                                  className={
+                                    draft.is_active
+                                      ? 'bg-emerald-900/40 text-emerald-300'
+                                      : 'bg-neutral-800 text-neutral-400'
+                                  }
+                                >
+                                  {draft.is_active ? 'Visible' : 'Hidden'}
+                                </Badge>
+                                {isDirty ? (
+                                  <Badge variant="secondary" className="bg-amber-950/50 text-amber-300">
+                                    Unsaved
+                                  </Badge>
+                                ) : null}
+                                {isSelected ? (
+                                  <Badge variant="secondary" className="bg-blue-900/50 text-blue-200">
+                                    Selected
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <Dialog open={planEditorOpen && Boolean(selectedPlan)} onOpenChange={setPlanEditorOpen}>
+                      <DialogContent className="max-h-[92vh] w-[96vw] max-w-[1100px] overflow-y-auto border-neutral-800 bg-neutral-950 text-white">
+                        <DialogHeader>
+                          <DialogTitle>
+                            Edit {String((planDrafts?.[selectedPlan?.id] || (selectedPlan ? planToDraft(selectedPlan) : {}))?.name || 'plan')}
+                          </DialogTitle>
+                          <DialogDescription className="text-neutral-400">
+                            Update this plan, then save changes. Delete is only for unused plans.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                    <div className="grid grid-cols-1 gap-4">
+                    {filteredPlans.filter((plan) => plan?.id === selectedPlan?.id).map((plan) => {
                       const draft = planDrafts?.[plan.id] || planToDraft(plan);
                       const saving = planSavingId === plan.id;
-                      const selected = selectedPlanIds.includes(plan.id);
+                      const deleting = planDeletingId === plan.id;
+                      const selected = selectedPlan?.id === plan.id;
                       const nowPrice = Number(draft?.price || 0);
                       const oldPrice = Number(draft?.original_price || 0);
                       const discountPercent = Number(draft?.discount_percent || 0);
@@ -2535,11 +3007,11 @@ export default function SuperAdminDashboard() {
                           key={plan.id}
                           className={`rounded-xl border bg-neutral-950/40 p-4 sm:p-5 space-y-4 ${
                             selected
-                              ? 'border-red-700/80 ring-1 ring-red-800/60'
+                              ? 'border-blue-700/80 ring-1 ring-blue-800/60'
                               : 'border-neutral-800'
                           }`}
                         >
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
                               {planSelectionMode ? (
                                 <Checkbox
@@ -2552,16 +3024,40 @@ export default function SuperAdminDashboard() {
                               ) : null}
                               <div className="text-xs text-neutral-500">Plan ID: {plan.id}</div>
                             </div>
-                            <Badge
-                              variant="secondary"
-                              className={
-                                draft.is_active
-                                  ? 'bg-emerald-900/40 text-emerald-300'
-                                  : 'bg-neutral-800 text-neutral-400'
-                              }
-                            >
-                              {draft.is_active ? 'Active' : 'Hidden'}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  draft.is_active
+                                    ? 'bg-emerald-900/40 text-emerald-300'
+                                    : 'bg-neutral-800 text-neutral-400'
+                                }
+                              >
+                                {draft.is_active ? 'Visible for purchase' : 'Hidden from vendors'}
+                              </Badge>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => deletePlan(plan)}
+                                disabled={
+                                  deleting ||
+                                  saving ||
+                                  savingAllPlans ||
+                                  deletingSelectedPlans ||
+                                  plansLoading ||
+                                  planSelectionMode
+                                }
+                                className="h-8 border-red-900/70 bg-red-950/20 px-2.5 text-red-200 hover:bg-red-950/50 hover:text-red-100"
+                              >
+                                {deleting ? (
+                                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                                <span className="ml-1.5">Delete</span>
+                              </Button>
+                            </div>
                           </div>
 
                           <div className="grid grid-cols-1 gap-3">
@@ -2663,10 +3159,15 @@ export default function SuperAdminDashboard() {
                           </div>
 
                           <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
-                            <p className="text-[11px] uppercase tracking-wide text-neutral-400">Lead Limits</p>
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-neutral-300">Lead Unlock Limits</p>
+                              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                                Included lead quota. Daily is the per-day unlock cap, weekly is the total cap for the week.
+                              </p>
+                            </div>
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                               <div className="space-y-1">
-                                <Label className="text-[11px] text-neutral-500">Daily</Label>
+                                <Label className="text-[11px] text-neutral-500">Daily unlocks</Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -2676,7 +3177,7 @@ export default function SuperAdminDashboard() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-[11px] text-neutral-500">Weekly</Label>
+                                <Label className="text-[11px] text-neutral-500">Weekly unlocks</Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -2686,7 +3187,7 @@ export default function SuperAdminDashboard() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-[11px] text-neutral-500">Yearly</Label>
+                                <Label className="text-[11px] text-neutral-500">Yearly unlocks</Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -2709,10 +3210,15 @@ export default function SuperAdminDashboard() {
                           </div>
 
                           <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
-                            <p className="text-[11px] uppercase tracking-wide text-neutral-400">Coverage Limits</p>
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-neutral-300">Search Coverage Limits</p>
+                              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                                Vendor products appear in search only for the selected states and cities under Plan Business Preferences.
+                              </p>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <div className="space-y-1">
-                                <Label className="text-[11px] text-neutral-500">States</Label>
+                                <Label className="text-[11px] text-neutral-500">Target states allowed</Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -2722,7 +3228,7 @@ export default function SuperAdminDashboard() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-[11px] text-neutral-500">Cities</Label>
+                                <Label className="text-[11px] text-neutral-500">Target cities allowed</Label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -2733,7 +3239,306 @@ export default function SuperAdminDashboard() {
                               </div>
                             </div>
                             <div className="text-xs text-neutral-500">
-                              Vendor card preview: Up to {Number(draft.states_limit || 0)} states and Up to {Number(draft.cities_limit || 0)} cities
+                              Search rule: up to {Number(draft.states_limit || 0)} selected states and {Number(draft.cities_limit || 0)} selected cities.
+                            </div>
+                          </div>
+
+                          <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-neutral-300">Purchase & Plan Page</p>
+                              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                                Direct plans can be bought by vendors. Sales-assisted plans are handled by the sales team.
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[11px] text-neutral-500">Activation flow</Label>
+                                <Select
+                                  value={draft.purchase_channel || 'DIRECT'}
+                                  onValueChange={(value) => {
+                                    updatePlanDraft(plan.id, 'purchase_channel', value);
+                                    updatePlanDraft(plan.id, 'public_purchase_enabled', value !== 'SALES_ASSISTED');
+                                    updatePlanDraft(plan.id, 'sales_cta_label', value === 'SALES_ASSISTED' ? 'Talk to sales' : 'Buy online');
+                                  }}
+                                >
+                                  <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+                                    <SelectItem value="DIRECT">Direct purchase</SelectItem>
+                                    <SelectItem value="SALES_ASSISTED">Sales assisted</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[11px] text-neutral-500">CTA label</Label>
+                                <Input
+                                  value={draft.sales_cta_label ?? ''}
+                                  onChange={(e) => updatePlanDraft(plan.id, 'sales_cta_label', e.target.value)}
+                                  className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                  placeholder="Buy online / Talk to sales"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 rounded-md border border-neutral-800 bg-neutral-950/40 px-3 py-2">
+                                <Switch
+                                  checked={draft.public_purchase_enabled === true}
+                                  disabled={draft.purchase_channel === 'SALES_ASSISTED'}
+                                  onCheckedChange={(checked) => updatePlanDraft(plan.id, 'public_purchase_enabled', checked)}
+                                />
+                                <span className="text-sm text-neutral-300">Vendor can buy online</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-neutral-300">Listing, Trust & Visibility</p>
+                                <p className="mt-1 text-xs leading-5 text-neutral-500">
+                                  These options control ranking copy, badges, top slots and public trust signals.
+                                </p>
+                              </div>
+                              <Badge variant="secondary" className="bg-neutral-800 text-neutral-300">
+                                {Number(draft.listing_top_slots || 0)} slots
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[11px] text-neutral-500">Search ranking text</Label>
+                                <Input
+                                  value={draft.listing_ranking_label ?? ''}
+                                  onChange={(e) => updatePlanDraft(plan.id, 'listing_ranking_label', e.target.value)}
+                                  className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                  placeholder="All Certified member"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[11px] text-neutral-500">Top placement slots</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={draft.listing_top_slots ?? 0}
+                                  onChange={(e) => updatePlanDraft(plan.id, 'listing_top_slots', e.target.value)}
+                                  className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                              {[
+                                ['listing_highlight', 'Highlighted listing'],
+                                ['listing_featured', 'Featured listing'],
+                                ['listing_category_top_ranking', 'Category top ranking'],
+                                ['listing_verified_tick', 'Verified tick on profile'],
+                                ['listing_trust_seal', 'KYC trust seal'],
+                              ].map(([key, label]) => (
+                                <label
+                                  key={key}
+                                  className="flex min-h-11 flex-row-reverse items-center justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-950/40 px-3 py-2.5 transition-colors hover:border-neutral-700 hover:bg-neutral-900/80"
+                                >
+                                  <Switch
+                                    className="shrink-0"
+                                    checked={draft[key] === true}
+                                    onCheckedChange={(checked) => updatePlanDraft(plan.id, key, checked)}
+                                  />
+                                  <span className="min-w-0 flex-1 text-sm leading-5 text-neutral-200">{label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
+                              <p className="text-[11px] uppercase tracking-wide text-neutral-300">Lead Benefits</p>
+                              <div className="grid grid-cols-1 gap-2">
+                                {[
+                                  ['leads_priority', 'Priority leads'],
+                                  ['leads_early_access', 'Early access leads'],
+                                  ['leads_rfq_access', 'RFQ access'],
+                                  ['leads_direct_call_whatsapp', 'Direct call/WhatsApp'],
+                                ].map(([key, label]) => (
+                                  <label
+                                    key={key}
+                                    className="flex min-h-11 flex-row-reverse items-center justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-950/40 px-3 py-2.5 transition-colors hover:border-neutral-700 hover:bg-neutral-900/80"
+                                  >
+                                    <Switch
+                                      className="shrink-0"
+                                      checked={draft[key] === true}
+                                      onCheckedChange={(checked) => updatePlanDraft(plan.id, key, checked)}
+                                    />
+                                    <span className="min-w-0 flex-1 text-sm leading-5 text-neutral-200">{label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
+                              <p className="text-[11px] uppercase tracking-wide text-neutral-300">Support & Analytics</p>
+                              <div className="grid grid-cols-1 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">Support level</Label>
+                                  <Select
+                                    value={draft.support_level || 'standard'}
+                                    onValueChange={(value) => updatePlanDraft(plan.id, 'support_level', value)}
+                                  >
+                                    <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white h-9">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+                                      <SelectItem value="standard">Standard</SelectItem>
+                                      <SelectItem value="priority">Priority</SelectItem>
+                                      <SelectItem value="dedicated">Dedicated</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">SLA hours</Label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={draft.support_sla_hours ?? 0}
+                                    onChange={(e) => updatePlanDraft(plan.id, 'support_sla_hours', e.target.value)}
+                                    className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                  />
+                                </div>
+                                {[
+                                  ['analytics_enabled', 'Analytics dashboard'],
+                                  ['analytics_export_csv', 'Export reports CSV'],
+                                ].map(([key, label]) => (
+                                  <label
+                                    key={key}
+                                    className="flex min-h-11 flex-row-reverse items-center justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-950/40 px-3 py-2.5 transition-colors hover:border-neutral-700 hover:bg-neutral-900/80"
+                                  >
+                                    <Switch
+                                      className="shrink-0"
+                                      checked={draft[key] === true}
+                                      onCheckedChange={(checked) => updatePlanDraft(plan.id, key, checked)}
+                                    />
+                                    <span className="min-w-0 flex-1 text-sm leading-5 text-neutral-200">{label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
+                              <p className="text-[11px] uppercase tracking-wide text-neutral-300">Portfolio & SEO</p>
+                              <div className="grid grid-cols-1 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">Portfolio template</Label>
+                                  <Select
+                                    value={draft.portfolio_template || 'STANDARD'}
+                                    onValueChange={(value) => updatePlanDraft(plan.id, 'portfolio_template', value)}
+                                  >
+                                    <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white h-9">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+                                      <SelectItem value="STANDARD">Standard</SelectItem>
+                                      <SelectItem value="PREMIUM">Premium portfolio</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">Sitemap URL boost</Label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={draft.sitemap_url_boost ?? 0}
+                                    onChange={(e) => updatePlanDraft(plan.id, 'sitemap_url_boost', e.target.value)}
+                                    className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                  />
+                                </div>
+                                {[
+                                  ['portfolio_customizable', 'Vendor can customize page'],
+                                  ['custom_url_enabled', 'Custom profile URL'],
+                                  ['portfolio_custom_sections', 'Custom profile sections'],
+                                  ['sitemap_customization', 'Custom sitemap pages'],
+                                  ['seo_enabled', 'SEO-ready profile'],
+                                ].map(([key, label]) => (
+                                  <label
+                                    key={key}
+                                    className="flex min-h-11 flex-row-reverse items-center justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-950/40 px-3 py-2.5 transition-colors hover:border-neutral-700 hover:bg-neutral-900/80"
+                                  >
+                                    <Switch
+                                      className="shrink-0"
+                                      checked={draft[key] === true}
+                                      onCheckedChange={(checked) => updatePlanDraft(plan.id, key, checked)}
+                                    />
+                                    <span className="min-w-0 flex-1 text-sm leading-5 text-neutral-200">{label}</span>
+                                  </label>
+                                ))}
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">SEO URL aliases</Label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={draft.seo_url_aliases ?? 0}
+                                    onChange={(e) => updatePlanDraft(plan.id, 'seo_url_aliases', e.target.value)}
+                                    className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">City/category SEO pages</Label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={draft.seo_city_category_pages ?? 0}
+                                    onChange={(e) => updatePlanDraft(plan.id, 'seo_city_category_pages', e.target.value)}
+                                    className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3 space-y-3">
+                              <p className="text-[11px] uppercase tracking-wide text-neutral-300">Certificate</p>
+                              <div className="grid grid-cols-1 gap-2">
+                                <label className="flex min-h-11 flex-row-reverse items-center justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-950/40 px-3 py-2.5 transition-colors hover:border-neutral-700 hover:bg-neutral-900/80">
+                                  <Switch
+                                    className="shrink-0"
+                                    checked={draft.certificate_enabled === true}
+                                    onCheckedChange={(checked) => updatePlanDraft(plan.id, 'certificate_enabled', checked)}
+                                  />
+                                  <span className="min-w-0 flex-1 text-sm leading-5 text-neutral-200">Professional certificate</span>
+                                </label>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">Certificate tier</Label>
+                                  <Select
+                                    value={draft.certificate_tier || 'NONE'}
+                                    onValueChange={(value) => updatePlanDraft(plan.id, 'certificate_tier', value === 'NONE' ? '' : value)}
+                                  >
+                                    <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white h-9">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+                                      <SelectItem value="NONE">None</SelectItem>
+                                      <SelectItem value="CERTIFIED">Certified</SelectItem>
+                                      <SelectItem value="SILVER">Silver</SelectItem>
+                                      <SelectItem value="GOLD">Gold</SelectItem>
+                                      <SelectItem value="DIAMOND">Diamond</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">Certificate title</Label>
+                                  <Input
+                                    value={draft.certificate_title ?? ''}
+                                    onChange={(e) => updatePlanDraft(plan.id, 'certificate_title', e.target.value)}
+                                    className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                    placeholder="Diamond Vendor on IndianTradeMart"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[11px] text-neutral-500">Certificate badge label</Label>
+                                  <Input
+                                    value={draft.certificate_label ?? ''}
+                                    onChange={(e) => updatePlanDraft(plan.id, 'certificate_label', e.target.value)}
+                                    className="bg-neutral-800 border-neutral-700 text-white h-9"
+                                    placeholder="Diamond Vendor"
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
 
@@ -2783,7 +3588,7 @@ export default function SuperAdminDashboard() {
                             <Button
                               size="sm"
                               onClick={() => savePlan(plan.id)}
-                              disabled={saving || savingAllPlans || deletingSelectedPlans}
+                              disabled={saving || deleting || savingAllPlans || deletingSelectedPlans}
                               className="bg-emerald-700 hover:bg-emerald-600 w-full sm:w-auto"
                             >
                               {saving ? (
@@ -2797,6 +3602,9 @@ export default function SuperAdminDashboard() {
                         </div>
                       );
                     })}
+                  </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 )}
               </CardContent>
@@ -4012,9 +4820,16 @@ export default function SuperAdminDashboard() {
               onChange: (nextRows) => setNewPlanForm((prev) => ({ ...prev, regional_prices: nextRows })),
             })}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-3">
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-wide text-neutral-300">Lead Unlock Limits</p>
+                <p className="mt-1 text-xs leading-5 text-neutral-500">
+                  Daily is the per-day included unlock cap. Weekly is the maximum included unlocks in one week.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label className="text-neutral-300">Daily</Label>
+                <Label className="text-neutral-300">Daily unlocks</Label>
                 <Input
                   type="number"
                   min="0"
@@ -4024,7 +4839,7 @@ export default function SuperAdminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-neutral-300">Weekly</Label>
+                <Label className="text-neutral-300">Weekly unlocks</Label>
                 <Input
                   type="number"
                   min="0"
@@ -4034,7 +4849,7 @@ export default function SuperAdminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-neutral-300">Yearly</Label>
+                <Label className="text-neutral-300">Yearly unlocks</Label>
                 <Input
                   type="number"
                   min="0"
@@ -4043,28 +4858,37 @@ export default function SuperAdminDashboard() {
                   className="bg-neutral-800 border-neutral-700"
                 />
               </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-neutral-300">States</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={newPlanForm.states_limit}
-                  onChange={(e) => setNewPlanForm((prev) => ({ ...prev, states_limit: e.target.value }))}
-                  className="bg-neutral-800 border-neutral-700"
-                />
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-3">
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-wide text-neutral-300">Search Coverage Limits</p>
+                <p className="mt-1 text-xs leading-5 text-neutral-500">
+                  States and cities decide where this vendor can show in buyer search after they select coverage in Plan Business Preferences.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label className="text-neutral-300">Cities</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={newPlanForm.cities_limit}
-                  onChange={(e) => setNewPlanForm((prev) => ({ ...prev, cities_limit: e.target.value }))}
-                  className="bg-neutral-800 border-neutral-700"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-neutral-300">Target states allowed</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newPlanForm.states_limit}
+                    onChange={(e) => setNewPlanForm((prev) => ({ ...prev, states_limit: e.target.value }))}
+                    className="bg-neutral-800 border-neutral-700"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-neutral-300">Target cities allowed</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newPlanForm.cities_limit}
+                    onChange={(e) => setNewPlanForm((prev) => ({ ...prev, cities_limit: e.target.value }))}
+                    className="bg-neutral-800 border-neutral-700"
+                  />
+                </div>
               </div>
             </div>
 
