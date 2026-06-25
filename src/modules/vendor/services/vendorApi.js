@@ -42,6 +42,23 @@ const hasMeaningfulVendorValue = (...values) =>
     return String(value).trim() !== '';
   });
 
+const truthyDbFlag = (value) =>
+  value === true ||
+  value === 1 ||
+  String(value || '').trim().toLowerCase() === 'true' ||
+  String(value || '').trim() === '1';
+
+const hasApprovedKyc = (vendor = {}) => {
+  const status = String(vendor?.kyc_status || vendor?.kycStatus || '').trim().toUpperCase();
+  return status === 'APPROVED' || status === 'VERIFIED';
+};
+
+const isVendorVerified = (vendor = {}) =>
+  truthyDbFlag(vendor?.is_verified) ||
+  truthyDbFlag(vendor?.isVerified) ||
+  truthyDbFlag(vendor?.verification_badge) ||
+  hasApprovedKyc(vendor);
+
 // Helper to get current vendor ID based on auth user
 const getVendorId = async () => {
   const backendVendor = await getCurrentVendorProfile({ suppressAuthErrors: true });
@@ -423,7 +440,7 @@ const buildVendorProfileSnapshot = (vendor = null, user = null) => {
     kycStatus: vendor.kyc_status || 'PENDING',
     kycDocs: vendor.kyc_docs,
     profileCompletion,
-    isVerified: vendor.is_verified,
+    isVerified: account.isVerified,
     isActive: vendor.is_active,
     verifiedAt: vendor.verified_at,
     createdAt: vendor.created_at,
@@ -447,7 +464,7 @@ const buildVendorProfileSnapshot = (vendor = null, user = null) => {
 // ✅ NEW: Normalize account status fields safely (works even if columns don't exist)
 const normalizeVendorAccountStatus = (vendor) => {
   // If column doesn't exist, it will be undefined and safely handled.
-  const isVerified = vendor?.is_verified === true;
+  const isVerified = isVendorVerified(vendor);
   const isActive = vendor?.is_active === true;
 
   // Suspended/terminated means NOT active (but login can still happen via MySQL auth)
