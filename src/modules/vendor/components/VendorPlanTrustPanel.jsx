@@ -4,14 +4,18 @@ import {
   ArrowRight,
   Award,
   BadgeCheck,
+  CalendarDays,
   CheckCircle2,
   Crown,
   Download,
   ExternalLink,
+  FileCheck2,
   LayoutTemplate,
+  Medal,
   SearchCheck,
   ShieldCheck,
   Sparkles,
+  Stamp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiUrl } from '@/lib/apiBase';
@@ -136,86 +140,99 @@ const CertificatePreview = ({
   return (
     <div
       className={cn(
-        'relative min-h-[420px] overflow-hidden rounded-lg border p-4 shadow-[0_24px_60px_rgba(15,23,42,0.12)] sm:p-5',
-        'h-auto xl:h-[clamp(430px,56vh,520px)]',
+        'relative overflow-hidden rounded-lg border p-3 shadow-[0_28px_70px_rgba(15,23,42,0.14)] sm:p-5',
+        'min-h-[500px] bg-white',
         styles.certificate
       )}
     >
-      <div className="absolute inset-x-6 top-5 h-px bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
-      <div className="absolute inset-x-6 bottom-5 h-px bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
-      <div className="absolute inset-y-6 left-5 w-px bg-gradient-to-b from-transparent via-cyan-600/55 to-transparent" />
-      <div className="absolute inset-y-6 right-5 w-px bg-gradient-to-b from-transparent via-cyan-600/55 to-transparent" />
+      <div className="absolute inset-3 rounded-md border border-white/80" />
+      <div className="absolute left-7 top-7 h-12 w-12 border-l-2 border-t-2 border-amber-500/70" />
+      <div className="absolute right-7 top-7 h-12 w-12 border-r-2 border-t-2 border-amber-500/70" />
+      <div className="absolute bottom-7 left-7 h-12 w-12 border-b-2 border-l-2 border-amber-500/70" />
+      <div className="absolute bottom-7 right-7 h-12 w-12 border-b-2 border-r-2 border-amber-500/70" />
 
       <img
         src="/itm-mark.png"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.055] sm:h-80 sm:w-80"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.045] sm:h-96 sm:w-96"
       />
-      <p className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-center text-4xl font-black uppercase tracking-[0.18em] text-cyan-900/5 sm:text-5xl">
+      <p className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 select-none text-center text-5xl font-black uppercase tracking-[0.22em] text-cyan-900/5 md:block">
         IndianTradeMart
       </p>
 
-      <div className="relative flex h-full min-h-[390px] flex-col rounded-md border border-white/70 bg-white/45 px-4 py-4 sm:px-7 sm:py-5">
+      <div className="relative flex min-h-[470px] flex-col rounded-md border border-slate-200/70 bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 sm:py-7">
         <div className="flex items-start justify-between gap-4">
           <img
             src="/itm-logo.png"
             alt="IndianTradeMart"
-            className="h-12 w-auto max-w-[170px] object-contain sm:h-14"
+            className="h-12 w-auto max-w-[170px] object-contain sm:h-16"
             loading="eager"
           />
-          <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold shadow-sm', styles.ribbon)}>
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Verified
-          </span>
+          <div className="flex flex-col items-end gap-2">
+            <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold shadow-sm', styles.ribbon)}>
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Verified
+            </span>
+            <span className="hidden max-w-[220px] rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500 shadow-sm sm:inline-flex">
+              IndianTradeMart vendor network
+            </span>
+          </div>
         </div>
 
-        <div className="mx-auto mt-3 max-w-3xl text-center">
-          <p className={cn('text-[11px] font-bold uppercase tracking-[0.24em]', styles.foil)}>
+        <div className="mx-auto mt-6 max-w-3xl text-center">
+          <p className={cn('text-[11px] font-black uppercase tracking-[0.34em]', styles.foil)}>
             Official Vendor Certificate
           </p>
-          <h3 className="mt-3 text-balance text-2xl font-black uppercase leading-tight text-slate-950 sm:text-3xl">
+          <h3 className="mt-4 text-balance text-3xl font-black uppercase leading-tight text-slate-950 sm:text-5xl">
             {certificateTitle}
           </h3>
-          <p className="mt-4 text-sm font-medium text-slate-600">Proudly presented to</p>
-          <h2 className="mx-auto mt-2 max-w-3xl break-words text-3xl font-black leading-tight text-cyan-800 sm:text-4xl">
+          <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">This certifies that</p>
+          <h2 className="mx-auto mt-3 max-w-3xl break-words text-3xl font-black leading-tight text-cyan-800 sm:text-5xl">
             {companyName}
           </h2>
-          <div className="mx-auto mt-4 h-0.5 w-36 rounded-full bg-gradient-to-r from-cyan-500 via-amber-500 to-cyan-500" />
-          <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-6 text-slate-700">
+          <div className="mx-auto mt-5 h-0.5 w-48 rounded-full bg-gradient-to-r from-cyan-500 via-amber-500 to-cyan-500" />
+          <p className="mx-auto mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-700">
             Recognized for an active {planName} membership and verified business presence on IndianTradeMart.
           </p>
         </div>
 
-        <div className="mt-auto grid gap-2 rounded-md border border-slate-200/80 bg-white/80 p-3 shadow-sm sm:grid-cols-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Certificate No.</p>
-            <p className="mt-1 break-all text-xs font-black text-slate-900">{certificateNumber}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Issued On</p>
-            <p className="mt-1 text-xs font-black text-slate-900">{issuedOn || '-'}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Valid Until</p>
-            <p className="mt-1 text-xs font-black text-slate-900">{validUntil}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Status</p>
-            <p className={cn('mt-1 inline-flex items-center gap-1 text-xs font-black', styles.accent)}>
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Active
-            </p>
-          </div>
+        <div className="mx-auto mt-6 grid w-full max-w-4xl gap-3 rounded-md border border-slate-200/90 bg-white/85 p-3 shadow-sm sm:grid-cols-4">
+          {[
+            { icon: FileCheck2, label: 'Certificate No.', value: certificateNumber },
+            { icon: CalendarDays, label: 'Issued On', value: issuedOn || '-' },
+            { icon: Sparkles, label: 'Valid Until', value: validUntil },
+            { icon: BadgeCheck, label: 'Status', value: 'Active', active: true },
+          ].map((item) => (
+            <div key={item.label} className="flex gap-2 rounded-md border border-slate-100 bg-slate-50/70 p-3">
+              <div className={cn('mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white shadow-sm', item.active ? styles.accent : 'text-[#003D82]')}>
+                <item.icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">{item.label}</p>
+                <p className={cn('mt-1 break-words text-xs font-black', item.active ? styles.accent : 'text-slate-950')}>
+                  {item.value}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-3 flex items-end justify-between gap-4">
+        <div className="mt-auto flex items-end justify-between gap-4 pt-7">
           <div>
-            <div className="h-px w-40 bg-slate-800" />
-            <p className="mt-2 text-xs font-bold text-slate-700">Authorized by IndianTradeMart</p>
+            <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+              <Stamp className="h-4 w-4" />
+              Verified record
+            </div>
+            <div className="h-px w-44 bg-slate-900" />
+            <p className="mt-2 text-xs font-bold text-slate-700">Authorized Signatory</p>
+            <p className="text-[11px] font-semibold text-slate-500">IndianTradeMart Certification Desk</p>
           </div>
-          <div className={cn('flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white shadow-lg ring-4 ring-white', styles.seal)}>
-            <Award className="h-8 w-8" />
+          <div className="flex flex-col items-center gap-2">
+            <div className={cn('flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-white shadow-xl ring-4 ring-white sm:h-24 sm:w-24', styles.seal)}>
+              <Medal className="h-10 w-10 sm:h-12 sm:w-12" />
+            </div>
+            <p className="text-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Trust seal</p>
           </div>
         </div>
       </div>
@@ -341,21 +358,39 @@ const VendorPlanTrustPanel = ({
           styles={styles}
         />
 
-        <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-cyan-50 p-4">
+        <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-4 shadow-sm">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white shadow-sm', styles.seal)}>
+              <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-white shadow-sm', styles.seal)}>
                 <Crown className="h-5 w-5" />
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{styles.label}</p>
-                <h2 className="mt-1 text-lg font-black leading-tight text-slate-950">
-                  Certificate ready for display
+                <h2 className="mt-1 text-xl font-black leading-tight text-slate-950">
+                  Print-ready certificate
                 </h2>
                 <p className="mt-2 text-sm leading-5 text-slate-600">
                   {companyName} is recognized as {certificate?.title || planBadgeLabel || planName}.
                 </p>
               </div>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {primaryCta}
+              {publicProfilePath ? (
+                <Button asChild variant="outline" className="h-10 justify-between border-slate-300 text-sm font-semibold">
+                  {String(publicProfilePath).startsWith('http') ? (
+                    <a href={publicProfilePath} target="_blank" rel="noreferrer">
+                      View public profile
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  ) : (
+                    <Link to={publicProfilePath}>
+                      View public profile
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  )}
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -379,22 +414,6 @@ const VendorPlanTrustPanel = ({
           </div>
 
           <div className="mt-auto grid gap-2">
-            {primaryCta}
-            {publicProfilePath ? (
-              <Button asChild variant="outline" className="h-10 justify-between border-slate-300 text-sm font-semibold">
-                {String(publicProfilePath).startsWith('http') ? (
-                  <a href={publicProfilePath} target="_blank" rel="noreferrer">
-                    View public profile
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                ) : (
-                  <Link to={publicProfilePath}>
-                    View public profile
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                )}
-              </Button>
-            ) : null}
             {managePlanPath ? (
               <Button asChild variant="ghost" className="h-10 justify-between text-sm font-semibold text-[#003D82]">
                 <Link to={managePlanPath}>
