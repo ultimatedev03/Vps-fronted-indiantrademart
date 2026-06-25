@@ -42,6 +42,20 @@ const toNonNegativeNumber = (value, fallback = 0) => {
   return n;
 };
 
+const MONTHLY_SELF_SERVE_PLAN_NAMES = new Set(['startup', 'certified', 'booster']);
+
+const isMonthlyBillingEnabled = (plan) => {
+  const name = String(plan?.name || '').trim().toLowerCase();
+  if (!MONTHLY_SELF_SERVE_PLAN_NAMES.has(name)) return false;
+  const pricing = asObject(asObject(plan?.features).pricing);
+  const purchase = asObject(asObject(plan?.features).purchase);
+  const channel = String(purchase.channel || '').trim().toUpperCase();
+  if (channel === 'SALES_ASSISTED' || purchase.sales_assisted === true || purchase.public_purchase_enabled === false) {
+    return false;
+  }
+  return pricing.monthly_enabled !== false;
+};
+
 const formatINR = (value) => {
   const n = Number(value || 0);
   if (!Number.isFinite(n)) return '0';
@@ -89,18 +103,33 @@ const getPlanDisplayPricing = (plan) => {
 
 const getMonthlyPricing = (plan) => {
   const annual = getPlanDisplayPricing(plan);
+  const features = asObject(plan?.features);
+  const pricing = asObject(features?.pricing);
+  const configuredMonthly = toNonNegativeNumber(pricing.monthly_price, 0);
+  const configuredOriginalMonthly = toNonNegativeNumber(
+    pricing.monthly_original_price ?? pricing.original_monthly_price,
+    0
+  );
+  const nowPrice = configuredMonthly > 0 ? configuredMonthly : Number((annual.nowPrice / 12).toFixed(2));
+  const originalPrice = configuredOriginalMonthly > 0
+    ? configuredOriginalMonthly
+    : Number((annual.originalPrice / 12).toFixed(2));
+
   return {
     ...annual,
-    nowPrice: Number((annual.nowPrice / 12).toFixed(2)),
-    originalPrice: Number((annual.originalPrice / 12).toFixed(2)),
+    nowPrice,
+    originalPrice,
   };
 };
 
 const getBillingPricing = (plan, billing) => {
   const annual = getPlanDisplayPricing(plan);
-  if (billing === 'yearly') return annual;
+  if (billing === 'yearly' || !isMonthlyBillingEnabled(plan)) return annual;
   return getMonthlyPricing(plan);
 };
+
+const getEffectiveBilling = (plan, billing) =>
+  billing === 'monthly' && isMonthlyBillingEnabled(plan) ? 'monthly' : 'yearly';
 
 const getDiscountTag = (pricing) => {
   const label = String(pricing?.discountLabel || '').trim();
@@ -366,6 +395,11 @@ const Pricing = () => {
     return getBillingPricing(selectedPlan, billing);
   }, [selectedPlan, billing]);
 
+  const selectedEffectiveBilling = useMemo(() => {
+    if (!selectedPlan) return 'yearly';
+    return getEffectiveBilling(selectedPlan, billing);
+  }, [selectedPlan, billing]);
+
   const selectedEntitlements = useMemo(() => {
     if (!selectedPlan) return null;
     return getPlanEntitlements(selectedPlan);
@@ -461,6 +495,7 @@ const Pricing = () => {
               {plans.map((plan) => {
                 const Icon = getPlanIcon(plan?.name);
                 const pricing = getBillingPricing(plan, billing);
+                const effectiveBilling = getEffectiveBilling(plan, billing);
                 const coverage = getCoverage(plan);
                 const topSlots = getTopSlots(plan);
                 const ranking = getRankingText(plan);
@@ -542,7 +577,7 @@ const Pricing = () => {
                                 <div className="text-3xl font-extrabold text-slate-900">
                                   Rs.{formatINR(pricing.nowPrice)}
                                 </div>
-                                <div className="text-sm text-slate-500">/{billing === 'monthly' ? 'month' : 'year'}</div>
+                                <div className="text-sm text-slate-500">/{effectiveBilling === 'monthly' ? 'month' : 'year'}</div>
                               </div>
                             )}
 
@@ -671,7 +706,7 @@ const Pricing = () => {
                       <div className="mt-1 text-sm font-semibold text-slate-800">
                         {selectedEntitlements?.sales_assisted
                           ? 'Yearly sales activation'
-                          : billing === 'monthly'
+                          : selectedEffectiveBilling === 'monthly'
                             ? 'Monthly view'
                             : 'Yearly activation'}
                       </div>
@@ -686,7 +721,7 @@ const Pricing = () => {
                                 Rs.{formatINR(selectedPricing.nowPrice)}
                               </div>
                               <div className="pb-1 text-sm font-medium text-slate-500">
-                                /{billing === 'monthly' && !selectedEntitlements?.sales_assisted ? 'month' : 'year'}
+                                /{selectedEffectiveBilling === 'monthly' && !selectedEntitlements?.sales_assisted ? 'month' : 'year'}
                               </div>
                             </div>
                             {toNonNegativeNumber(selectedPricing.originalPrice, 0) > toNonNegativeNumber(selectedPricing.nowPrice, 0) ? (

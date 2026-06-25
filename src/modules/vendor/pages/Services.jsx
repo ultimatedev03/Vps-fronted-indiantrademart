@@ -108,6 +108,8 @@ const getPlanDisplayPricing = (plan, marketContext) => {
   };
 };
 
+const MONTHLY_SELF_SERVE_PLAN_NAMES = new Set(['startup', 'certified', 'booster']);
+
 const getDiscountTag = (pricing) => {
   const label = String(pricing?.discountLabel || '').trim();
   if (label) return label;
@@ -170,6 +172,45 @@ const isVisibleCatalogPlan = (plan) => {
   if (!name) return false;
   const purchase = asObject(asObject(plan?.features).purchase);
   return Object.keys(purchase).length > 0;
+};
+
+const isMonthlyBillingEnabled = (plan) => {
+  const name = String(plan?.name || '').trim().toLowerCase();
+  if (!MONTHLY_SELF_SERVE_PLAN_NAMES.has(name) || isSalesAssistedPlan(plan)) return false;
+  const pricing = asObject(asObject(plan?.features).pricing);
+  return pricing.monthly_enabled !== false;
+};
+
+const getPlanBillingPricing = (plan, marketContext, billingCycle = 'yearly') => {
+  const annual = getPlanDisplayPricing(plan, marketContext);
+  if (billingCycle !== 'monthly' || !isMonthlyBillingEnabled(plan)) {
+    return {
+      ...annual,
+      billingCycle: 'yearly',
+      interval: 'year',
+      durationDays: Math.max(1, Number(plan?.duration_days || 365)),
+    };
+  }
+
+  const features = asObject(plan?.features);
+  const pricing = asObject(features?.pricing);
+  const configuredMonthly = Number(pricing.monthly_price || 0);
+  const configuredOriginalMonthly = Number(pricing.monthly_original_price ?? pricing.original_monthly_price ?? 0);
+  const nowPrice = Number.isFinite(configuredMonthly) && configuredMonthly > 0
+    ? configuredMonthly
+    : Number((annual.nowPrice / 12).toFixed(2));
+  const originalPrice = Number.isFinite(configuredOriginalMonthly) && configuredOriginalMonthly > 0
+    ? configuredOriginalMonthly
+    : Number((annual.originalPrice / 12).toFixed(2));
+
+  return {
+    ...annual,
+    nowPrice,
+    originalPrice,
+    billingCycle: 'monthly',
+    interval: 'month',
+    durationDays: Math.max(1, Number(pricing.monthly_duration_days || 30)),
+  };
 };
 
 const getReferralDisplaySummary = (preview, baseAmount = 0, currency = DEFAULT_PLAN_CURRENCY) => {
@@ -309,6 +350,7 @@ const Services = () => {
   // ✅ dialog state
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [selectedBillingCycle, setSelectedBillingCycle] = useState('yearly');
   const [linkedPlanHandled, setLinkedPlanHandled] = useState(false);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
@@ -616,7 +658,7 @@ const Services = () => {
     }
   };
 
-  const handleSubscribe = async (plan, couponOverride = couponCode) => {
+  const handleSubscribe = async (plan, couponOverride = couponCode, billingCycle = selectedBillingCycle) => {
     if (!vendorId) {
       toast({ title: 'Error', description: 'Vendor ID not found', variant: 'destructive' });
       return;
@@ -635,7 +677,7 @@ const Services = () => {
       return;
     }
 
-    const pricing = getPlanDisplayPricing(plan, visitorMarket);
+    const pricing = getPlanBillingPricing(plan, visitorMarket, billingCycle);
 
     // Check if plan is free
     if (!pricing.nowPrice || Number(pricing.nowPrice) === 0) {
@@ -649,7 +691,7 @@ const Services = () => {
             .eq('id', currentSub.id);
         }
 
-        const durationDays = Math.max(1, Number(plan.duration_days || 365));
+        const durationDays = Math.max(1, Number(pricing.durationDays || plan.duration_days || 365));
         const startDate = new Date();
         const endDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
@@ -660,6 +702,7 @@ const Services = () => {
           end_date: endDate.toISOString(),
           status: 'ACTIVE',
           plan_duration_days: durationDays,
+          billing_cycle: pricing.billingCycle === 'monthly' ? 'MONTHLY' : 'YEARLY',
           sales_code: salesCode || null,
           auto_renewal_enabled: false,
           renewal_notification_sent: false
@@ -716,9 +759,9 @@ const Services = () => {
       return;
     }
 
-    initiateRazorpayPayment(plan, couponOverride);
+    initiateRazorpayPayment(plan, couponOverride, pricing.billingCycle);
   };
-  const initiateRazorpayPayment = async (plan, couponOverride = couponCode) => {
+  const initiateRazorpayPayment = async (plan, couponOverride = couponCode, billingCycle = 'yearly') => {
     try {
       toast({ title: 'Processing...', description: `Initiating payment for ${plan.name}` });
       setDetailsOpen(false);
@@ -730,6 +773,7 @@ const Services = () => {
         body: JSON.stringify({
           vendor_id: vendorId,
           plan_id: plan.id,
+          billing_cycle: billingCycle,
           coupon_code: appliedCoupon || undefined,
           sales_code: salesCode || undefined,
         }),
@@ -814,6 +858,7 @@ const Services = () => {
               signature: response.razorpay_signature,
               vendor_id: vendorId,
               plan_id: plan.id,
+              billing_cycle: orderData?.billing_cycle || selectedBillingCycle,
               coupon_code: appliedCoupon || undefined,
               sales_code: normalizeSalesCode(appliedSalesCode) || undefined,
             }),
@@ -874,6 +919,7 @@ const Services = () => {
 
   const openPlanDetails = (plan) => {
     setSelectedPlan(plan);
+    setSelectedBillingCycle('yearly');
     setCouponCode('');
     setDetailsOpen(true);
   };
@@ -887,6 +933,7 @@ const Services = () => {
     if (!linkedPlan) return;
 
     setSelectedPlan(linkedPlan);
+    setSelectedBillingCycle('yearly');
     setCouponCode('');
     setDetailsOpen(true);
     setLinkedPlanHandled(true);
@@ -985,8 +1032,11 @@ const Services = () => {
   const selectedIsPopular = selectedPlan && selectedPlan.id === mostPopularPlanId;
   const selectedPlanEntitlements = selectedPlan ? getPlanEntitlements(selectedPlan) : null;
   const selectedSalesAssisted = Boolean(selectedPlanEntitlements?.purchase?.sales_assisted);
+  const selectedMonthlyAvailable = selectedPlan ? isMonthlyBillingEnabled(selectedPlan) : false;
+  const selectedEffectiveBillingCycle =
+    selectedMonthlyAvailable && selectedBillingCycle === 'monthly' ? 'monthly' : 'yearly';
   const selectedPricing = selectedPlan
-    ? getPlanDisplayPricing(selectedPlan, visitorMarket)
+    ? getPlanBillingPricing(selectedPlan, visitorMarket, selectedEffectiveBillingCycle)
     : {
         nowPrice: 0,
         originalPrice: 0,
@@ -994,10 +1044,13 @@ const Services = () => {
         discountLabel: '',
         extraLeadPrice: 0,
         currency: DEFAULT_PLAN_CURRENCY,
+        billingCycle: 'yearly',
+        interval: 'year',
+        durationDays: 365,
       };
   const selectedDiscountTag = getDiscountTag(selectedPricing);
   const selectedReferralPreview =
-    selectedPlan && selectedPricing.currency === DEFAULT_PLAN_CURRENCY
+    selectedPlan && selectedEffectiveBillingCycle === 'yearly' && selectedPricing.currency === DEFAULT_PLAN_CURRENCY
       ? referralOffersByPlan?.[selectedPlan.id] || null
       : null;
   const selectedReferralDiscountRaw = Number(selectedReferralPreview?.discount_amount || 0);
@@ -1130,6 +1183,10 @@ const Services = () => {
           const isCurrent = currentSub?.plan_id === plan.id;
           const isPopular = plan.id === mostPopularPlanId;
           const pricing = getPlanDisplayPricing(plan, visitorMarket);
+          const monthlyAvailable = isMonthlyBillingEnabled(plan);
+          const monthlyPricing = monthlyAvailable
+            ? getPlanBillingPricing(plan, visitorMarket, 'monthly')
+            : null;
           const discountTag = getDiscountTag(pricing);
           const referralPreview =
             pricing.currency === DEFAULT_PLAN_CURRENCY ? referralOffersByPlan?.[plan.id] || null : null;
@@ -1226,6 +1283,11 @@ const Services = () => {
                     {salesAssisted ? (
                       <div className="mt-1 text-[11px] font-semibold text-slate-700">
                         Managed activation by sales team
+                      </div>
+                    ) : null}
+                    {monthlyAvailable && monthlyPricing ? (
+                      <div className="mt-1 text-[11px] font-semibold text-blue-700">
+                        Monthly from {formatPlanMoney(monthlyPricing.nowPrice, monthlyPricing.currency)} / month
                       </div>
                     ) : null}
                     {hasReferralPreview ? (
@@ -1363,7 +1425,11 @@ const Services = () => {
                   <div className="rounded-xl border bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-800 text-white px-4 py-2.5 flex items-center justify-between gap-3 shadow-md">
                     <div>
                       <div className="text-xs uppercase tracking-[0.15em] text-white/70 font-semibold">
-                        {selectedSalesAssisted ? 'Managed activation' : 'Annual Billing'}
+                        {selectedSalesAssisted
+                          ? 'Managed activation'
+                          : selectedEffectiveBillingCycle === 'monthly'
+                            ? 'Monthly billing'
+                            : 'Annual billing'}
                       </div>
                       {selectedPricing.originalPrice > selectedPricing.nowPrice ? (
                         <div className="text-xs text-white/60 line-through">
@@ -1377,8 +1443,30 @@ const Services = () => {
                       ) : null}
                       <div className="text-3xl font-extrabold leading-tight">
                         {formatPlanMoney(selectedPayableBase, selectedPricing.currency)}
-                        <span className="text-sm font-medium text-white/80"> / year</span>
+                        <span className="text-sm font-medium text-white/80"> / {selectedPricing.interval || 'year'}</span>
                       </div>
+                      {selectedMonthlyAvailable ? (
+                        <div className="mt-3 inline-flex rounded-full border border-white/25 bg-white/10 p-1 shadow-sm">
+                          {[
+                            ['monthly', 'Monthly'],
+                            ['yearly', 'Yearly'],
+                          ].map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setSelectedBillingCycle(value)}
+                              className={cx(
+                                'rounded-full px-3 py-1.5 text-xs font-semibold transition',
+                                selectedEffectiveBillingCycle === value
+                                  ? 'bg-white text-blue-700 shadow-sm'
+                                  : 'text-white/85 hover:bg-white/10'
+                              )}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                       {selectedSalesAssisted ? (
                         <div className="mt-1 text-xs font-medium text-white/80">
                           Sales team activates this plan with portfolio, SEO and certificate setup.
@@ -1398,7 +1486,7 @@ const Services = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                         <span className="px-3 py-1 rounded-full border border-white/30 bg-white/10 font-semibold text-xs">
-                          {selectedPlan.duration_days || 365} days
+                          {selectedPricing.durationDays || selectedPlan.duration_days || 365} days
                         </span>
                       {selectedIsPopular && (
                         <span className="px-3 py-1 rounded-full bg-white text-blue-700 font-semibold shadow-sm">
@@ -1415,7 +1503,9 @@ const Services = () => {
                 <div className="rounded-2xl border bg-slate-50 p-2 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Lead Limits</div>
-                    <div className="text-[11px] text-slate-500">Per subscription year</div>
+                    <div className="text-[11px] text-slate-500">
+                      Per subscription {selectedEffectiveBillingCycle === 'monthly' ? 'month' : 'year'}
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 text-center">
                     {[
@@ -1599,7 +1689,7 @@ const Services = () => {
                     <>
                       <Button
                         className="w-full rounded-xl h-12 font-semibold text-base"
-                        onClick={() => handleSubscribe(selectedPlan)}
+                        onClick={() => handleSubscribe(selectedPlan, couponCode, selectedEffectiveBillingCycle)}
                       >
                         {selectedSalesAssisted ? 'Contact sales' : couponCode.trim() ? 'Apply & Proceed' : 'Proceed to Pay'}
                       </Button>
@@ -1607,7 +1697,7 @@ const Services = () => {
                         <Button
                           variant="ghost"
                           className="w-full h-12 border border-dashed border-slate-200"
-                          onClick={() => handleSubscribe(selectedPlan, '')}
+                          onClick={() => handleSubscribe(selectedPlan, '', selectedEffectiveBillingCycle)}
                         >
                           Proceed without coupon
                         </Button>
