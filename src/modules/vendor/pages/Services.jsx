@@ -784,6 +784,18 @@ const Services = () => {
         throw new Error(message);
       }
       const data = await response.json();
+      if (data?.activated) {
+        toast({
+          title: 'Success!',
+          description: data?.message || 'Coupon applied and subscription activated.',
+        });
+        setCouponCode('');
+        setTimeout(() => {
+          loadData();
+        }, 500);
+        return;
+      }
+
       const orderData = data.order;
       const keyId = data.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID;
       const effectiveOfferCode = normalizeCouponCode(orderData?.coupon_code || appliedCoupon);
