@@ -7,10 +7,115 @@ import { Badge } from '@/shared/components/Badge';
 import { productRatings, PRODUCT_RATINGS_UPDATED_EVENT } from '@/shared/services/productRatings';
 import { getProductDetailPath } from '@/shared/utils/productRoutes';
 
+const normalizeDedupeText = (value = '') =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\s+/g, '-');
+
+const canonicalDedupeName = (value = '') =>
+  normalizeDedupeText(value)
+    .replace(/-(service|services|supplier|suppliers|manufacturer|manufacturers|product|products)$/g, '');
+
+const getFirstImageDedupePart = (product = {}) => {
+  const raw = product?.images;
+  const pick = (value) => {
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object') return value.url || value.image_url || value.src || '';
+    return '';
+  };
+
+  if (Array.isArray(raw)) return normalizeDedupeText(pick(raw[0]));
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return normalizeDedupeText(pick(parsed[0]));
+    } catch (_) {
+      return normalizeDedupeText(raw);
+    }
+  }
+
+  return normalizeDedupeText(product?.image || product?.image_url || '');
+};
+
+const getProductDedupeKeys = (product = {}) => {
+  const vendorNameKey = normalizeDedupeText(
+    product?.vendorName ||
+      product?.vendor_name ||
+      product?.vendors?.company_name ||
+      product?.company_name
+  );
+  const vendorIdKey = normalizeDedupeText(
+      product?.vendorId ||
+      product?.vendor_id ||
+      product?.vendors?.id
+  );
+  const vendorKeys = [vendorNameKey, vendorIdKey].filter(Boolean);
+  const nameKey = canonicalDedupeName(product?.name || product?.product_name || product?.title || product?.slug);
+  const stableKey = normalizeDedupeText(product?.id || product?.slug);
+  const categoryKey = normalizeDedupeText(product?.category_slug || product?.category || product?.micro_category_name);
+  const priceKey = normalizeDedupeText(product?.price);
+  const unitKey = normalizeDedupeText(product?.price_unit || product?.qty_unit || product?.unit);
+  const imageKey = getFirstImageDedupePart(product);
+  const keys = [];
+
+  vendorKeys.forEach((vendorKey) => {
+    if (nameKey) keys.push(`vendor-name:${vendorKey}:${nameKey}`);
+    if (imageKey) keys.push(`vendor-image:${vendorKey}:${imageKey}`);
+  });
+  if (stableKey) keys.push(`product:${stableKey}`);
+  if (!vendorKeys.length && (nameKey || imageKey)) keys.push(`loose:${nameKey}:${categoryKey}:${priceKey}:${unitKey}:${imageKey}`);
+  return Array.from(new Set(keys.filter(Boolean)));
+};
+
+const getProductDedupeKey = (product = {}) => {
+  return getProductDedupeKeys(product)[0] || '';
+};
+
+const isPreferredProduct = (candidate = {}, current = {}) => {
+  const candidateScore = Number(candidate?.__sortScore || candidate?.search_score || 0);
+  const currentScore = Number(current?.__sortScore || current?.search_score || 0);
+  if (candidateScore !== currentScore) return candidateScore > currentScore;
+
+  const candidatePlan = Number(candidate?.vendor_plan_priority || candidate?.vendors?.plan_priority || 0);
+  const currentPlan = Number(current?.vendor_plan_priority || current?.vendors?.plan_priority || 0);
+  if (candidatePlan !== currentPlan) return candidatePlan > currentPlan;
+
+  const candidateUpdated = new Date(candidate?.updated_at || candidate?.created_at || 0).getTime() || 0;
+  const currentUpdated = new Date(current?.updated_at || current?.created_at || 0).getTime() || 0;
+  return candidateUpdated > currentUpdated;
+};
+
 const SearchResultsList = ({ products, query, city, category }) => {
   const navigate = useNavigate();
 
-  const displayProducts = Array.isArray(products) ? products : [];
+  const displayProducts = useMemo(() => {
+    const keyToIndex = new Map();
+    const unique = [];
+    (Array.isArray(products) ? products : []).forEach((product) => {
+      const keys = getProductDedupeKeys(product);
+      if (!keys.length) return;
+      const existingIndex = keys
+        .map((key) => keyToIndex.get(key))
+        .find((index) => Number.isInteger(index));
+
+      if (Number.isInteger(existingIndex)) {
+        if (isPreferredProduct(product, unique[existingIndex])) {
+          unique[existingIndex] = product;
+        }
+        keys.forEach((key) => keyToIndex.set(key, existingIndex));
+        return;
+      }
+
+      const nextIndex = unique.length;
+      unique.push(product);
+      keys.forEach((key) => keyToIndex.set(key, nextIndex));
+    });
+    return unique;
+  }, [products]);
   const isUsingMock = false;
   const [ratingsVersion, setRatingsVersion] = useState(0);
   const [ratingSummaryMap, setRatingSummaryMap] = useState({});
@@ -297,7 +402,7 @@ const SearchResultsList = ({ products, query, city, category }) => {
 
           return (
             <motion.div
-              key={product.id || index}
+              key={getProductDedupeKey(product) || product.id || index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.05 }}

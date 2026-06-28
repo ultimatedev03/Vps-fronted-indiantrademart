@@ -175,15 +175,105 @@ const buildKeywordProductQuery = ({ selectString, stateId, cityId }) => {
   return query;
 };
 
+const normalizeDedupePart = (value = '') => slugify(normalizeText(value));
+
+const canonicalDedupeName = (value = '') =>
+  normalizeDedupePart(value)
+    .replace(/-(service|services|supplier|suppliers|manufacturer|manufacturers|product|products)$/g, '');
+
+const getFirstImageDedupePart = (row = {}) => {
+  const raw = row?.images;
+  const pick = (value) => {
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object') return value.url || value.image_url || value.src || '';
+    return '';
+  };
+
+  if (Array.isArray(raw)) return normalizeDedupePart(pick(raw[0]));
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return normalizeDedupePart(pick(parsed[0]));
+    } catch (_) {
+      return normalizeDedupePart(raw);
+    }
+  }
+
+  return normalizeDedupePart(row?.image || row?.image_url || '');
+};
+
+const getProductDedupeKeys = (row = {}) => {
+  const vendorNameKey = normalizeDedupePart(
+    row?.vendorName ||
+      row?.vendor_name ||
+      row?.vendors?.company_name ||
+      row?.company_name
+  );
+  const vendorIdKey = normalizeDedupePart(
+      row?.vendorId ||
+      row?.vendor_id ||
+      row?.vendors?.id
+  );
+  const vendorKeys = [vendorNameKey, vendorIdKey].filter(Boolean);
+  const nameKey = canonicalDedupeName(row?.name || row?.product_name || row?.title || row?.slug);
+  const stableKey = normalizeDedupePart(row?.id || row?.slug);
+  const categoryKey = normalizeDedupePart(row?.category_slug || row?.category || row?.micro_category_name);
+  const priceKey = normalizeDedupePart(row?.price);
+  const unitKey = normalizeDedupePart(row?.price_unit || row?.qty_unit || row?.unit);
+  const imageKey = getFirstImageDedupePart(row);
+  const keys = [];
+
+  vendorKeys.forEach((vendorKey) => {
+    if (nameKey) keys.push(`vendor-name:${vendorKey}:${nameKey}`);
+    if (imageKey) keys.push(`vendor-image:${vendorKey}:${imageKey}`);
+  });
+  if (stableKey) keys.push(`product:${stableKey}`);
+  if (!vendorKeys.length && (nameKey || imageKey)) keys.push(`loose:${nameKey}:${categoryKey}:${priceKey}:${unitKey}:${imageKey}`);
+
+  return Array.from(new Set(keys.filter(Boolean)));
+};
+
+const getProductDedupeKey = (row = {}) => {
+  return getProductDedupeKeys(row)[0] || '';
+};
+
+const isPreferredProductRow = (candidate = {}, current = {}) => {
+  const candidateScore = Number(candidate?.__sortScore || candidate?.search_score || 0);
+  const currentScore = Number(current?.__sortScore || current?.search_score || 0);
+  if (candidateScore !== currentScore) return candidateScore > currentScore;
+
+  const candidatePlan = Number(candidate?.vendor_plan_priority || candidate?.vendors?.plan_priority || 0);
+  const currentPlan = Number(current?.vendor_plan_priority || current?.vendors?.plan_priority || 0);
+  if (candidatePlan !== currentPlan) return candidatePlan > currentPlan;
+
+  const candidateUpdated = new Date(candidate?.updated_at || candidate?.created_at || 0).getTime() || 0;
+  const currentUpdated = new Date(current?.updated_at || current?.created_at || 0).getTime() || 0;
+  return candidateUpdated > currentUpdated;
+};
+
 const dedupeProducts = (rows = []) => {
-  const seen = new Set();
+  const keyToIndex = new Map();
   const unique = [];
 
   (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const key = String(row?.id || row?.slug || row?.name || '').trim();
-    if (!key || seen.has(key)) return;
-    seen.add(key);
+    const keys = getProductDedupeKeys(row);
+    if (!keys.length) return;
+
+    const existingIndex = keys
+      .map((key) => keyToIndex.get(key))
+      .find((index) => Number.isInteger(index));
+
+    if (Number.isInteger(existingIndex)) {
+      if (isPreferredProductRow(row, unique[existingIndex])) {
+        unique[existingIndex] = row;
+      }
+      keys.forEach((key) => keyToIndex.set(key, existingIndex));
+      return;
+    }
+
+    const nextIndex = unique.length;
     unique.push(row);
+    keys.forEach((key) => keyToIndex.set(key, nextIndex));
   });
 
   return unique;
@@ -678,7 +768,7 @@ const SearchResults = () => {
 
           const hybridRows = Array.isArray(hybridPayload?.data) ? hybridPayload.data : [];
           if (hybridPayload?.success && (hybridRows.length > 0 || hybridPayload?.availability?.exactAvailable === false)) {
-            const mappedHybridRows = hybridRows.map((p) => {
+            const mappedHybridRows = dedupeProducts(hybridRows.map((p) => {
               const vendorObj = Array.isArray(p?.vendors) ? p.vendors[0] : p?.vendors;
               const planName = p?.vendorPlanName || p?.vendor_plan_name || vendorObj?.plan_name || '';
               const planPriority = Number(p?.vendor_plan_priority || p?.vendor_plan_priority_score || 0) || getPlanPriority(planName);
@@ -694,7 +784,7 @@ const SearchResults = () => {
                 vendorPlanName: planName,
                 __planPriority: planPriority,
               };
-            });
+            }));
 
             setSearchNotice(
               hybridPayload?.availability?.exactAvailable === false
@@ -825,13 +915,13 @@ const SearchResults = () => {
             return { ...p, __sortScore: relevanceScore };
           })
           .sort((a, b) => {
-            const ap = a.__planPriority || 0;
-            const bp = b.__planPriority || 0;
-            if (bp !== ap) return bp - ap;
-
             const as = a.__sortScore || 0;
             const bs = b.__sortScore || 0;
             if (bs !== as) return bs - as;
+
+            const ap = a.__planPriority || 0;
+            const bp = b.__planPriority || 0;
+            if (bp !== ap) return bp - ap;
 
             const ar = Number(a.vendorRating || 0);
             const br = Number(b.vendorRating || 0);
@@ -864,7 +954,7 @@ const SearchResults = () => {
   }, [parsedParams.serviceSlug, parsedParams.stateSlug, parsedParams.citySlug, rawSearchQuery]);
 
   const filteredResults = useMemo(() => {
-    let out = Array.isArray(results) ? [...results] : [];
+    let out = dedupeProducts(results);
     const [minPrice, maxPrice] = Array.isArray(filters?.priceRange)
       ? filters.priceRange
       : [priceBounds.min, priceBounds.max];
