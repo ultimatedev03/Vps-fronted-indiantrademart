@@ -164,6 +164,16 @@ export const superAdminServerApi = {
       }),
   },
 
+  intelligence: {
+    behavioral: ({ days = 30, limit = 50, refresh = false } = {}) => {
+      const qs = new URLSearchParams();
+      qs.set('days', String(days));
+      qs.set('limit', String(limit));
+      if (refresh) qs.set('refresh', 'true');
+      return request(`/behavioral-intelligence?${qs.toString()}`);
+    },
+  },
+
   search360: {
     search: ({ query = '', limit = 25, offset = 0, stateId = '' } = {}) => {
       const qs = new URLSearchParams();

@@ -751,6 +751,9 @@ export default function SuperAdminDashboard() {
   const [visitorActivity, setVisitorActivity] = useState({ stats: {}, events: [] });
   const [visitorActivityLoading, setVisitorActivityLoading] = useState(false);
   const [monitoringActivityDays, setMonitoringActivityDays] = useState(7);
+  const [behavioralIntel, setBehavioralIntel] = useState(null);
+  const [behavioralIntelLoading, setBehavioralIntelLoading] = useState(false);
+  const [behavioralIntelDays, setBehavioralIntelDays] = useState(30);
   const [statesScopeModalOpen, setStatesScopeModalOpen] = useState(false);
   const [statesScopeTarget, setStatesScopeTarget] = useState(null);
   const [statesScopeSelection, setStatesScopeSelection] = useState([]);
@@ -1072,6 +1075,23 @@ export default function SuperAdminDashboard() {
       handleError(err, 'Failed to load visitor activity');
     } finally {
       setVisitorActivityLoading(false);
+    }
+  };
+
+  const fetchBehavioralIntel = async ({ days = behavioralIntelDays, refresh = false } = {}) => {
+    setBehavioralIntelLoading(true);
+    try {
+      const response = await superAdminServerApi.intelligence.behavioral({
+        days,
+        limit: 60,
+        refresh,
+      });
+      setBehavioralIntel(response?.data || null);
+      setBehavioralIntelDays(days);
+    } catch (err) {
+      handleError(err, 'Failed to load behavioral commerce intelligence');
+    } finally {
+      setBehavioralIntelLoading(false);
     }
   };
 
@@ -2216,6 +2236,7 @@ export default function SuperAdminDashboard() {
         label: 'Intelligence',
         items: [
           { value: 'monitoring', label: 'Monitoring', icon: BarChart3 },
+          { value: 'behavioral', label: 'Demand Intel', icon: Activity },
           { value: 'search360', label: 'Search 360', icon: Search },
         ],
       },
@@ -2238,6 +2259,9 @@ export default function SuperAdminDashboard() {
     setActiveTab(value);
     if (value === 'monitoring' && !monitoringOverview && !monitoringLoading) {
       fetchMonitoring();
+    }
+    if (value === 'behavioral' && !behavioralIntel && !behavioralIntelLoading) {
+      fetchBehavioralIntel({ days: behavioralIntelDays });
     }
     if (value === 'vendors' && !(visitorActivity.events || []).length && !visitorActivityLoading) {
       fetchVisitorActivity(monitoringActivityDays);
@@ -4249,6 +4273,235 @@ export default function SuperAdminDashboard() {
               </DialogContent>
             </Dialog>
 
+          </TabsContent>
+
+          <TabsContent value="behavioral" className="space-y-6">
+            <Card className="bg-neutral-900 border-neutral-800">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
+                <div>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-cyan-400" />
+                    Behavioral Commerce Intelligence
+                  </CardTitle>
+                  <CardDescription className="text-neutral-400">
+                    Visitor events se demand score, sales forecast, aur vendor intelligence nikalta hai.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={String(behavioralIntelDays)}
+                    onValueChange={(value) => fetchBehavioralIntel({ days: Number(value) })}
+                  >
+                    <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+                      <SelectItem value="7">Last 7 days</SelectItem>
+                      <SelectItem value="30">Last 30 days</SelectItem>
+                      <SelectItem value="60">Last 60 days</SelectItem>
+                      <SelectItem value="90">Last 90 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    className="border-neutral-700 text-neutral-300"
+                    onClick={() => fetchBehavioralIntel({ days: behavioralIntelDays, refresh: true })}
+                    disabled={behavioralIntelLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${behavioralIntelLoading ? 'animate-spin' : ''}`} />
+                    Recompute
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+                  {(behavioralIntel?.algorithm?.modules || [
+                    'Visitor Identity & Consent Tracking',
+                    'Event-Based Ecommerce Analytics',
+                    'Product/Category Demand Scoring',
+                    'Sales Forecasting & Vendor Intelligence',
+                  ]).map((module, index) => (
+                    <div key={module} className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+                      <div className="text-cyan-300 text-xs font-mono mb-2">MODULE {index + 1}</div>
+                      <div className="text-white font-semibold leading-snug">{module}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Tracked events', value: behavioralIntel?.summary?.total_events || 0, hint: `${behavioralIntelDays} days` },
+                    { label: 'Search intent', value: behavioralIntel?.summary?.searches || 0, hint: 'Product/category searches' },
+                    { label: 'Hot demand', value: behavioralIntel?.summary?.hot_demands || 0, hint: 'High conversion signal' },
+                    { label: 'Avg 30d forecast', value: behavioralIntel?.summary?.avg_forecast_30d || 0, hint: 'Predicted weighted demand' },
+                  ].map((card) => (
+                    <Card key={card.label} className="bg-neutral-950 border-neutral-800">
+                      <CardContent className="pt-5 pb-4">
+                        <div className="text-neutral-400 text-xs">{card.label}</div>
+                        <div className="text-2xl font-bold text-white mt-1">
+                          {behavioralIntelLoading ? '...' : Number(card.value).toLocaleString('en-IN')}
+                        </div>
+                        <div className="text-neutral-500 text-xs mt-1">{card.hint}</div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Pipeline Health</p>
+                      <p className="text-xs text-neutral-500">
+                        {'Frontend JS tracker -> API -> queue -> aggregate job -> demand score -> prediction dashboard'}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className="bg-cyan-950 text-cyan-200">
+                        Queue pending: {behavioralIntel?.summary?.queue?.pending || 0}
+                      </Badge>
+                      <Badge className="bg-emerald-950 text-emerald-200">
+                        Processed: {behavioralIntel?.summary?.queue?.processed || 0}
+                      </Badge>
+                      <Badge className="bg-neutral-800 text-neutral-300">
+                        Last computed: {behavioralIntel?.summary?.latest_computed_at ? formatDateTime(behavioralIntel.summary.latest_computed_at) : 'Not yet'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.55fr_0.9fr] gap-6">
+              <Card className="bg-neutral-900 border-neutral-800">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-emerald-400" />
+                    Product & Category Demand Scores
+                  </CardTitle>
+                  <CardDescription className="text-neutral-400">
+                    Searches, product views, vendor views, requirements, leads aur unique visitors ka weighted score.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {behavioralIntelLoading ? (
+                    <div className="text-neutral-400 text-sm py-12 text-center">Loading demand intelligence...</div>
+                  ) : !(behavioralIntel?.demand_scores || []).length ? (
+                    <div className="text-neutral-500 text-sm py-12 text-center">
+                      Abhi demand score available nahi hai. Recompute dabao ya tracker data collect hone do.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-neutral-800">
+                            <TableHead className="text-neutral-400">Demand</TableHead>
+                            <TableHead className="text-neutral-400">Location</TableHead>
+                            <TableHead className="text-neutral-400 text-right">Score</TableHead>
+                            <TableHead className="text-neutral-400 text-right">Signals</TableHead>
+                            <TableHead className="text-neutral-400 text-right">Trend</TableHead>
+                            <TableHead className="text-neutral-400">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(behavioralIntel?.demand_scores || []).slice(0, 25).map((row) => {
+                            const stageClass = row.demand_stage === 'HOT'
+                              ? 'bg-red-950 text-red-200'
+                              : row.demand_stage === 'RISING'
+                                ? 'bg-emerald-950 text-emerald-200'
+                                : row.demand_stage === 'WATCH'
+                                  ? 'bg-amber-950 text-amber-200'
+                                  : 'bg-neutral-800 text-neutral-300';
+
+                            return (
+                              <TableRow key={`${row.demand_key}-${row.window_days}`} className="border-neutral-800 hover:bg-neutral-800/40">
+                                <TableCell>
+                                  <div className="text-white font-semibold">{row.display_label}</div>
+                                  <div className="text-neutral-500 text-xs">{row.category || 'Uncategorized'}</div>
+                                </TableCell>
+                                <TableCell className="text-neutral-300 text-sm">
+                                  {[row.city, row.state].filter(Boolean).join(', ') || 'All India'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge className={stageClass}>{row.demand_stage}</Badge>
+                                  <div className="text-white font-semibold mt-1">{Number(row.demand_score || 0).toLocaleString('en-IN')}</div>
+                                  <div className="text-neutral-500 text-xs">{row.confidence}% confidence</div>
+                                </TableCell>
+                                <TableCell className="text-right text-xs text-neutral-400">
+                                  <div>{row.search_count} searches</div>
+                                  <div>{row.product_views} product views</div>
+                                  <div>{row.lead_count + row.requirement_submits} buyer actions</div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {Number(row.trend_percent || 0) > 0 ? (
+                                    <span className="text-emerald-400 text-sm flex items-center justify-end gap-1">
+                                      <TrendingUp className="h-3 w-3" /> +{Number(row.trend_percent || 0).toFixed(1)}%
+                                    </span>
+                                  ) : Number(row.trend_percent || 0) < 0 ? (
+                                    <span className="text-red-400 text-sm flex items-center justify-end gap-1">
+                                      <TrendingDown className="h-3 w-3" /> {Number(row.trend_percent || 0).toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-neutral-500 text-sm">0%</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-neutral-300 text-xs max-w-xs">
+                                  {row.recommended_action}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-neutral-900 border-neutral-800">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-blue-400" />
+                    Prediction Engine
+                  </CardTitle>
+                  <CardDescription className="text-neutral-400">
+                    Weighted model v1; future me isi feature data ko LightGBM/XGBoost me plug kar sakte hain.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {behavioralIntelLoading ? (
+                    <div className="text-neutral-400 text-sm py-8 text-center">Loading forecasts...</div>
+                  ) : !(behavioralIntel?.forecasts || []).length ? (
+                    <div className="text-neutral-500 text-sm py-8 text-center">Forecast data not available yet.</div>
+                  ) : (
+                    (behavioralIntel?.forecasts || []).slice(0, 12).map((row) => {
+                      const max = Math.max(...(behavioralIntel?.forecasts || []).map((item) => Number(item.forecast_30d || 0)), 1);
+                      const width = Math.max(8, Math.min(100, (Number(row.forecast_30d || 0) / max) * 100));
+                      return (
+                        <div key={`${row.demand_key}-forecast`} className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
+                          <div className="flex justify-between gap-3">
+                            <div>
+                              <div className="text-white font-semibold text-sm">{row.display_label}</div>
+                              <div className="text-neutral-500 text-xs">{[row.city, row.state].filter(Boolean).join(', ') || 'All India'}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-blue-300 font-semibold">{Number(row.forecast_30d || 0).toLocaleString('en-IN')}</div>
+                              <div className="text-neutral-500 text-xs">30d forecast</div>
+                            </div>
+                          </div>
+                          <div className="h-2 bg-neutral-800 rounded-full overflow-hidden mt-3">
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${width}%` }} />
+                          </div>
+                          <div className="flex justify-between text-xs text-neutral-500 mt-2">
+                            <span>7d: {Number(row.forecast_7d || 0).toLocaleString('en-IN')}</span>
+                            <span>{row.confidence}% confidence</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="search360" className="space-y-4">
