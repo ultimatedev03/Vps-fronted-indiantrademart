@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Star, MapPin, BadgeCheck, PackageX, Phone } from 'lucide-react';
+import { Star, MapPin, BadgeCheck, PackageX, Phone, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/shared/components/Badge';
 import { productRatings, PRODUCT_RATINGS_UPDATED_EVENT } from '@/shared/services/productRatings';
@@ -76,12 +76,16 @@ const getProductDedupeKey = (product = {}) => {
 };
 
 const isPreferredProduct = (candidate = {}, current = {}) => {
+  const candidateSlot = Number(candidate?.premium_slot_rank || candidate?.vendors?.premium_slot_rank || 0);
+  const currentSlot = Number(current?.premium_slot_rank || current?.vendors?.premium_slot_rank || 0);
+  if (candidateSlot !== currentSlot) return candidateSlot > currentSlot;
+
   const candidateScore = Number(candidate?.__sortScore || candidate?.search_score || 0);
   const currentScore = Number(current?.__sortScore || current?.search_score || 0);
   if (candidateScore !== currentScore) return candidateScore > currentScore;
 
-  const candidatePlan = Number(candidate?.vendor_plan_priority || candidate?.vendors?.plan_priority || 0);
-  const currentPlan = Number(current?.vendor_plan_priority || current?.vendors?.plan_priority || 0);
+  const candidatePlan = candidateSlot > 0 ? Number(candidate?.vendor_plan_priority || candidate?.vendors?.plan_priority || 0) : 0;
+  const currentPlan = currentSlot > 0 ? Number(current?.vendor_plan_priority || current?.vendors?.plan_priority || 0) : 0;
   if (candidatePlan !== currentPlan) return candidatePlan > currentPlan;
 
   const candidateUpdated = new Date(candidate?.updated_at || candidate?.created_at || 0).getTime() || 0;
@@ -256,37 +260,27 @@ const SearchResultsList = ({ products, query, city, category }) => {
     };
   };
 
-  // ✅ Plan label
+  // Premium slot badge only appears when this product's micro-category is selected in the vendor plan preferences.
   const getPlanBadgeText = (product) => {
-    const planRaw = (product?.vendorPlanName || '').toString().trim();
-    if (!planRaw) return '';
-    const p = planRaw.toLowerCase();
-
-    if (p.includes('trial')) return '';
-
-    if (p.includes('diamond') || p.includes('dimond')) return 'Diamond Supplier';
-    if (p.includes('gold')) return 'Gold Supplier';
-    if (p.includes('silver')) return 'Silver Supplier';
-    if (p.includes('certified')) return 'Certified Supplier';
-    if (p.includes('booster')) return 'Booster Supplier';
-    if (p.includes('startup')) return 'Startup Supplier';
-
-    const nice = planRaw.replace(/\s+plan\s*$/i, '').trim();
-    return nice ? `${nice} Supplier` : '';
+    const matched =
+      product?.premium_slot_matched === true ||
+      product?.premium_slot_matched === 1 ||
+      product?.premium_slot_matched === '1';
+    const rank = Number(product?.premium_slot_rank || 0);
+    const label = String(product?.premium_slot_label || '').trim();
+    if (!matched || rank <= 0 || !label) return '';
+    return label;
   };
 
   const getPlanBadgeClass = (planText) => {
     const p = String(planText || '').toLowerCase().trim();
-    if (!p) return 'bg-[#7EA6E0]';
+    if (!p) return 'border-slate-200 bg-white/95 text-slate-700';
 
-    if (p.includes('diamond')) return 'bg-[#1D4ED8]';
-    if (p.includes('gold')) return 'bg-[#B45309]';
-    if (p.includes('silver')) return 'bg-[#475569]';
-    if (p.includes('certified')) return 'bg-[#047857]';
-    if (p.includes('booster')) return 'bg-[#7C3AED]';
-    if (p.includes('startup')) return 'bg-[#0F766E]';
+    if (p.includes('diamond')) return 'border-sky-200 bg-white/95 text-[#0B4FA8] shadow-[0_8px_24px_rgba(15,76,129,0.18)]';
+    if (p.includes('gold')) return 'border-amber-200 bg-white/95 text-[#9A5A00] shadow-[0_8px_24px_rgba(180,83,9,0.16)]';
+    if (p.includes('silver')) return 'border-slate-200 bg-white/95 text-slate-700 shadow-[0_8px_24px_rgba(71,85,105,0.14)]';
 
-    return 'bg-[#7EA6E0]';
+    return 'border-slate-200 bg-white/95 text-slate-700';
   };
 
   // ✅ FIXED: uses year_of_establishment
@@ -424,8 +418,9 @@ const SearchResultsList = ({ products, query, city, category }) => {
                 {planText ? (
                   <div className="absolute top-3 left-3">
                     <span
-                      className={`${getPlanBadgeClass(planText)} text-white text-xs font-semibold px-2 py-1 rounded-sm shadow`}
+                      className={`${getPlanBadgeClass(planText)} inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold leading-none backdrop-blur`}
                     >
+                      <Crown className="h-3.5 w-3.5" />
                       {planText}
                     </span>
                   </div>

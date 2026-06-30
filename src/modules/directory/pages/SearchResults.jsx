@@ -241,12 +241,16 @@ const getProductDedupeKey = (row = {}) => {
 };
 
 const isPreferredProductRow = (candidate = {}, current = {}) => {
+  const candidateSlot = Number(candidate?.premium_slot_rank || candidate?.vendors?.premium_slot_rank || 0);
+  const currentSlot = Number(current?.premium_slot_rank || current?.vendors?.premium_slot_rank || 0);
+  if (candidateSlot !== currentSlot) return candidateSlot > currentSlot;
+
   const candidateScore = Number(candidate?.__sortScore || candidate?.search_score || 0);
   const currentScore = Number(current?.__sortScore || current?.search_score || 0);
   if (candidateScore !== currentScore) return candidateScore > currentScore;
 
-  const candidatePlan = Number(candidate?.vendor_plan_priority || candidate?.vendors?.plan_priority || 0);
-  const currentPlan = Number(current?.vendor_plan_priority || current?.vendors?.plan_priority || 0);
+  const candidatePlan = candidateSlot > 0 ? Number(candidate?.vendor_plan_priority || candidate?.vendors?.plan_priority || 0) : 0;
+  const currentPlan = currentSlot > 0 ? Number(current?.vendor_plan_priority || current?.vendors?.plan_priority || 0) : 0;
   if (candidatePlan !== currentPlan) return candidatePlan > currentPlan;
 
   const candidateUpdated = new Date(candidate?.updated_at || candidate?.created_at || 0).getTime() || 0;
@@ -797,6 +801,7 @@ const SearchResults = () => {
                 vendorVerified: p?.vendorVerified || vendorObj?.kyc_status === 'VERIFIED' || !!vendorObj?.verification_badge,
                 vendorPlanName: planName,
                 __planPriority: planPriority,
+                __premiumSlotRank: Number(p?.premium_slot_rank || 0),
               };
             }));
 
@@ -936,8 +941,12 @@ const SearchResults = () => {
             const bs = b.__sortScore || 0;
             if (bs !== as) return bs - as;
 
-            const ap = a.__planPriority || 0;
-            const bp = b.__planPriority || 0;
+            const asp = a.__premiumSlotRank || a.premium_slot_rank || 0;
+            const bsp = b.__premiumSlotRank || b.premium_slot_rank || 0;
+            if (bsp !== asp) return bsp - asp;
+
+            const ap = asp > 0 ? (a.__planPriority || 0) : 0;
+            const bp = bsp > 0 ? (b.__planPriority || 0) : 0;
             if (bp !== ap) return bp - ap;
 
             const ar = Number(a.vendorRating || 0);

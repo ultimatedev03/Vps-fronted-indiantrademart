@@ -10,6 +10,16 @@ import { MapPin, Layers, X, Zap } from 'lucide-react';
 const TRIAL_PLAN_ID = '7fee24d0-de18-44d3-a357-be7b40492a1a';
 const TRIAL_DURATION_DAYS = 30;
 const DEFAULT_LIMITS = { states: 2, cities: 20, categories: 5 };
+const MICRO_SLOT_LIMIT_BY_PLAN = {
+  trial: 1,
+  startup: 3,
+  certified: 5,
+  booster: 7,
+  silver: 4,
+  gold: 8,
+  diamond: 15,
+  dimond: 15,
+};
 const normalizeId = (value) => String(value ?? '').trim();
 
 const CoverageSettings = () => {
@@ -82,10 +92,13 @@ const CoverageSettings = () => {
       try { f = JSON.parse(f); } catch (_) { f = {}; }
     }
     const coverage = (f && typeof f.coverage === 'object' && f.coverage) || {};
+    const listing = (f && typeof f.listing === 'object' && f.listing) || {};
+    const planKey = String(planObj?.name || '').trim().toLowerCase();
+    const fallbackSlots = Object.entries(MICRO_SLOT_LIMIT_BY_PLAN).find(([key]) => planKey.includes(key))?.[1] || null;
     return {
       states: Number(coverage.states_limit ?? f.states_limit ?? DEFAULT_LIMITS.states),
       cities: Number(coverage.cities_limit ?? f.cities_limit ?? DEFAULT_LIMITS.cities),
-      categories: Number(f.categories_limit || DEFAULT_LIMITS.categories),
+      categories: Number(listing.top_slots ?? fallbackSlots ?? f.categories_limit ?? DEFAULT_LIMITS.categories),
     };
   };
 
@@ -484,7 +497,7 @@ const CoverageSettings = () => {
         </p>
         {planName && (
           <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-800 px-3 py-1 text-xs border border-blue-100">
-            <span className="font-semibold">Current Plan:</span> {planName} • {coverageLimits.states} states • {coverageLimits.cities} cities • {coverageLimits.categories} categories
+            <span className="font-semibold">Current Plan:</span> {planName} • {coverageLimits.states} states • {coverageLimits.cities} cities • {coverageLimits.categories} micro-category slots
           </div>
         )}
       </div>
@@ -571,8 +584,8 @@ const CoverageSettings = () => {
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-blue-600" />
             <div>
-              <h3 className="font-semibold text-gray-900">Service Categories</h3>
-              <p className="text-sm text-gray-600">Select sub category and micro category (up to {coverageLimits.categories}).</p>
+              <h3 className="font-semibold text-gray-900">Premium Micro-Category Slots</h3>
+              <p className="text-sm text-gray-600">Select exact micro categories for plan badge and top ranking (up to {coverageLimits.categories}).</p>
             </div>
           </div>
           <Button variant="outline" onClick={addCategory} disabled={!selectedMicroCategoryId || savingCategory || preferredCategories.length >= coverageLimits.categories}>

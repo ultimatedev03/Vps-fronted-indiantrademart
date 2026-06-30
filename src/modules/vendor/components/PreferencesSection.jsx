@@ -20,6 +20,16 @@ const dedupeCities = (rows = []) => {
 };
 
 const DEFAULT_LIMITS = { states: 2, cities: 20, categories: 5 };
+const MICRO_SLOT_LIMIT_BY_PLAN = {
+  trial: 1,
+  startup: 3,
+  certified: 5,
+  booster: 7,
+  silver: 4,
+  gold: 8,
+  diamond: 15,
+  dimond: 15,
+};
 const normalizeId = (value) => String(value ?? '').trim();
 const readLimit = (value, fallback) => {
   const parsed = Number(value);
@@ -46,11 +56,17 @@ const parsePreferenceLimits = (planObj) => {
   const coverage = features?.coverage && typeof features.coverage === 'object'
     ? features.coverage
     : {};
+  const listing = features?.listing && typeof features.listing === 'object'
+    ? features.listing
+    : {};
+
+  const planKey = String(planObj?.name || '').trim().toLowerCase();
+  const fallbackSlots = Object.entries(MICRO_SLOT_LIMIT_BY_PLAN).find(([key]) => planKey.includes(key))?.[1] || null;
 
   return {
     states: readLimit(coverage.states_limit ?? features.states_limit, DEFAULT_LIMITS.states),
     cities: readLimit(coverage.cities_limit ?? features.cities_limit, DEFAULT_LIMITS.cities),
-    categories: readLimit(features.categories_limit, DEFAULT_LIMITS.categories),
+    categories: readLimit(listing.top_slots ?? fallbackSlots ?? features.categories_limit, DEFAULT_LIMITS.categories),
   };
 };
 
@@ -242,8 +258,8 @@ const PreferencesSection = () => {
           .eq('is_active', true)
           .order('name'),
         dbClient
-          .from('head_categories')
-          .select('id, name')
+          .from('micro_categories')
+          .select('id, name, sub_categories(id, name, head_categories(id, name))')
           .eq('is_active', true)
           .order('name'),
         vendorApi.preferences.get(),
@@ -563,8 +579,8 @@ const PreferencesSection = () => {
       <Card className="p-6">
         <div className="space-y-4">
           <div>
-            <h3 className="font-semibold text-gray-900 mb-2">Product Categories (Max {MAX_CATEGORIES})</h3>
-            <p className="text-sm text-gray-500 mb-4">Select up to {MAX_CATEGORIES} main categories your business deals in</p>
+            <h3 className="font-semibold text-gray-900 mb-2">Premium Micro-Category Slots (Max {MAX_CATEGORIES})</h3>
+            <p className="text-sm text-gray-500 mb-4">Select exact micro categories where your plan badge and top ranking should apply.</p>
           </div>
 
           <div className="flex gap-2">
@@ -574,13 +590,15 @@ const PreferencesSection = () => {
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               disabled={MAX_CATEGORIES === 0 || preferences.preferred_micro_categories.length >= MAX_CATEGORIES}
             >
-              <option value="">Select a category</option>
+              <option value="">Select a micro category</option>
               {allHeadCategories && allHeadCategories.length > 0 ? (
                 allHeadCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}{cat.sub_categories?.name ? ` - ${cat.sub_categories.name}` : ''}
+                  </option>
                 ))
               ) : (
-                <option disabled>No categories available</option>
+                <option disabled>No micro categories available</option>
               )}
             </select>
             <Button onClick={handleAddCategory} variant="outline" disabled={!selectedCategoryId || MAX_CATEGORIES === 0 || preferences.preferred_micro_categories.length >= MAX_CATEGORIES}>Add</Button>
@@ -588,7 +606,7 @@ const PreferencesSection = () => {
 
           <div className="flex flex-wrap gap-2">
             {preferences.preferred_micro_categories.map(catId => {
-              const catName = categoryMap.get(normalizeId(catId))?.name || 'Unknown category';
+              const catName = categoryMap.get(normalizeId(catId))?.name || 'Unknown micro category';
               return (
                 <Badge key={catId} variant="secondary" className="flex items-center gap-2 px-3 py-1">
                   {catName}
