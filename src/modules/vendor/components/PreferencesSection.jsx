@@ -61,6 +61,7 @@ const PreferencesSection = () => {
   const [preferences, setPreferences] = useState({
     preferred_micro_categories: [],
     preferred_states: [],
+    preferred_districts: [],
     preferred_cities: [],
     min_budget: 0,
     max_budget: 999999,
@@ -68,11 +69,13 @@ const PreferencesSection = () => {
   });
 
   const [allStates, setAllStates] = useState([]);
+  const [allDistricts, setAllDistricts] = useState([]);
   const [allCities, setAllCities] = useState([]);
   const [allHeadCategories, setAllHeadCategories] = useState([]);
   const [selectionLimits, setSelectionLimits] = useState(DEFAULT_LIMITS);
 
   const [selectedStateId, setSelectedStateId] = useState('');
+  const [selectedDistrictId, setSelectedDistrictId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedCityId, setSelectedCityId] = useState('');
   const MAX_STATES = selectionLimits.states;
@@ -80,6 +83,7 @@ const PreferencesSection = () => {
   const MAX_CATEGORIES = selectionLimits.categories;
 
   const stateMap = useMemo(() => buildLookupMap(allStates), [allStates]);
+  const districtMap = useMemo(() => buildLookupMap(allDistricts), [allDistricts]);
   const cityMap = useMemo(() => buildLookupMap(allCities), [allCities]);
   const categoryMap = useMemo(() => buildLookupMap(allHeadCategories), [allHeadCategories]);
   const preferencesSnapshot = useMemo(() => JSON.stringify(preferences), [preferences]);
@@ -92,14 +96,15 @@ const PreferencesSection = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const loadCitiesForPreferredStates = async () => {
+    const loadDistrictsForPreferredStates = async () => {
       const stateIds = Array.from(new Set((preferences.preferred_states || []).map((id) => String(id || '').trim()).filter(Boolean)));
       if (stateIds.length === 0) {
         if (!cancelled) {
+          setAllDistricts([]);
           setAllCities([]);
           setPreferences((prev) => (
-            (prev.preferred_cities || []).length > 0
-              ? { ...prev, preferred_cities: [] }
+            (prev.preferred_districts || []).length > 0 || (prev.preferred_cities || []).length > 0
+              ? { ...prev, preferred_districts: [], preferred_cities: [] }
               : prev
           ));
         }
@@ -107,35 +112,73 @@ const PreferencesSection = () => {
       }
 
       try {
-        const cityBuckets = await Promise.all(
-          stateIds.map((stateId) => vendorApi.locations.getCities(stateId).catch(() => []))
+        const districtBuckets = await Promise.all(
+          stateIds.map(async (stateId) => {
+            const { data, error } = await dbClient
+              .from('districts')
+              .select('id, name, slug, state_id')
+              .eq('state_id', stateId)
+              .eq('is_active', true)
+              .order('name');
+            if (error) throw error;
+            return data || [];
+          })
         );
         if (cancelled) return;
 
-        const mergedCities = dedupeCities(cityBuckets.flat());
-        const allowedCityIds = new Set(mergedCities.map((city) => String(city?.id || '').trim()).filter(Boolean));
-
-        setAllCities(mergedCities);
+        const mergedDistricts = dedupeCities(districtBuckets.flat());
+        const allowedDistrictIds = new Set(mergedDistricts.map((district) => normalizeId(district?.id)).filter(Boolean));
+        setAllDistricts(mergedDistricts);
         setPreferences((prev) => {
-          const nextPreferredCities = (prev.preferred_cities || []).filter((cityId) =>
-            allowedCityIds.has(String(cityId || '').trim())
-          );
-          if (nextPreferredCities.length === (prev.preferred_cities || []).length) return prev;
-          return { ...prev, preferred_cities: nextPreferredCities };
+          const nextDistricts = (prev.preferred_districts || []).filter((id) => allowedDistrictIds.has(normalizeId(id)));
+          if (nextDistricts.length === (prev.preferred_districts || []).length) return prev;
+          return { ...prev, preferred_districts: nextDistricts };
         });
       } catch (error) {
         if (!cancelled) {
-          console.error('Error loading cities for preferred states:', error);
+          console.error('Error loading districts for preferred states:', error);
         }
       }
     };
 
-    loadCitiesForPreferredStates();
+    loadDistrictsForPreferredStates();
 
     return () => {
       cancelled = true;
     };
   }, [preferences.preferred_states]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCitiesForPreferredDistricts = async () => {
+      const districtIds = Array.from(new Set((preferences.preferred_districts || []).map(normalizeId).filter(Boolean)));
+      if (!districtIds.length) {
+        setAllCities([]);
+        return;
+      }
+      try {
+        const buckets = await Promise.all(
+          districtIds.map(async (districtId) => {
+            const district = districtMap.get(districtId);
+            if (!district?.state_id) return [];
+            return vendorApi.locations.getCities(district.state_id, false, districtId).catch(() => []);
+          })
+        );
+        if (cancelled) return;
+        const merged = dedupeCities(buckets.flat());
+        const allowed = new Set(merged.map((city) => normalizeId(city?.id)).filter(Boolean));
+        setAllCities(merged);
+        setPreferences((prev) => ({
+          ...prev,
+          preferred_cities: (prev.preferred_cities || []).filter((id) => allowed.has(normalizeId(id))),
+        }));
+      } catch (error) {
+        if (!cancelled) console.error('Error loading cities for preferred districts:', error);
+      }
+    };
+    loadCitiesForPreferredDistricts();
+    return () => { cancelled = true; };
+  }, [districtMap, preferences.preferred_districts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,13 +197,27 @@ const PreferencesSection = () => {
       try {
         const { data, error } = await dbClient
           .from('cities')
-          .select('id, name, state_id')
+          .select('id, name, state_id, district_id')
           .in('id', unresolvedCityIds);
 
         if (error) throw error;
         if (cancelled || !Array.isArray(data) || !data.length) return;
 
         setAllCities((prev) => dedupeCities([...(prev || []), ...data]));
+        setPreferences((prev) => {
+          const stateIds = new Set((prev.preferred_states || []).map(normalizeId));
+          const derivedDistricts = data
+            .filter((city) => stateIds.has(normalizeId(city?.state_id)))
+            .map((city) => normalizeId(city?.district_id))
+            .filter(Boolean);
+          if (!derivedDistricts.length) return prev;
+          return {
+            ...prev,
+            preferred_districts: Array.from(
+              new Set([...(prev.preferred_districts || []).map(normalizeId), ...derivedDistricts])
+            ),
+          };
+        });
       } catch (error) {
         if (!cancelled) {
           console.error('Error resolving preferred city names:', error);
@@ -203,6 +260,7 @@ const PreferencesSection = () => {
       const prefs = prefsRes || {
         preferred_micro_categories: [],
         preferred_states: [],
+        preferred_districts: [],
         preferred_cities: [],
         min_budget: 0,
         max_budget: 999999,
@@ -213,6 +271,7 @@ const PreferencesSection = () => {
       const normalizedPreferences = {
         ...prefs,
         preferred_states: (prefs?.preferred_states || []).map((id) => normalizeId(id)).filter(Boolean).slice(0, limits.states),
+        preferred_districts: (prefs?.preferred_districts || []).map((id) => normalizeId(id)).filter(Boolean),
         preferred_cities: (prefs?.preferred_cities || []).map((id) => normalizeId(id)).filter(Boolean).slice(0, limits.cities),
         preferred_micro_categories: (prefs?.preferred_micro_categories || []).map((id) => normalizeId(id)).filter(Boolean).slice(0, limits.categories),
       };
@@ -276,6 +335,20 @@ const PreferencesSection = () => {
     setSelectedCityId('');
   };
 
+  const handleAddDistrict = () => {
+    const districtId = normalizeId(selectedDistrictId);
+    if (!districtId) return;
+    if ((preferences.preferred_districts || []).some((id) => normalizeId(id) === districtId)) {
+      toast({ title: 'District already added', variant: 'destructive' });
+      return;
+    }
+    setPreferences((prev) => ({
+      ...prev,
+      preferred_districts: [...(prev.preferred_districts || []), districtId],
+    }));
+    setSelectedDistrictId('');
+  };
+
   const handleAddCategory = async () => {
     const categoryId = normalizeId(selectedCategoryId);
     if (!categoryId) return;
@@ -300,10 +373,26 @@ const PreferencesSection = () => {
     setPreferences(prev => ({
       ...prev,
       preferred_states: (prev.preferred_states || []).filter((stateId) => normalizeId(stateId) !== normalizedId),
+      preferred_districts: (prev.preferred_districts || []).filter((districtId) => {
+        const district = districtMap.get(normalizeId(districtId));
+        return normalizeId(district?.state_id) !== normalizedId;
+      }),
       preferred_cities: (prev.preferred_cities || []).filter((cityId) => {
         const city = cityMap.get(normalizeId(cityId));
         return normalizeId(city?.state_id) !== normalizedId;
       })
+    }));
+  };
+
+  const handleRemoveDistrict = (id) => {
+    const normalizedId = normalizeId(id);
+    setPreferences((prev) => ({
+      ...prev,
+      preferred_districts: (prev.preferred_districts || []).filter((districtId) => normalizeId(districtId) !== normalizedId),
+      preferred_cities: (prev.preferred_cities || []).filter((cityId) => {
+        const city = cityMap.get(normalizeId(cityId));
+        return normalizeId(city?.district_id) !== normalizedId;
+      }),
     }));
   };
 
@@ -397,6 +486,38 @@ const PreferencesSection = () => {
         </div>
       </Card>
 
+      {/* Districts */}
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-2">Preferred Districts</h3>
+            <p className="text-sm text-gray-500 mb-4">Choose districts inside your selected states, then choose service cities.</p>
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={selectedDistrictId}
+              onChange={(event) => setSelectedDistrictId(event.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+              disabled={!allDistricts.length}
+            >
+              <option value="">Select a district</option>
+              {allDistricts.map((district) => (
+                <option key={district.id} value={district.id}>{district.name}</option>
+              ))}
+            </select>
+            <Button onClick={handleAddDistrict} variant="outline" disabled={!selectedDistrictId}>Add</Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(preferences.preferred_districts || []).map((districtId) => (
+              <Badge key={districtId} variant="secondary" className="flex items-center gap-2 px-3 py-1">
+                {districtMap.get(normalizeId(districtId))?.name || 'Loading district...'}
+                <X className="w-3 h-3 cursor-pointer" onClick={() => handleRemoveDistrict(districtId)} />
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </Card>
+
       {/* Cities */}
       <Card className="p-6">
         <div className="space-y-4">
@@ -418,7 +539,7 @@ const PreferencesSection = () => {
                   <option key={city.id} value={city.id}>{city.name}</option>
                 ))
               ) : (
-                <option disabled>No cities available - add preferred states first</option>
+                <option disabled>No cities available - add a district first</option>
               )}
             </select>
             <Button onClick={handleAddCity} variant="outline" disabled={!selectedCityId || MAX_CITIES === 0 || preferences.preferred_cities.length >= MAX_CITIES}>Add</Button>

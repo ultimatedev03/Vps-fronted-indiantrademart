@@ -103,6 +103,20 @@ const formatDisplayDate = (value) => {
   return formatted || String(value || '').trim();
 };
 
+const buildFallbackCertificateNumber = ({ certificate, vendorCode, planName, issuedOn }) => {
+  const tier = String(certificate?.tier || planName || 'CERTIFIED')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '') || 'CERTIFIED';
+  const normalizedVendorCode = String(vendorCode || 'VENDOR')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .slice(0, 12)
+    .toUpperCase() || 'VENDOR';
+  const issuedDate = issuedOn ? new Date(issuedOn) : new Date();
+  const year = Number.isNaN(issuedDate.getTime()) ? new Date().getFullYear() : issuedDate.getFullYear();
+  return `ITM-${tier}-${normalizedVendorCode}-${year}`;
+};
+
 const buildDisplayProfile = (vendor = {}, subscription = null) => ({
   ...vendor,
   active_plan: vendor?.active_plan || subscription?.plan || null,
@@ -131,86 +145,92 @@ const CertificatePreview = ({
   planName,
   subscription,
   styles,
+  vendorCode,
 }) => {
   const certificateTitle = certificate?.title || planBadgeLabel || 'Verified Vendor';
   const issuedOn = formatDisplayDate(certificate?.issued_on || subscription?.start_date);
   const validUntil = formatDisplayDate(certificate?.valid_until || subscription?.end_date) || 'Active plan';
-  const certificateNumber = certificate?.certificate_number || 'Generated after activation';
+  const certificateNumber = certificate?.certificate_number || buildFallbackCertificateNumber({
+    certificate,
+    vendorCode,
+    planName,
+    issuedOn: certificate?.issued_on || subscription?.start_date,
+  });
 
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-lg border p-3 shadow-[0_28px_70px_rgba(15,23,42,0.14)] sm:p-5',
-        'min-h-[500px] bg-white',
+        'relative overflow-hidden rounded-lg border p-2 shadow-[0_14px_34px_rgba(15,23,42,0.10)] sm:p-2.5',
+        'min-h-[315px] bg-white',
         styles.certificate
       )}
     >
-      <div className="absolute inset-3 rounded-md border border-white/80" />
-      <div className="absolute left-7 top-7 h-12 w-12 border-l-2 border-t-2 border-amber-500/70" />
-      <div className="absolute right-7 top-7 h-12 w-12 border-r-2 border-t-2 border-amber-500/70" />
-      <div className="absolute bottom-7 left-7 h-12 w-12 border-b-2 border-l-2 border-amber-500/70" />
-      <div className="absolute bottom-7 right-7 h-12 w-12 border-b-2 border-r-2 border-amber-500/70" />
+      <div className="absolute inset-2.5 rounded-md border border-white/80" />
+      <div className="absolute left-5 top-5 h-8 w-8 border-l-2 border-t-2 border-amber-500/65" />
+      <div className="absolute right-5 top-5 h-8 w-8 border-r-2 border-t-2 border-amber-500/65" />
+      <div className="absolute bottom-5 left-5 h-8 w-8 border-b-2 border-l-2 border-amber-500/65" />
+      <div className="absolute bottom-5 right-5 h-8 w-8 border-b-2 border-r-2 border-amber-500/65" />
 
       <img
         src="/itm-mark.png"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.045] sm:h-96 sm:w-96"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.04] sm:h-44 sm:w-44"
       />
-      <p className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 select-none text-center text-5xl font-black uppercase tracking-[0.22em] text-cyan-900/5 md:block">
+      <p className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 select-none text-center text-3xl font-black uppercase tracking-[0.18em] text-cyan-900/5 md:block">
         IndianTradeMart
       </p>
 
-      <div className="relative flex min-h-[470px] flex-col rounded-md border border-slate-200/70 bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 sm:py-7">
+      <div className="relative flex min-h-[292px] flex-col rounded-md border border-slate-200/70 bg-white/70 px-4 py-3 backdrop-blur-sm sm:px-4 sm:py-3.5">
         <div className="flex items-start justify-between gap-4">
           <img
             src="/itm-logo.png"
             alt="IndianTradeMart"
-            className="h-12 w-auto max-w-[170px] object-contain sm:h-16"
+            className="h-8 w-auto max-w-[120px] object-contain sm:h-9"
             loading="eager"
           />
           <div className="flex flex-col items-end gap-2">
-            <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold shadow-sm', styles.ribbon)}>
-              <ShieldCheck className="h-3.5 w-3.5" />
+            <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold shadow-sm', styles.ribbon)}>
+              <ShieldCheck className="h-3 w-3" />
               Verified
             </span>
-            <span className="hidden max-w-[220px] rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500 shadow-sm sm:inline-flex">
+            <span className="hidden max-w-[190px] rounded-full border border-slate-200 bg-white/80 px-2.5 py-0.5 text-right text-[9px] font-bold uppercase tracking-wide text-slate-500 shadow-sm sm:inline-flex">
               IndianTradeMart vendor network
             </span>
           </div>
         </div>
 
-        <div className="mx-auto mt-6 max-w-3xl text-center">
-          <p className={cn('text-[11px] font-black uppercase tracking-[0.34em]', styles.foil)}>
+        <div className="mx-auto mt-2 max-w-3xl text-center">
+          <p className={cn('text-[9px] font-black uppercase tracking-[0.28em]', styles.foil)}>
             Official Vendor Certificate
           </p>
-          <h3 className="mt-4 text-balance text-3xl font-black uppercase leading-tight text-slate-950 sm:text-5xl">
+          <h3 className="mt-1.5 text-balance text-xl font-black uppercase leading-tight text-slate-950 sm:text-2xl">
             {certificateTitle}
           </h3>
-          <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">This certifies that</p>
-          <h2 className="mx-auto mt-3 max-w-3xl break-words text-3xl font-black leading-tight text-cyan-800 sm:text-5xl">
+          <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">This certifies that</p>
+          <h2 className="mx-auto mt-1 max-w-3xl break-words text-xl font-black leading-tight text-cyan-800 sm:text-2xl">
             {companyName}
           </h2>
-          <div className="mx-auto mt-5 h-0.5 w-48 rounded-full bg-gradient-to-r from-cyan-500 via-amber-500 to-cyan-500" />
-          <p className="mx-auto mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-700">
+          <div className="mx-auto mt-2 h-0.5 w-28 rounded-full bg-gradient-to-r from-cyan-500 via-amber-500 to-cyan-500" />
+          <p className="mx-auto mt-2 max-w-2xl text-xs font-semibold leading-5 text-slate-700">
             Recognized for an active {planName} membership and verified business presence on IndianTradeMart.
           </p>
         </div>
 
-        <div className="mx-auto mt-6 grid w-full max-w-4xl gap-3 rounded-md border border-slate-200/90 bg-white/85 p-3 shadow-sm sm:grid-cols-4">
+        <div className="mx-auto mt-2.5 grid w-full max-w-3xl gap-1.5 rounded-md border border-slate-200/90 bg-white/85 p-1.5 shadow-sm sm:grid-cols-4">
           {[
             { icon: FileCheck2, label: 'Certificate No.', value: certificateNumber },
             { icon: CalendarDays, label: 'Issued On', value: issuedOn || '-' },
             { icon: Sparkles, label: 'Valid Until', value: validUntil },
             { icon: BadgeCheck, label: 'Status', value: 'Active', active: true },
           ].map((item) => (
-            <div key={item.label} className="flex gap-2 rounded-md border border-slate-100 bg-slate-50/70 p-3">
-              <div className={cn('mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white shadow-sm', item.active ? styles.accent : 'text-[#003D82]')}>
-                <item.icon className="h-4 w-4" />
+            <div key={item.label} className="flex gap-1.5 rounded-md border border-slate-100 bg-slate-50/70 p-1.5">
+              <div className={cn('mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white shadow-sm', item.active ? styles.accent : 'text-[#003D82]')}>
+                <item.icon className="h-3.5 w-3.5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">{item.label}</p>
-                <p className={cn('mt-1 break-words text-xs font-black', item.active ? styles.accent : 'text-slate-950')}>
+                <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">{item.label}</p>
+                <p className={cn('mt-0.5 break-words text-[11px] font-black', item.active ? styles.accent : 'text-slate-950')}>
                   {item.value}
                 </p>
               </div>
@@ -218,21 +238,21 @@ const CertificatePreview = ({
           ))}
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-4 pt-7">
+        <div className="mt-auto flex items-end justify-between gap-4 pt-2.5">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-              <Stamp className="h-4 w-4" />
+            <div className="mb-1.5 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <Stamp className="h-3.5 w-3.5" />
               Verified record
             </div>
-            <div className="h-px w-44 bg-slate-900" />
-            <p className="mt-2 text-xs font-bold text-slate-700">Authorized Signatory</p>
-            <p className="text-[11px] font-semibold text-slate-500">IndianTradeMart Certification Desk</p>
+            <div className="h-px w-28 bg-slate-900" />
+            <p className="mt-1.5 text-[11px] font-bold text-slate-700">Authorized Signatory</p>
+            <p className="text-[10px] font-semibold text-slate-500">IndianTradeMart Certification Desk</p>
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <div className={cn('flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-white shadow-xl ring-4 ring-white sm:h-24 sm:w-24', styles.seal)}>
-              <Medal className="h-10 w-10 sm:h-12 sm:w-12" />
+          <div className="flex flex-col items-center gap-1.5">
+            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-xl ring-4 ring-white sm:h-12 sm:w-12', styles.seal)}>
+              <Medal className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <p className="text-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Trust seal</p>
+            <p className="text-center text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">Trust seal</p>
           </div>
         </div>
       </div>
@@ -269,6 +289,7 @@ const VendorPlanTrustPanel = ({
   const styles = getTierStyles(certificate?.title || planBadgeLabel || planName);
   const endDate = subscription?.end_date ? formatDate(subscription.end_date) : '';
   const vendorSlug = displayProfile.slug || displayProfile.profile_slug || displayProfile.vendor_slug;
+  const vendorCode = displayProfile.vendor_id || displayProfile.id || displayProfile.user_id || 'VENDOR';
   const publicProfilePath = displayProfile.profile_url || (vendorSlug ? `/directory/vendor/${vendorSlug}` : '');
 
   if (loading) {
@@ -348,7 +369,7 @@ const VendorPlanTrustPanel = ({
 
   if (variant === 'profile') {
     return (
-      <div className={cn('grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]', className)}>
+      <div className={cn('mx-auto grid w-full max-w-[1180px] gap-4 xl:grid-cols-[minmax(0,760px)_320px]', className)}>
         <CertificatePreview
           companyName={companyName}
           certificate={certificate}
@@ -356,6 +377,7 @@ const VendorPlanTrustPanel = ({
           planName={planName}
           subscription={subscription}
           styles={styles}
+          vendorCode={vendorCode}
         />
 
         <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-4 shadow-sm">

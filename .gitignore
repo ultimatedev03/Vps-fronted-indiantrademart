@@ -11,6 +11,7 @@ yarn-error.log*
 
 vite-test.out.log
 vite-test.err.log
+vite-preview*.log
 
 .DS_Store
 Thumbs.db

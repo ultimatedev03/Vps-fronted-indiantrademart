@@ -850,7 +850,7 @@ export const vendorApi = {
     },
 
     // --- CITIES ---
-    getCities: async (stateId, includeInactive = false) => {
+    getCities: async (stateId, includeInactive = false, districtId = '') => {
       if (!stateId) return [];
       let query = dbClient
         .from('cities')
@@ -859,6 +859,7 @@ export const vendorApi = {
         .order('name');
 
       if (!includeInactive) query = query.eq('is_active', true);
+      if (districtId) query = query.eq('district_id', districtId);
 
       const { data, error } = await query;
       if (error) throw error;

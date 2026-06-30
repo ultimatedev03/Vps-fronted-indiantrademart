@@ -72,13 +72,15 @@ const levenshtein = (a = '', b = '') => {
   return dp[m][n];
 };
 
-const productMatchesLocation = (product, stateId, cityId) => {
-  if (!stateId && !cityId) return true;
+const productMatchesLocation = (product, stateId, districtId, cityId) => {
+  if (!stateId && !districtId && !cityId) return true;
 
   const vendorStateId = product?.vendors?.state_id ? String(product.vendors.state_id) : '';
+  const vendorDistrictId = product?.vendors?.district_id ? String(product.vendors.district_id) : '';
   const vendorCityId = product?.vendors?.city_id ? String(product.vendors.city_id) : '';
 
   if (cityId) return vendorCityId === String(cityId);
+  if (districtId) return vendorDistrictId === String(districtId);
   if (stateId) return vendorStateId === String(stateId);
   return true;
 };
@@ -157,21 +159,22 @@ const buildPriceBounds = (items = []) => {
   return { min, max: max > min ? max : min + 1 };
 };
 
-const applyLocationFilters = (query, stateId, cityId) => {
+const applyLocationFilters = (query, stateId, districtId, cityId) => {
   let scopedQuery = query;
   if (stateId) scopedQuery = scopedQuery.eq('vendors.state_id', stateId);
+  if (districtId) scopedQuery = scopedQuery.eq('vendors.district_id', districtId);
   if (cityId) scopedQuery = scopedQuery.eq('vendors.city_id', cityId);
   return scopedQuery;
 };
 
-const buildKeywordProductQuery = ({ selectString, stateId, cityId }) => {
+const buildKeywordProductQuery = ({ selectString, stateId, districtId, cityId }) => {
   let query = dbClient
     .from('products')
     .select(selectString)
     .eq('status', 'ACTIVE')
     .eq('vendors.is_active', true);
 
-  query = applyLocationFilters(query, stateId, cityId);
+  query = applyLocationFilters(query, stateId, districtId, cityId);
   return query;
 };
 
@@ -279,9 +282,9 @@ const dedupeProducts = (rows = []) => {
   return unique;
 };
 
-const runKeywordQuery = async ({ selectString, stateId, cityId, applyFilter }) => {
+const runKeywordQuery = async ({ selectString, stateId, districtId, cityId, applyFilter }) => {
   try {
-    let query = buildKeywordProductQuery({ selectString, stateId, cityId });
+    let query = buildKeywordProductQuery({ selectString, stateId, districtId, cityId });
     query = applyFilter(query);
 
     const { data, error } = await query
@@ -321,12 +324,12 @@ const buildOrFilterString = (clauses = []) =>
     )
   ).join(',');
 
-const runKeywordOrQuery = async ({ selectString, stateId, cityId, clauses }) => {
+const runKeywordOrQuery = async ({ selectString, stateId, districtId, cityId, clauses }) => {
   const orFilter = buildOrFilterString(clauses);
   if (!orFilter) return [];
 
   try {
-    let query = buildKeywordProductQuery({ selectString, stateId, cityId });
+    let query = buildKeywordProductQuery({ selectString, stateId, districtId, cityId });
     const { data, error } = await query
       .or(orFilter)
       .order('created_at', { ascending: false })
@@ -362,7 +365,7 @@ const tokenizeSearchTerms = (...values) =>
     )
   ).slice(0, 8);
 
-const runCategoryContextQuery = async ({ ctx, selectString, stateId, cityId }) => {
+const runCategoryContextQuery = async ({ ctx, selectString, stateId, districtId, cityId }) => {
   let filterColumn = '';
   let filterValue = null;
 
@@ -388,7 +391,7 @@ const runCategoryContextQuery = async ({ ctx, selectString, stateId, cityId }) =
     .eq('vendors.is_active', true)
     .eq(filterColumn, filterValue);
 
-  query = applyLocationFilters(query, stateId, cityId);
+  query = applyLocationFilters(query, stateId, districtId, cityId);
 
   const { data, error } = await query
     .order('created_at', { ascending: false })
@@ -436,6 +439,7 @@ const SearchResults = () => {
   const [parsedParams, setParsedParams] = useState({
     serviceSlug: '',
     stateSlug: '',
+    districtSlug: '',
     citySlug: '',
   });
 
@@ -477,10 +481,11 @@ const SearchResults = () => {
     });
   }, [priceBounds.min, priceBounds.max]);
 
-  const buildSearchUrl = (svc, st, ct) => {
+  const buildSearchUrl = (svc, st, ct, district = '') => {
     if (!svc) return '/directory';
     let u = `/directory/search/${svc}`;
     if (st) u += `/${st}`;
+    if (district) u += `/${district}`;
     if (ct) u += `/${ct}`;
     return u;
   };
@@ -488,11 +493,13 @@ const SearchResults = () => {
   useEffect(() => {
     let service = '';
     let state = '';
+    let district = '';
     let city = '';
 
     if (params.service) {
       service = params.service;
       state = params.state || '';
+      district = params.district || '';
       city = params.city || '';
     } else if (params.slug) {
       const parsed = urlParser.parseSeoSlug(params.slug);
@@ -504,13 +511,14 @@ const SearchResults = () => {
     setParsedParams({
       serviceSlug: service || '',
       stateSlug: state || '',
+      districtSlug: district || '',
       citySlug: city || '',
     });
 
     autoCorrectedRef.current = false;
   }, [params, location.pathname, location.search]);
 
-  const tryAutoCorrect = async ({ wrongSlug, stateSlug, citySlug }) => {
+  const tryAutoCorrect = async ({ wrongSlug, stateSlug, districtSlug, citySlug }) => {
     if (!wrongSlug) return null;
     if (autoCorrectedRef.current) return null;
 
@@ -598,7 +606,7 @@ const SearchResults = () => {
 
     autoCorrectedRef.current = true;
 
-    const correctedUrl = buildSearchUrl(best.slug, stateSlug, citySlug);
+    const correctedUrl = buildSearchUrl(best.slug, stateSlug, citySlug, districtSlug);
     navigate(correctedUrl, { replace: true });
 
     toast({
@@ -616,6 +624,7 @@ const SearchResults = () => {
     serviceQuerySlug,
     selectString,
     stateId,
+    districtId,
     cityId,
   }) => {
     const exactSlugCandidates = Array.from(
@@ -635,6 +644,7 @@ const SearchResults = () => {
       await runKeywordOrQuery({
         selectString,
         stateId,
+        districtId,
         cityId,
         clauses: [
           ...exactSlugCandidates.flatMap((slug) => [
@@ -657,6 +667,7 @@ const SearchResults = () => {
       await runKeywordOrQuery({
         selectString,
         stateId,
+        districtId,
         cityId,
         clauses: [
           ...textVariants.flatMap((text) => [
@@ -684,6 +695,7 @@ const SearchResults = () => {
       await runKeywordOrQuery({
         selectString,
         stateId,
+        districtId,
         cityId,
         clauses: textVariants.map((text) => ({
           column: 'description',
@@ -748,11 +760,12 @@ const SearchResults = () => {
         const serviceQuerySlug = slugify(rawServiceText) || serviceSlug;
         const searchTokens = tokenizeSearchTerms(rawServiceText, servicePhrase);
 
-        const [{ state, city }, ctx] = await Promise.all([
-          locationService.getLocationBySlug(parsedParams.stateSlug, parsedParams.citySlug),
+        const [{ state, district, city }, ctx] = await Promise.all([
+          locationService.getLocationBySlug(parsedParams.stateSlug, parsedParams.citySlug, parsedParams.districtSlug),
           resolveCategoryContext(serviceSlug),
         ]);
         const stateId = state?.id || null;
+        const districtId = district?.id || null;
         const cityId = city?.id || null;
 
         try {
@@ -760,6 +773,7 @@ const SearchResults = () => {
             q: rawServiceText,
             microSlug: ctx.type === 'micro' ? serviceSlug : '',
             stateId,
+            districtId,
             cityId,
             sort: '',
             page: 1,
@@ -807,7 +821,7 @@ const SearchResults = () => {
         const selectString = `
           *,
           vendors!inner (
-            id, company_name, city, state, state_id, city_id,
+            id, company_name, city, state, state_id, district_id, city_id,
             seller_rating, kyc_status, verification_badge, trust_score,
             gst_verified, year_of_establishment, years_in_business, response_rate,
             is_active
@@ -823,6 +837,7 @@ const SearchResults = () => {
                 ctx,
                 selectString,
                 stateId,
+                districtId,
                 cityId,
               })
             : Promise.resolve([]),
@@ -834,6 +849,7 @@ const SearchResults = () => {
                 serviceQuerySlug,
                 selectString,
                 stateId,
+                districtId,
                 cityId,
               })
             : Promise.resolve([]),
@@ -888,12 +904,13 @@ const SearchResults = () => {
           };
         });
 
-        const locationFiltered = mapped.filter((p) => productMatchesLocation(p, stateId, cityId));
+        const locationFiltered = mapped.filter((p) => productMatchesLocation(p, stateId, districtId, cityId));
 
         if (locationFiltered.length === 0) {
           await tryAutoCorrect({
             wrongSlug: serviceSlug,
             stateSlug: parsedParams.stateSlug,
+            districtSlug: parsedParams.districtSlug,
             citySlug: parsedParams.citySlug,
           });
           setResults([]);
@@ -940,6 +957,7 @@ const SearchResults = () => {
           await tryAutoCorrect({
             wrongSlug: parsedParams.serviceSlug,
             stateSlug: parsedParams.stateSlug,
+            districtSlug: parsedParams.districtSlug,
             citySlug: parsedParams.citySlug,
           });
         } catch (e) {}
@@ -951,7 +969,7 @@ const SearchResults = () => {
     };
 
     fetchResults();
-  }, [parsedParams.serviceSlug, parsedParams.stateSlug, parsedParams.citySlug, rawSearchQuery]);
+  }, [parsedParams.serviceSlug, parsedParams.stateSlug, parsedParams.districtSlug, parsedParams.citySlug, rawSearchQuery]);
 
   const filteredResults = useMemo(() => {
     let out = dedupeProducts(results);
@@ -982,20 +1000,20 @@ const SearchResults = () => {
   const formatName = (s) => (s ? s.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : '');
   const serviceName = rawSearchQuery || formatName(parsedParams.serviceSlug);
   const cityName = formatName(parsedParams.citySlug);
+  const districtName = formatName(parsedParams.districtSlug);
   const stateName = formatName(parsedParams.stateSlug);
+  const locationName = [cityName, districtName, stateName].filter(Boolean).join(', ');
 
   const pageTitle = serviceName
-    ? `${serviceName} Suppliers & Manufacturers${cityName ? ` in ${cityName}` : ''}${
-        stateName && !cityName ? ` in ${stateName}` : ''
-      }`
+    ? `${serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
     : 'Search Results';
 
-  const canonicalPath =
-    parsedParams.citySlug && parsedParams.stateSlug
-      ? `/directory/${parsedParams.serviceSlug}-in-${parsedParams.citySlug}-${parsedParams.stateSlug}`
-      : parsedParams.stateSlug
-        ? `/directory/${parsedParams.serviceSlug}-in-${parsedParams.stateSlug}`
-        : `/directory/${parsedParams.serviceSlug}`;
+  const canonicalPath = buildSearchUrl(
+    parsedParams.serviceSlug,
+    parsedParams.stateSlug,
+    parsedParams.citySlug,
+    parsedParams.districtSlug
+  );
 
   const canonicalUrl = toAbsoluteSiteUrl(canonicalPath);
 
@@ -1005,7 +1023,7 @@ const SearchResults = () => {
         <title>{pageTitle} | IndianTradeMart</title>
         <meta
           name="description"
-          content={`Find best ${serviceName} suppliers in ${cityName || stateName || 'India'}. Get quotes, compare prices and buy from verified manufacturers.`}
+          content={`Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers.`}
         />
         <link rel="canonical" href={canonicalUrl} />
       </Helmet>
@@ -1074,7 +1092,7 @@ const SearchResults = () => {
                   <Loader2 className="w-8 h-8 animate-spin text-[#003D82]" />
                 </div>
               ) : (
-                <SearchResultsList products={filteredResults} city={cityName || stateName} category={serviceName} />
+                <SearchResultsList products={filteredResults} city={locationName || stateName} category={serviceName} />
               )}
             </main>
           </div>

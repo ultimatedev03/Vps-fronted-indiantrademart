@@ -31,6 +31,40 @@ const isMissingColumnError = (err) => {
 
 const toBool = (value) => value === true || value === 1 || String(value).trim() === '1' || String(value).toLowerCase() === 'true';
 const normalizeKey = (value = '') => String(value || '').trim();
+const parseJsonArray = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeKey).filter(Boolean);
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.map(normalizeKey).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+const parseJsonObject = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+};
+
+const normalizeCoverage = (value = {}) => {
+  const raw = parseJsonObject(value);
+  return {
+    states: parseJsonArray(raw.states),
+    districts: parseJsonArray(raw.districts),
+    cities: parseJsonArray(raw.cities),
+  };
+};
 
 const isInactiveStatus = (value) => {
   const status = String(value || '').trim().toUpperCase();
@@ -187,9 +221,9 @@ const loadPublicContent = async () => {
     safeSelectAll(
       'products',
       [
-        'id, slug, vendor_id, micro_category_id, updated_at, created_at, status',
+        'id, slug, vendor_id, micro_category_id, target_locations, updated_at, created_at, status',
         'id, slug, vendor_id, micro_category_id, created_at, status',
-        'id, slug, vendor_id, updated_at, created_at, status',
+        'id, slug, vendor_id, target_locations, updated_at, created_at, status',
         'id, slug, vendor_id, created_at, status',
         'id, slug, created_at',
       ],
@@ -198,7 +232,7 @@ const loadPublicContent = async () => {
     safeSelectAll(
       'vendors',
       [
-        'id, vendor_id, slug, state_id, city_id, updated_at, created_at, status, account_status, is_active, is_verified',
+        'id, vendor_id, slug, state_id, district_id, city_id, updated_at, created_at, status, account_status, is_active, is_verified',
         'id, vendor_id, slug, state_id, city_id, created_at, status, is_active',
         'id, vendor_id, slug, state_id, city_id, created_at',
       ],
@@ -209,22 +243,62 @@ const loadPublicContent = async () => {
     }),
   ]);
 
+  const preferenceRows = await safeSelectAll(
+    'vendor_preferences',
+    [
+      'vendor_id, preferred_states, preferred_districts, preferred_cities, updated_at',
+      'vendor_id, preferred_states, preferred_cities, updated_at',
+      'vendor_id',
+    ]
+  ).catch((error) => {
+    console.warn('⚠️  Unable to load vendor preferences for sitemap coverage:', error?.message || error);
+    return [];
+  });
+
   const publicVendorKeys = new Set();
+  const vendorByKey = new Map();
   const vendorLocationByKey = new Map();
   const publicVendors = vendors.filter(isOnboardedVendor);
 
   publicVendors.forEach((vendor) => {
     const keys = getVendorKeys(vendor);
     addNormalizedKeys(publicVendorKeys, keys);
+    keys.forEach((key) => vendorByKey.set(key, vendor));
     if (vendor.state_id || vendor.city_id) {
       keys.forEach((key) => {
         vendorLocationByKey.set(key, {
           stateId: vendor.state_id,
+          districtId: vendor.district_id,
           cityId: vendor.city_id,
           lastmod: vendor.updated_at || vendor.created_at,
+          preferences: { states: [], districts: [], cities: [] },
         });
       });
     }
+  });
+
+  preferenceRows.forEach((pref) => {
+    const vendor = vendorByKey.get(normalizeKey(pref.vendor_id));
+    const keys = vendor ? getVendorKeys(vendor) : [normalizeKey(pref.vendor_id)].filter(Boolean);
+    const preferences = {
+      states: parseJsonArray(pref.preferred_states),
+      districts: parseJsonArray(pref.preferred_districts),
+      cities: parseJsonArray(pref.preferred_cities),
+    };
+    keys.forEach((key) => {
+      const current = vendorLocationByKey.get(key) || {
+        stateId: vendor?.state_id || null,
+        districtId: vendor?.district_id || null,
+        cityId: vendor?.city_id || null,
+        lastmod: pref.updated_at || vendor?.updated_at || vendor?.created_at,
+        preferences: { states: [], districts: [], cities: [] },
+      };
+      vendorLocationByKey.set(key, {
+        ...current,
+        preferences,
+        lastmod: pref.updated_at || current.lastmod,
+      });
+    });
   });
 
   const publicProducts = products
@@ -335,28 +409,33 @@ const generateCategoriesSitemap = async (model, content) => {
 
 const generateLocationsSitemap = async (model, content) => {
   console.log('📍 Generating location sitemap...');
-  const [statesRaw, citiesRaw] = await Promise.all([
+  const [statesRaw, districtsRaw, citiesRaw] = await Promise.all([
     safeSelectAll('states', ['id, name, slug, is_active, updated_at, created_at', 'id, name, slug, updated_at, created_at'], { orderBy: 'name', ascending: true }),
-    safeSelectAll('cities', ['id, state_id, name, slug, is_active, updated_at, created_at', 'id, state_id, name, slug, updated_at, created_at'], { orderBy: 'name', ascending: true }),
+    safeSelectAll('districts', ['id, state_id, name, slug, is_active, updated_at, created_at', 'id, state_id, name, slug, updated_at, created_at'], { orderBy: 'name', ascending: true }).catch(() => []),
+    safeSelectAll('cities', ['id, state_id, district_id, name, slug, is_active, updated_at, created_at', 'id, state_id, name, slug, updated_at, created_at'], { orderBy: 'name', ascending: true }),
   ]);
 
   const states = statesRaw.filter(isActiveCategory);
+  const districts = districtsRaw.filter(isActiveCategory);
   const cities = citiesRaw.filter(isActiveCategory);
   const stateById = new Map(states.map((state) => [String(state.id), state]));
+  const districtById = new Map(districts.map((district) => [String(district.id), district]));
   const cityById = new Map(cities.map((city) => [String(city.id), city]));
   const publicCityIds = new Set();
-  content.vendorLocationByKey.forEach((location) => {
-    if (location.cityId) publicCityIds.add(normalizeKey(location.cityId));
-  });
-
   const microById = new Map(model.micros.map((micro) => [String(micro.id), micro]));
   const entries = [];
 
-  cities.forEach((city) => {
-    if (city.slug && publicCityIds.has(normalizeKey(city.id))) {
-      entries.push(createUrlEntry(`${BASE_URL}/directory/city/${encodeSegment(city.slug)}`, city.updated_at || city.created_at, '0.6', 'monthly'));
-    }
-  });
+  const categoryPath = (head, sub, micro, state, district = null, city = null) => {
+    let path = `${BASE_URL}/directory/${encodeSegment(head.slug)}/${encodeSegment(sub.slug)}/${encodeSegment(micro.slug)}/${encodeSegment(state.slug)}`;
+    if (district?.slug) path += `/${encodeSegment(district.slug)}`;
+    if (city?.slug) path += `/${encodeSegment(city.slug)}`;
+    return path;
+  };
+
+  const addCategoryLocation = ({ head, sub, micro, state, district = null, city = null, lastmod }) => {
+    if (!head?.slug || !sub?.slug || !micro?.slug || !state?.slug) return;
+    entries.push(createUrlEntry(categoryPath(head, sub, micro, state, district, city), lastmod, city ? '0.65' : district ? '0.62' : '0.6', 'monthly'));
+  };
 
   content.publicProducts.forEach((product) => {
     const micro = microById.get(String(product.micro_category_id || ''));
@@ -365,15 +444,48 @@ const generateLocationsSitemap = async (model, content) => {
 
     const sub = model.subById.get(String(micro.sub_category_id));
     const head = model.headById.get(String(sub?.head_category_id));
-    const state = stateById.get(String(vendorLocation.stateId || ''));
-    const city = cityById.get(String(vendorLocation.cityId || ''));
-    if (!head?.slug || !sub?.slug || !micro.slug || !state?.slug) return;
-
+    if (!head?.slug || !sub?.slug || !micro.slug) return;
     const lastmod = product.updated_at || product.created_at || vendorLocation.lastmod;
-    const basePath = `${BASE_URL}/directory/${encodeSegment(head.slug)}/${encodeSegment(sub.slug)}/${encodeSegment(micro.slug)}/${encodeSegment(state.slug)}`;
-    entries.push(createUrlEntry(basePath, lastmod, '0.6', 'monthly'));
-    if (city?.slug) {
-      entries.push(createUrlEntry(`${basePath}/${encodeSegment(city.slug)}`, lastmod, '0.6', 'monthly'));
+    const productCoverage = normalizeCoverage(product.target_locations);
+    const preferences = vendorLocation.preferences || {};
+
+    const stateIds = productCoverage.states.length
+      ? productCoverage.states
+      : (preferences.states?.length ? preferences.states : [vendorLocation.stateId].map(normalizeKey).filter(Boolean));
+    const districtIds = productCoverage.districts.length
+      ? productCoverage.districts
+      : (preferences.districts?.length ? preferences.districts : [vendorLocation.districtId].map(normalizeKey).filter(Boolean));
+    const cityIds = productCoverage.cities.length
+      ? productCoverage.cities
+      : (preferences.cities?.length ? preferences.cities : [vendorLocation.cityId].map(normalizeKey).filter(Boolean));
+
+    stateIds.forEach((stateId) => {
+      const state = stateById.get(String(stateId));
+      if (state) addCategoryLocation({ head, sub, micro, state, lastmod });
+    });
+
+    districtIds.forEach((districtId) => {
+      const district = districtById.get(String(districtId));
+      const state = stateById.get(String(district?.state_id || ''));
+      if (state && district) addCategoryLocation({ head, sub, micro, state, district, lastmod });
+    });
+
+    cityIds.forEach((cityId) => {
+      const city = cityById.get(String(cityId));
+      if (!city?.slug) return;
+      publicCityIds.add(normalizeKey(city.id));
+      const state = stateById.get(String(city.state_id || ''));
+      const district = districtById.get(String(city.district_id || ''));
+      if (!state) return;
+      addCategoryLocation({ head, sub, micro, state, district, city, lastmod });
+      if (district) addCategoryLocation({ head, sub, micro, state, district, lastmod });
+      addCategoryLocation({ head, sub, micro, state, lastmod });
+    });
+  });
+
+  cities.forEach((city) => {
+    if (city.slug && publicCityIds.has(normalizeKey(city.id))) {
+      entries.push(createUrlEntry(`${BASE_URL}/directory/city/${encodeSegment(city.slug)}`, city.updated_at || city.created_at, '0.6', 'monthly'));
     }
   });
 

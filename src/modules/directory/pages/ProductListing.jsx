@@ -8,7 +8,7 @@ import SearchFilters from '@/modules/directory/components/SearchFilters';
 import SearchResultsList from '@/modules/directory/components/SearchResultsList';
 
 import { directoryApi } from '@/modules/directory/api/directoryApi';
-import { dbClient } from '@/lib/dbClient';
+import { locationService } from '@/shared/services/locationService';
 
 const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
 const stripHtml = (s) => safeStr(s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -73,7 +73,14 @@ const buildPriceBounds = (items = []) => {
 };
 
 const ProductListing = () => {
-  const { headSlug, subSlug, microSlug, stateSlug = '', citySlug = '' } = useParams();
+  const {
+    headSlug,
+    subSlug,
+    microSlug,
+    stateSlug = '',
+    districtSlug = '',
+    citySlug = '',
+  } = useParams();
 
   const [microInfo, setMicroInfo] = useState(null);
   const [seoLoading, setSeoLoading] = useState(false);
@@ -89,7 +96,7 @@ const ProductListing = () => {
   });
   const priceBounds = useMemo(() => buildPriceBounds(results), [results]);
 
-  const resolvedRef = useRef({ key: '', stateId: null, cityId: null });
+  const resolvedRef = useRef({ key: '', stateId: null, districtId: null, cityId: null });
 
   useEffect(() => {
     setFilters((prev) => {
@@ -123,6 +130,10 @@ const ProductListing = () => {
     () => microInfo?.name || toTitleCase(microSlug),
     [microInfo, microSlug]
   );
+  const locationName = useMemo(
+    () => [citySlug, districtSlug, stateSlug].filter(Boolean).map(toTitleCase).join(', '),
+    [citySlug, districtSlug, stateSlug]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -150,14 +161,14 @@ const ProductListing = () => {
   const pageTitle = useMemo(() => {
     const metaTitle = safeStr(microInfo?.meta_tags);
     if (metaTitle) return metaTitle;
-    return `${microName} Suppliers & Manufacturers | ${subName} - ${headName} | IndianTradeMart`;
-  }, [microInfo, microName, subName, headName]);
+    return `${microName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''} | IndianTradeMart`;
+  }, [microInfo, microName, locationName]);
 
   const pageDescription = useMemo(() => {
     const metaDesc = safeStr(microInfo?.meta_description);
     if (metaDesc) return truncate(metaDesc);
-    return truncate(`Browse ${microName} products and suppliers in this micro-category on IndianTradeMart.`);
-  }, [microInfo, microName]);
+    return truncate(`Browse ${microName} products and verified suppliers${locationName ? ` in ${locationName}` : ''} on IndianTradeMart.`);
+  }, [microInfo, microName, locationName]);
 
   const pageKeywords = useMemo(() => {
     const metaKw = safeStr(microInfo?.meta_keywords);
@@ -179,49 +190,31 @@ const ProductListing = () => {
       if (!origin) return '';
       let u = `${origin}/directory/${headSlug}/${subSlug}/${microSlug}`;
       if (stateSlug) u += `/${stateSlug}`;
+      if (districtSlug) u += `/${districtSlug}`;
       if (citySlug) u += `/${citySlug}`;
       return u;
     } catch {
       return '';
     }
-  }, [headSlug, subSlug, microSlug, stateSlug, citySlug]);
+  }, [headSlug, subSlug, microSlug, stateSlug, districtSlug, citySlug]);
 
   const resolveLocationIds = async () => {
-    const key = `${stateSlug || ''}::${citySlug || ''}`;
+    const key = `${stateSlug || ''}::${districtSlug || ''}::${citySlug || ''}`;
     if (resolvedRef.current.key === key) return resolvedRef.current;
 
-    let stateId = null;
-    let cityId = null;
-
     try {
-      if (stateSlug) {
-        const { data: st } = await dbClient.from('states').select('id').eq('slug', stateSlug).maybeSingle();
-        stateId = st?.id || null;
-      }
-
-      if (citySlug) {
-        if (stateId) {
-          const { data: ct } = await dbClient
-            .from('cities')
-            .select('id')
-            .eq('slug', citySlug)
-            .eq('state_id', stateId)
-            .maybeSingle();
-          cityId = ct?.id || null;
-        }
-
-        if (!cityId) {
-          const { data: ct2 } = await dbClient.from('cities').select('id, state_id').eq('slug', citySlug).maybeSingle();
-          cityId = ct2?.id || null;
-          if (!stateId) stateId = ct2?.state_id || null;
-        }
-      }
+      const { state, district, city } = await locationService.getLocationBySlug(stateSlug, citySlug, districtSlug);
+      resolvedRef.current = {
+        key,
+        stateId: state?.id || null,
+        districtId: district?.id || null,
+        cityId: city?.id || null,
+      };
+      return resolvedRef.current;
     } catch {
-      // ignore
+      resolvedRef.current = { key, stateId: null, districtId: null, cityId: null };
+      return resolvedRef.current;
     }
-
-    resolvedRef.current = { key, stateId, cityId };
-    return resolvedRef.current;
   };
 
   useEffect(() => {
@@ -230,11 +223,12 @@ const ProductListing = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const { stateId, cityId } = await resolveLocationIds();
+        const { stateId, districtId, cityId } = await resolveLocationIds();
 
         const { data } = await directoryApi.getProductsByMicroAndLocation({
           microSlug,
           stateId,
+          districtId,
           cityId,
           page: 1,
           limit: 200,
@@ -275,7 +269,7 @@ const ProductListing = () => {
     return () => {
       alive = false;
     };
-  }, [microSlug, stateSlug, citySlug]);
+  }, [microSlug, stateSlug, districtSlug, citySlug]);
 
   const filtered = useMemo(() => {
     const list = Array.isArray(results) ? results : [];
@@ -350,7 +344,7 @@ const ProductListing = () => {
           {/* Title row */}
           <div className="mt-6 flex items-center justify-between gap-4 flex-wrap">
             <h1 className="text-xl md:text-2xl font-extrabold text-slate-900">
-              {microName} Suppliers &amp; Manufacturers
+              {microName} Suppliers &amp; Manufacturers{locationName ? ` in ${locationName}` : ''}
             </h1>
             <div className="text-sm text-slate-500">{loading ? '' : `${filtered.length} found`}</div>
           </div>
@@ -368,7 +362,7 @@ const ProductListing = () => {
               <SearchFilters filters={filters} setFilters={setFilters} priceBounds={priceBounds} />
             </div>
             <div className="lg:col-span-9">
-              <SearchResultsList products={filtered} query={microName} city={citySlug} category={microSlug} />
+              <SearchResultsList products={filtered} query={microName} city={locationName} category={microSlug} />
             </div>
           </div>
         )}

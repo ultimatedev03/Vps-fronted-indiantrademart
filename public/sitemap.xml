@@ -2,7 +2,7 @@
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
     <loc>https://indiantrademart.com/sitemap-static.xml</loc>
-    <lastmod>2026-06-22</lastmod>
+    <lastmod>2026-06-30</lastmod>
   </sitemap>
   <sitemap>
     <loc>https://indiantrademart.com/sitemap-products.xml</loc>
@@ -10,7 +10,7 @@
   </sitemap>
   <sitemap>
     <loc>https://indiantrademart.com/sitemap-vendors.xml</loc>
-    <lastmod>2026-06-22</lastmod>
+    <lastmod>2026-06-30</lastmod>
   </sitemap>
   <sitemap>
     <loc>https://indiantrademart.com/sitemap-categories.xml</loc>
@@ -18,6 +18,6 @@
   </sitemap>
   <sitemap>
     <loc>https://indiantrademart.com/sitemap-locations.xml</loc>
-    <lastmod>2026-05-28</lastmod>
+    <lastmod>2026-06-30</lastmod>
   </sitemap>
 </sitemapindex>

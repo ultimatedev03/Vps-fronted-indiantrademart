@@ -18,6 +18,7 @@ const PillBreadcrumbs = ({ className, overrideParams }) => {
 
   const serviceSlug = params.service || params.serviceSlug;
   const stateSlug = params.state || params.stateSlug;
+  const districtSlug = params.district || params.districtSlug;
   const citySlug = params.city || params.citySlug;
 
   const isDirectorySearch = useMemo(
@@ -143,8 +144,9 @@ const PillBreadcrumbs = ({ className, overrideParams }) => {
       items.push({ label: prettify(microSlugFromRoute), path: `/directory/${headSlug}/${subSlug}/${microSlugFromRoute}` });
     }
 
-    const locationLabel = citySlug || stateSlug;
-    if (locationLabel) items.push({ label: prettify(locationLabel), path: location.pathname });
+    if (stateSlug) items.push({ label: prettify(stateSlug), path: location.pathname });
+    if (districtSlug) items.push({ label: prettify(districtSlug), path: location.pathname });
+    if (citySlug) items.push({ label: prettify(citySlug), path: location.pathname });
   } else if (isDirectorySearch) {
     const h = microHierarchy?.head;
     const s = microHierarchy?.sub;
@@ -159,12 +161,20 @@ const PillBreadcrumbs = ({ className, overrideParams }) => {
       items.push({ label: prettify(serviceSlug), path: `/directory/search/${serviceSlug}` });
     }
 
-    const locLabel = citySlug || stateSlug;
-    if (locLabel) {
+    if (stateSlug || districtSlug || citySlug) {
       const base = `/directory/search/${serviceSlug || ''}`;
-      const locPath =
-        citySlug && stateSlug ? `${base}/${stateSlug}/${citySlug}` : stateSlug ? `${base}/${stateSlug}` : location.pathname;
-      items.push({ label: prettify(locLabel), path: locPath });
+      const statePath = stateSlug ? `${base}/${stateSlug}` : location.pathname;
+      // A state/district URL has the same segment count as the legacy
+      // state/city route, so keep the district crumb on the canonical page.
+      const districtPath = districtSlug ? location.pathname : statePath;
+      const cityPath = stateSlug && districtSlug && citySlug
+        ? `${base}/${stateSlug}/${districtSlug}/${citySlug}`
+        : stateSlug && citySlug
+          ? `${base}/${stateSlug}/${citySlug}`
+          : location.pathname;
+      if (stateSlug) items.push({ label: prettify(stateSlug), path: statePath });
+      if (districtSlug) items.push({ label: prettify(districtSlug), path: districtPath });
+      if (citySlug) items.push({ label: prettify(citySlug), path: cityPath });
     }
   } else if (location.pathname.startsWith('/categories')) {
     items.push({ label: 'All Categories', path: '/categories' });

@@ -844,8 +844,29 @@ export const directoryApi = {
     }
   },
 
-  // ✅ UPDATED: exclude suspended vendors
-  getProductsByMicroAndLocation: async ({ microSlug, stateId, cityId, page = 1, limit = 20 }) => {
+  // Use the backend ranking path so plan coverage, district targeting, and
+  // duplicate merging stay consistent with the main directory search.
+  getProductsByMicroAndLocation: async ({ microSlug, stateId, districtId, cityId, page = 1, limit = 20 }) => {
+    try {
+      const params = new URLSearchParams();
+      if (microSlug) params.set('microSlug', microSlug);
+      if (stateId) params.set('stateId', stateId);
+      if (districtId) params.set('districtId', districtId);
+      if (cityId) params.set('cityId', cityId);
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+
+      const payload = await fetchDirectoryJson(`/api/dir/products?${params.toString()}`, 'Product listing failed');
+      if (payload?.success) {
+        return {
+          data: Array.isArray(payload.data) ? payload.data : [],
+          count: Number(payload.count || 0),
+        };
+      }
+    } catch (err) {
+      console.warn('Backend product listing failed, using direct DB fallback:', err?.message || err);
+    }
+
     try {
       const from = (page - 1) * limit;
       const to = from + limit - 1;
@@ -865,7 +886,7 @@ export const directoryApi = {
         .select(`
           *,
           vendors!inner (
-            id, company_name, city, state, state_id, city_id,
+            id, company_name, city, state, state_id, district_id, city_id,
             seller_rating, kyc_status, verification_badge, trust_score,
             is_active
           )
@@ -875,6 +896,7 @@ export const directoryApi = {
         .eq('vendors.is_active', true);
 
       if (stateId) query = query.eq('vendors.state_id', stateId);
+      if (districtId) query = query.eq('vendors.district_id', districtId);
       if (cityId) query = query.eq('vendors.city_id', cityId);
 
       query = query.order('created_at', { ascending: false }).range(from, to);

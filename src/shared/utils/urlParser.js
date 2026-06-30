@@ -103,9 +103,10 @@ export const urlParser = {
     },
     
     // ✅ Important: moved under /directory/search/... to avoid conflict with category routes
-    createStructuredUrl: (serviceSlug, stateSlug, citySlug) => {
+    createStructuredUrl: (serviceSlug, stateSlug, citySlug, districtSlug = '') => {
         let url = `/directory/search/${serviceSlug}`;
         if (stateSlug) url += `/${stateSlug}`;
+        if (districtSlug) url += `/${districtSlug}`;
         if (citySlug) url += `/${citySlug}`;
         return url;
     }

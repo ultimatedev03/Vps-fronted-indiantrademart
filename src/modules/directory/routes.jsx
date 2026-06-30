@@ -89,6 +89,7 @@ export const DirectoryRoutes = () => {
         <Route path="directory/brand/:brandSlug" element={<PremiumBrandRedirect />} />
 
         {/* Search (MOST specific first) */}
+        <Route path="directory/search/:service/:state/:district/:city" element={<SearchResults />} />
         <Route path="directory/search/:service/:state/:city" element={<SearchResults />} />
         <Route path="directory/search/:service/:state" element={<SearchResults />} />
         <Route path="directory/search/:service" element={<SearchResults />} />
@@ -98,6 +99,7 @@ export const DirectoryRoutes = () => {
 
         {/* Category Hierarchy */}
         {/* ✅ Product listing supports optional state/city slugs for auto-filter */}
+        <Route path="directory/:headSlug/:subSlug/:microSlug/:stateSlug/:districtSlug/:citySlug" element={<ProductListing />} />
         <Route path="directory/:headSlug/:subSlug/:microSlug/:stateSlug/:citySlug" element={<ProductListing />} />
         <Route path="directory/:headSlug/:subSlug/:microSlug/:stateSlug" element={<ProductListing />} />
         <Route path="directory/:headSlug/:subSlug/:microSlug" element={<ProductListing />} />

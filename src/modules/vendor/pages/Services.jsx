@@ -356,6 +356,7 @@ const Services = () => {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [monthlyTrialUsed, setMonthlyTrialUsed] = useState(false);
 
   useEffect(() => {
     const codeFromUrl = normalizeSalesCode(
@@ -599,6 +600,20 @@ const Services = () => {
       setPlans((plansData || []).filter(isVisibleCatalogPlan));
 
       try {
+        const eligibilityResponse = await fetchWithCsrf(
+          apiUrl(`/api/payment/monthly-trial-eligibility/${encodeURIComponent(vendorId)}`)
+        );
+        const eligibilityPayload = await eligibilityResponse.json().catch(() => ({}));
+        if (!eligibilityResponse.ok) {
+          throw new Error(eligibilityPayload?.error || 'Monthly trial eligibility lookup failed');
+        }
+        setMonthlyTrialUsed(Boolean(eligibilityPayload?.data?.monthly_trial_used));
+      } catch (eligibilityError) {
+        console.warn('Monthly trial eligibility lookup failed:', eligibilityError);
+        setMonthlyTrialUsed(false);
+      }
+
+      try {
         const referralResponse = await fetchWithCsrf(apiUrl(`/api/payment/referral-offers/${vendorId}`));
         const referralPayload = await referralResponse.json().catch(() => ({}));
         if (referralResponse.ok && referralPayload?.success) {
@@ -678,6 +693,16 @@ const Services = () => {
     }
 
     const pricing = getPlanBillingPricing(plan, visitorMarket, billingCycle);
+    if (pricing.billingCycle === 'monthly' && monthlyTrialUsed) {
+      toast({
+        title: 'Monthly trial already used',
+        description:
+          'Monthly checkout for Startup, Certified and Booster is available only once. Please choose yearly billing to upgrade or switch plans.',
+        variant: 'destructive',
+      });
+      setSelectedBillingCycle('yearly');
+      return;
+    }
 
     // Check if plan is free
     if (!pricing.nowPrice || Number(pricing.nowPrice) === 0) {
@@ -737,6 +762,10 @@ const Services = () => {
         }
 
         toast({ title: 'Success!', description: 'Plan activated.' });
+        if (pricing.billingCycle === 'monthly') {
+          setMonthlyTrialUsed(true);
+          setSelectedBillingCycle('yearly');
+        }
         setDetailsOpen(false);
         setTimeout(() => {
           loadData();
@@ -763,6 +792,18 @@ const Services = () => {
   };
   const initiateRazorpayPayment = async (plan, couponOverride = couponCode, billingCycle = 'yearly') => {
     try {
+      const normalizedBillingCycle = String(billingCycle || 'yearly').toLowerCase();
+      if (normalizedBillingCycle === 'monthly' && monthlyTrialUsed) {
+        toast({
+          title: 'Monthly trial already used',
+          description:
+            'Monthly checkout can be used once only. Please continue with yearly billing.',
+          variant: 'destructive',
+        });
+        setSelectedBillingCycle('yearly');
+        return;
+      }
+
       toast({ title: 'Processing...', description: `Initiating payment for ${plan.name}` });
       setDetailsOpen(false);
       const appliedCoupon = normalizeCouponCode(couponOverride);
@@ -773,7 +814,7 @@ const Services = () => {
         body: JSON.stringify({
           vendor_id: vendorId,
           plan_id: plan.id,
-          billing_cycle: billingCycle,
+          billing_cycle: normalizedBillingCycle,
           coupon_code: appliedCoupon || undefined,
           sales_code: salesCode || undefined,
         }),
@@ -789,6 +830,10 @@ const Services = () => {
           title: 'Success!',
           description: data?.message || 'Coupon applied and subscription activated.',
         });
+        if (normalizedBillingCycle === 'monthly' || String(data?.billing_cycle || '').toLowerCase() === 'monthly') {
+          setMonthlyTrialUsed(true);
+          setSelectedBillingCycle('yearly');
+        }
         setCouponCode('');
         setTimeout(() => {
           loadData();
@@ -886,6 +931,10 @@ const Services = () => {
           await verifyResponse.json();
 
           toast({ title: 'Success!', description: 'Subscription activated! Invoice sent to your email.' });
+          if (String(orderData?.billing_cycle || selectedBillingCycle).toLowerCase() === 'monthly') {
+            setMonthlyTrialUsed(true);
+            setSelectedBillingCycle('yearly');
+          }
           setTimeout(() => {
             loadData();
           }, 500);
@@ -1044,7 +1093,8 @@ const Services = () => {
   const selectedIsPopular = selectedPlan && selectedPlan.id === mostPopularPlanId;
   const selectedPlanEntitlements = selectedPlan ? getPlanEntitlements(selectedPlan) : null;
   const selectedSalesAssisted = Boolean(selectedPlanEntitlements?.purchase?.sales_assisted);
-  const selectedMonthlyAvailable = selectedPlan ? isMonthlyBillingEnabled(selectedPlan) : false;
+  const selectedMonthlyConfigured = selectedPlan ? isMonthlyBillingEnabled(selectedPlan) : false;
+  const selectedMonthlyAvailable = selectedMonthlyConfigured && !monthlyTrialUsed;
   const selectedEffectiveBillingCycle =
     selectedMonthlyAvailable && selectedBillingCycle === 'monthly' ? 'monthly' : 'yearly';
   const selectedPricing = selectedPlan
@@ -1195,8 +1245,9 @@ const Services = () => {
           const isCurrent = currentSub?.plan_id === plan.id;
           const isPopular = plan.id === mostPopularPlanId;
           const pricing = getPlanDisplayPricing(plan, visitorMarket);
-          const monthlyAvailable = isMonthlyBillingEnabled(plan);
-          const monthlyPricing = monthlyAvailable
+          const monthlyConfigured = isMonthlyBillingEnabled(plan);
+          const monthlyAvailable = monthlyConfigured && !monthlyTrialUsed;
+          const monthlyPricing = monthlyConfigured
             ? getPlanBillingPricing(plan, visitorMarket, 'monthly')
             : null;
           const discountTag = getDiscountTag(pricing);
@@ -1299,7 +1350,12 @@ const Services = () => {
                     ) : null}
                     {monthlyAvailable && monthlyPricing ? (
                       <div className="mt-1 text-[11px] font-semibold text-blue-700">
-                        Monthly from {formatPlanMoney(monthlyPricing.nowPrice, monthlyPricing.currency)} / month
+                        One-time monthly trial: {formatPlanMoney(monthlyPricing.nowPrice, monthlyPricing.currency)} / month
+                      </div>
+                    ) : null}
+                    {monthlyConfigured && monthlyTrialUsed ? (
+                      <div className="mt-1 text-[11px] font-semibold text-slate-600">
+                        Monthly trial used. Yearly billing only.
                       </div>
                     ) : null}
                     {hasReferralPreview ? (
@@ -1457,7 +1513,7 @@ const Services = () => {
                         {formatPlanMoney(selectedPayableBase, selectedPricing.currency)}
                         <span className="text-sm font-medium text-white/80"> / {selectedPricing.interval || 'year'}</span>
                       </div>
-                      {selectedMonthlyAvailable ? (
+                      {selectedMonthlyConfigured ? (
                         <div className="mt-3 inline-flex rounded-full border border-white/25 bg-white/10 p-1 shadow-sm">
                           {[
                             ['monthly', 'Monthly'],
@@ -1466,17 +1522,28 @@ const Services = () => {
                             <button
                               key={value}
                               type="button"
-                              onClick={() => setSelectedBillingCycle(value)}
+                              disabled={value === 'monthly' && monthlyTrialUsed}
+                              onClick={() => {
+                                if (value === 'monthly' && monthlyTrialUsed) return;
+                                setSelectedBillingCycle(value);
+                              }}
                               className={cx(
-                                'rounded-full px-3 py-1.5 text-xs font-semibold transition',
+                                'rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
                                 selectedEffectiveBillingCycle === value
                                   ? 'bg-white text-blue-700 shadow-sm'
                                   : 'text-white/85 hover:bg-white/10'
                               )}
                             >
-                              {label}
+                              {value === 'monthly' && monthlyTrialUsed ? 'Monthly used' : label}
                             </button>
                           ))}
+                        </div>
+                      ) : null}
+                      {selectedMonthlyConfigured ? (
+                        <div className="mt-1.5 max-w-md text-[11px] font-medium leading-4 text-white/75">
+                          {monthlyTrialUsed
+                            ? 'Your one-time monthly trial has been used. Every upgrade or plan switch now uses yearly billing.'
+                            : 'Monthly billing is a one-time trial shared across Startup, Certified and Booster. After activation, future purchases are yearly only.'}
                         </div>
                       ) : null}
                       {selectedSalesAssisted ? (
