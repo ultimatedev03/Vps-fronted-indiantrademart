@@ -4352,10 +4352,24 @@ export default function SuperAdminDashboard() {
                     <div>
                       <p className="text-sm font-semibold text-white">Pipeline Health</p>
                       <p className="text-xs text-neutral-500">
-                        {'Frontend JS tracker -> API -> queue -> aggregate job -> demand score -> prediction dashboard'}
+                        {'Frontend JS tracker -> API -> Kafka -> ClickHouse -> aggregate job -> demand score -> prediction dashboard'}
                       </p>
+                      {behavioralIntel?.summary?.warehouse?.error ? (
+                        <p className="text-xs text-amber-300 mt-1">
+                          Warehouse fallback: {behavioralIntel.summary.warehouse.error}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <Badge className="bg-blue-950 text-blue-200">
+                        Source: {(behavioralIntel?.summary?.source || 'mysql').toUpperCase()}
+                      </Badge>
+                      <Badge className={behavioralIntel?.summary?.warehouse?.kafka_enabled ? 'bg-purple-950 text-purple-200' : 'bg-neutral-800 text-neutral-300'}>
+                        Kafka: {behavioralIntel?.summary?.warehouse?.kafka_enabled ? 'ON' : 'OFF'}
+                      </Badge>
+                      <Badge className={behavioralIntel?.summary?.warehouse?.clickhouse_enabled ? 'bg-orange-950 text-orange-200' : 'bg-neutral-800 text-neutral-300'}>
+                        ClickHouse: {behavioralIntel?.summary?.warehouse?.clickhouse_enabled ? 'ON' : 'OFF'}
+                      </Badge>
                       <Badge className="bg-cyan-950 text-cyan-200">
                         Queue pending: {behavioralIntel?.summary?.queue?.pending || 0}
                       </Badge>
