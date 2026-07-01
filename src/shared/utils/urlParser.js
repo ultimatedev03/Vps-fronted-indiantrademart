@@ -39,6 +39,15 @@ const KNOWN_STATES = [
 // Sort by length desc to match longest slugs first
 const SORTED_STATES = KNOWN_STATES.sort((a, b) => b.slug.length - a.slug.length);
 
+const slugify = (text = '') =>
+    String(text || '')
+        .toLowerCase()
+        .trim()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
 export const urlParser = {
     slugify: (text = '') => slugify(text),
 

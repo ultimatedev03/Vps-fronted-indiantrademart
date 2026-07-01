@@ -21,6 +21,54 @@ import { useDeferredMount } from '@/shared/hooks/useDeferredMount';
 
 const MaintenancePage = lazy(() => import('@/shared/components/MaintenancePage'));
 
+const RouteLoadingFallback = () => (
+  <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div className="rounded-xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm">
+      <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#003D82]" />
+      <p className="mt-3 text-sm font-semibold text-slate-700">Loading page...</p>
+    </div>
+  </div>
+);
+
+class RouteErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    if (import.meta.env.DEV) {
+      console.error('[RouteErrorBoundary]', error);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+            <h1 className="text-xl font-bold text-slate-900">Page could not load</h1>
+            <p className="mt-2 text-sm text-slate-600">Please refresh once to load the latest version.</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-5 rounded-lg bg-[#003D82] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#002f64]"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // Route Modules (lazy)
 const VendorRoutes = lazy(() => import('@/modules/vendor/routes').then((m) => ({ default: m.VendorRoutes })));
 const BuyerRoutes = lazy(() => import('@/modules/buyer/routes').then((m) => ({ default: m.BuyerRoutes })));
@@ -524,9 +572,11 @@ function App() {
                           <PublicRouteStatusGate>
                             {/* ✅ Vendor suspended gate added here */}
                             <VendorSuspensionGate>
-                              <Suspense fallback={null}>
-                                <AppRoutes />
-                              </Suspense>
+                              <RouteErrorBoundary>
+                                <Suspense fallback={<RouteLoadingFallback />}>
+                                  <AppRoutes />
+                                </Suspense>
+                              </RouteErrorBoundary>
                               {nonCriticalReady && <ScrollToTopButton />}
                               {nonCriticalReady && <DeferredAIChatWidget />}
                             </VendorSuspensionGate>
