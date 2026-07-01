@@ -58,7 +58,7 @@ const Logo = ({
           className="h-full w-full object-contain"
           loading="eager"
           decoding="async"
-          fetchpriority="high"
+          fetchPriority="high"
         />
       </div>
 

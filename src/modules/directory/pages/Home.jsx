@@ -160,12 +160,8 @@ const Home = () => {
       </Helmet>
 
       <HeroSection />
-      <Suspense fallback={<div className="min-h-[960px] bg-slate-50" aria-hidden="true" />}>
-        {loadDeferredSections ? (
-          <HomeDeferredSections />
-        ) : (
-          <div className="min-h-[960px] bg-slate-50" aria-hidden="true" />
-        )}
+      <Suspense fallback={null}>
+        {loadDeferredSections ? <HomeDeferredSections /> : null}
       </Suspense>
     </div>
   );

@@ -201,26 +201,27 @@ const HeroSection = () => {
   };
 
   return (
-    <div className="relative overflow-hidden bg-[linear-gradient(135deg,#07111f_0%,#073f7d_52%,#08111f_100%)] pt-10 pb-14 sm:pt-14 sm:pb-16 lg:pt-24 lg:pb-28">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_38%),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:auto,72px_72px,72px_72px] opacity-45" />
+    <section className="relative isolate overflow-hidden bg-[#082f66] pt-9 pb-11 text-white sm:pt-12 sm:pb-14 lg:pt-20 lg:pb-24">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[#0b4f96]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_48%)]" />
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 text-center sm:px-6">
-        <div className="mb-5 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 shadow-sm backdrop-blur-sm sm:text-sm">
-          <span className="flex h-2 w-2 rounded-full bg-[#00F0FF] mr-2 shadow-[0_0_8px_#00F0FF]"></span>
+        <div className="mb-4 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 shadow-sm sm:text-sm">
+          <span className="mr-2 flex h-2 w-2 rounded-full bg-[#2dd4bf]"></span>
           India's Leading B2B Marketplace
         </div>
 
         <h1
-          className="mx-auto mb-5 max-w-4xl text-balance text-3xl font-extrabold tracking-normal text-white sm:text-4xl md:text-6xl"
+          className="mx-auto mb-4 max-w-4xl text-balance text-[2.35rem] font-extrabold leading-[1.04] tracking-normal sm:text-5xl lg:text-6xl"
         >
-          Connect with Trusted <br className="hidden md:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-blue-400 drop-shadow-[0_0_15px_rgba(0,61,130,0.5)]">
+          Connect with Trusted <br className="hidden sm:block" />
+          <span className="text-cyan-200">
             Manufacturers & Suppliers
           </span>
         </h1>
 
         <p
-          className="mx-auto mb-7 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg md:text-xl"
+          className="mx-auto mb-6 max-w-2xl text-base leading-7 text-slate-100 sm:text-lg"
         >
           Discover verified business partners, source quality products, and grow your network with confidence on our
           secure platform.
@@ -230,9 +231,9 @@ const HeroSection = () => {
           className="mx-auto w-full max-w-4xl"
         >
           {/* Glassmorphism search form */}
-          <form onSubmit={handleSearch} className="flex flex-col gap-2 rounded-2xl border border-cyan-200/20 bg-[#082a59]/85 p-2 shadow-[0_18px_45px_rgba(0,18,48,0.28)] backdrop-blur-md md:flex-row">
+          <form onSubmit={handleSearch} className="flex flex-col gap-2 rounded-2xl border border-cyan-200/20 bg-[#07346b] p-2 shadow-lg md:flex-row">
             {/* Location Input */}
-            <div className="flex items-center md:w-1/3 px-4 bg-[#123d70]/70 rounded-xl border border-cyan-100/10 focus-within:border-cyan-300/60 focus-within:bg-[#174b82]/85 focus-within:shadow-[0_0_0_1px_rgba(103,232,249,0.18)] transition-all duration-300">
+            <div className="flex items-center rounded-xl border border-cyan-100/10 bg-[#123d70] px-4 transition-colors focus-within:border-cyan-300/60 md:w-1/3">
               <MapPin className="h-5 w-5 text-blue-200 mr-3 flex-shrink-0" />
               <Input
                 className="!border-0 !bg-transparent !px-0 h-14 text-white caret-cyan-200 placeholder:text-blue-100/55 font-medium shadow-none outline-none focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!shadow-none"
@@ -244,7 +245,7 @@ const HeroSection = () => {
             </div>
 
             {/* Keyword Input */}
-            <div className="flex items-center flex-1 px-4 bg-[#123d70]/70 rounded-xl border border-cyan-100/10 focus-within:border-cyan-300/60 focus-within:bg-[#174b82]/85 focus-within:shadow-[0_0_0_1px_rgba(103,232,249,0.18)] transition-all duration-300">
+            <div className="flex flex-1 items-center rounded-xl border border-cyan-100/10 bg-[#123d70] px-4 transition-colors focus-within:border-cyan-300/60">
               <Search className="h-5 w-5 text-blue-200 mr-3 flex-shrink-0" />
               <Input
                 className="!border-0 !bg-transparent !px-0 h-14 text-white caret-cyan-200 placeholder:text-blue-100/55 font-medium shadow-none outline-none focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!shadow-none"
@@ -258,29 +259,27 @@ const HeroSection = () => {
             {/* Search Button */}
             <Button
               type="submit"
-              className="h-14 px-8 bg-gradient-to-r from-[#00A699] to-[#003D82] hover:opacity-90 text-white font-bold text-lg rounded-xl shadow-[0_0_15px_rgba(0,166,153,0.4)] md:w-auto w-full transition-all duration-300 border border-white/10"
+              className="h-14 w-full rounded-xl border border-white/10 bg-[#00a699] px-8 text-lg font-bold text-white shadow-sm transition-colors hover:bg-[#048f86] md:w-auto"
             >
               Search
             </Button>
           </form>
         </div>
 
-        <div
-          className="mt-7 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-300"
-        >
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-200 sm:gap-3">
           <span className="font-semibold text-blue-200/80">Trending:</span>
           {['Industrial Machinery', 'Textiles', 'Chemicals', 'Electronics'].map((trend) => (
             <button
               key={trend}
               onClick={() => setQuery(trend)}
-              className="px-4 py-2 rounded-full border border-cyan-100/15 bg-[#123d70]/45 text-blue-100/70 shadow-sm backdrop-blur-sm transition-all hover:border-cyan-300/50 hover:bg-[#145087]/70 hover:text-[#00F0FF]"
+              className="rounded-full border border-cyan-100/15 bg-[#123d70] px-3 py-2 text-blue-100 transition-colors hover:border-cyan-300/50 hover:text-white sm:px-4"
             >
               {trend}
             </button>
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

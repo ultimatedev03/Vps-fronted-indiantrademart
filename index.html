@@ -20,15 +20,6 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180x180.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
-    <link rel="preconnect" href="https://challenges.cloudflare.com" crossorigin />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-    <link rel="dns-prefetch" href="https://images.unsplash.com" />
-    <link rel="dns-prefetch" href="https://eimager.com" />
-    <link rel="dns-prefetch" href="https://challenges.cloudflare.com" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -48,12 +39,168 @@
         font-family: Arial, Helvetica, sans-serif;
         background: #f8fafc;
         color: #0f172a;
+        overflow-x: hidden;
       }
 
       #root {
         min-height: 100vh;
+        overflow-x: clip;
+      }
+
+      #home-fast-shell {
+        display: none;
+      }
+
+      html[data-itm-route='home'] #home-fast-shell {
+        display: block;
+        min-height: 100vh;
+        background: #082f66;
+        color: #fff;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .fast-header {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 4vw;
+        background: #0f172a;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      }
+
+      .fast-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .fast-brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #d7ae64, #7a5a2b);
+      }
+
+      .fast-nav {
+        display: flex;
+        gap: 22px;
+        color: #d1d5db;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .fast-hero {
+        min-height: calc(100vh - 64px);
+        display: grid;
+        place-items: start center;
+        padding: 52px 18px 40px;
+        text-align: center;
+        background: linear-gradient(180deg, rgba(255,255,255,.08), transparent 46%), #082f66;
+      }
+
+      .fast-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #dbeafe;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .fast-pill-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #2dd4bf;
+      }
+
+      .fast-hero h1 {
+        margin: 0 auto 18px;
+        max-width: 850px;
+        font-size: clamp(40px, 8vw, 72px);
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      .fast-hero h1 span {
+        color: #a5f3fc;
+      }
+
+      .fast-hero p {
+        margin: 0 auto 26px;
+        max-width: 680px;
+        color: #e2e8f0;
+        font-size: 18px;
+        line-height: 1.6;
+      }
+
+      .fast-search {
+        width: min(880px, 100%);
+        display: grid;
+        grid-template-columns: 1fr 1.5fr 150px;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 18px;
+        background: #07346b;
+        border: 1px solid rgba(165, 243, 252, 0.2);
+      }
+
+      .fast-field,
+      .fast-button {
+        min-height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        padding: 0 18px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .fast-field {
+        background: #123d70;
+        color: rgba(219, 234, 254, 0.7);
+      }
+
+      .fast-button {
+        justify-content: center;
+        background: #00a699;
+        color: #fff;
+      }
+
+      @media (max-width: 720px) {
+        .fast-nav {
+          display: none;
+        }
+
+        .fast-hero {
+          padding-top: 38px;
+        }
+
+        .fast-hero h1 {
+          font-size: 42px;
+        }
+
+        .fast-hero p {
+          font-size: 16px;
+        }
+
+        .fast-search {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
+    <script>
+      document.documentElement.dataset.itmRoute =
+        window.location.pathname === '/' ? 'home' : 'app';
+    </script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -81,7 +228,37 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="home-fast-shell" aria-hidden="true">
+        <header class="fast-header">
+          <div class="fast-brand">
+            <span class="fast-brand-mark"></span>
+            <span>IndianTradeMart</span>
+          </div>
+          <nav class="fast-nav">
+            <span>Home</span>
+            <span>Directory</span>
+            <span>Products</span>
+            <span>Pricing</span>
+          </nav>
+        </header>
+        <main class="fast-hero">
+          <div>
+            <div class="fast-pill">
+              <span class="fast-pill-dot"></span>
+              India's Leading B2B Marketplace
+            </div>
+            <h1>Connect with Trusted <span>Manufacturers & Suppliers</span></h1>
+            <p>Discover verified business partners, source quality products, and grow your network with confidence on our secure platform.</p>
+            <div class="fast-search">
+              <div class="fast-field">Location (e.g. Mumbai)</div>
+              <div class="fast-field">Search products, services, or companies...</div>
+              <div class="fast-button">Search</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
