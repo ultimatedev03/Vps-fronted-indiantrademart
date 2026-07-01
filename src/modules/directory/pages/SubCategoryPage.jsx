@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { dbClient } from '@/lib/dbClient';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { urlParser } from '@/shared/utils/urlParser';
@@ -11,6 +11,16 @@ const toTitle = (slug) => (slug || '').replace(/-/g, ' ').trim();
 const SubCategoryPage = () => {
   const { headSlug } = useParams();
   const navigate = useNavigate();
+  const legacySeo = useMemo(() => urlParser.parseLegacySeoSlug(headSlug), [headSlug]);
+  const legacySeoTarget = useMemo(() => {
+    if (!legacySeo?.serviceSlug) return '';
+    const query = new URLSearchParams();
+    query.set('q', legacySeo.serviceText || legacySeo.serviceSlug.replace(/-/g, ' '));
+    query.set('location', legacySeo.locationSlug);
+    return legacySeo.stateSlug
+      ? `/directory/search/${legacySeo.serviceSlug}/${legacySeo.stateSlug}?${query.toString()}`
+      : `/directory/search/${legacySeo.serviceSlug}?${query.toString()}`;
+  }, [legacySeo]);
 
   const [headCategory, setHeadCategory] = useState(null);
   const [subs, setSubs] = useState([]);
@@ -50,17 +60,7 @@ const SubCategoryPage = () => {
       setSubs([]);
 
       try {
-        const legacySeo = urlParser.parseLegacySeoSlug(headSlug);
-        if (legacySeo?.serviceSlug) {
-          const query = new URLSearchParams();
-          query.set('q', legacySeo.serviceText || legacySeo.serviceSlug.replace(/-/g, ' '));
-          query.set('location', legacySeo.locationSlug);
-          const target = legacySeo.stateSlug
-            ? `/directory/search/${legacySeo.serviceSlug}/${legacySeo.stateSlug}?${query.toString()}`
-            : `/directory/search/${legacySeo.serviceSlug}?${query.toString()}`;
-          navigate(target, { replace: true });
-          return;
-        }
+        if (legacySeoTarget) return;
 
         // 1) Try HEAD category
         let head = null;
@@ -137,7 +137,11 @@ const SubCategoryPage = () => {
     return () => {
       alive = false;
     };
-  }, [headSlug, navigate]);
+  }, [headSlug, navigate, legacySeoTarget]);
+
+  if (legacySeoTarget) {
+    return <Navigate to={legacySeoTarget} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
