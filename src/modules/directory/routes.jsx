@@ -2,6 +2,7 @@ import React, { lazy, useEffect } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import PublicLayout from '@/shared/layouts/PublicLayout';
 import { getProductDetailPath } from '@/shared/utils/productRoutes';
+import { urlParser } from '@/shared/utils/urlParser';
 import { getPremiumBrandTargetPath } from '@/modules/directory/lib/premiumBrands';
 
 import Home from '@/modules/directory/pages/Home';
@@ -51,6 +52,23 @@ const LegacyProductRedirect = () => {
 const PremiumBrandRedirect = () => {
   const { brandSlug } = useParams();
   return <Navigate to={getPremiumBrandTargetPath(brandSlug)} replace />;
+};
+
+const DirectorySingleSegmentRoute = () => {
+  const { headSlug } = useParams();
+  const legacySeo = urlParser.parseLegacySeoSlug(headSlug);
+
+  if (legacySeo?.serviceSlug) {
+    const query = new URLSearchParams();
+    query.set('q', legacySeo.serviceText || legacySeo.serviceSlug.replace(/-/g, ' '));
+    query.set('location', legacySeo.locationSlug);
+    const target = legacySeo.stateSlug
+      ? `/directory/search/${legacySeo.serviceSlug}/${legacySeo.stateSlug}?${query.toString()}`
+      : `/directory/search/${legacySeo.serviceSlug}?${query.toString()}`;
+    return <Navigate to={target} replace />;
+  }
+
+  return <SubCategoryPage />;
 };
 
 const BLOG_URL = 'https://blog.indiantrademart.com';
@@ -105,7 +123,7 @@ export const DirectoryRoutes = () => {
         <Route path="directory/:headSlug/:subSlug/:microSlug" element={<ProductListing />} />
 
         <Route path="directory/:headSlug/:subSlug" element={<MicroCategoryPage />} />
-        <Route path="directory/:headSlug" element={<SubCategoryPage />} />
+        <Route path="directory/:headSlug" element={<DirectorySingleSegmentRoute />} />
 
         {/* Dynamic catch-all (LAST) */}
         <Route path="directory/:fullSlug" element={<DynamicCategory />} />
