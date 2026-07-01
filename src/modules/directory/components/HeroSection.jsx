@@ -201,9 +201,9 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="relative isolate overflow-hidden bg-[#082f66] pt-9 pb-11 text-white sm:pt-12 sm:pb-14 lg:pt-20 lg:pb-24">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[#0b4f96]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_48%)]" />
+    <section className="relative isolate overflow-hidden bg-[#0b3f7a] pt-8 pb-11 text-white sm:pt-10 sm:pb-14 lg:pt-12 lg:pb-20">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#0d4f91_0%,#0a3a72_42%,#082f66_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,transparent,rgba(2,6,23,0.16))]" />
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 text-center sm:px-6">
         <div className="mb-4 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 shadow-sm sm:text-sm">
@@ -212,7 +212,7 @@ const HeroSection = () => {
         </div>
 
         <h1
-          className="mx-auto mb-4 max-w-4xl text-balance text-[2.35rem] font-extrabold leading-[1.04] tracking-normal sm:text-5xl lg:text-6xl"
+          className="mx-auto mb-4 max-w-4xl text-balance text-[2.25rem] font-extrabold leading-[1.05] tracking-normal sm:text-5xl lg:text-6xl"
         >
           Connect with Trusted <br className="hidden sm:block" />
           <span className="text-cyan-200">
