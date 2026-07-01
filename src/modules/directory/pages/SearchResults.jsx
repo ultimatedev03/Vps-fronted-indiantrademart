@@ -523,6 +523,17 @@ const SearchResults = () => {
       service = parsed?.serviceSlug || '';
       state = parsed?.stateSlug || '';
       city = parsed?.citySlug || '';
+    } else {
+      const lastPathSegment = String(location.pathname || '').split('/').filter(Boolean).pop() || '';
+      const legacySeo = urlParser.parseLegacySeoSlug(lastPathSegment);
+      if (legacySeo?.serviceSlug) {
+        service = legacySeo.serviceSlug;
+        state = legacySeo.stateSlug || '';
+        city = legacySeo.citySlug || '';
+        if (!city && !state && legacySeo.locationSlug) {
+          city = legacySeo.locationSlug;
+        }
+      }
     }
 
     setParsedParams({

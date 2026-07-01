@@ -59,13 +59,7 @@ const DirectorySingleSegmentRoute = () => {
   const legacySeo = urlParser.parseLegacySeoSlug(headSlug);
 
   if (legacySeo?.serviceSlug) {
-    const query = new URLSearchParams();
-    query.set('q', legacySeo.serviceText || legacySeo.serviceSlug.replace(/-/g, ' '));
-    query.set('location', legacySeo.locationSlug);
-    const target = legacySeo.stateSlug
-      ? `/directory/search/${legacySeo.serviceSlug}/${legacySeo.stateSlug}?${query.toString()}`
-      : `/directory/search/${legacySeo.serviceSlug}?${query.toString()}`;
-    return <Navigate to={target} replace />;
+    return <SearchResults />;
   }
 
   return <SubCategoryPage />;

@@ -1,5 +1,3 @@
-import { locationService } from '@/shared/services/locationService';
-
 // Hardcoded for synchronous parsing when needed, though typically we'd fetch from DB.
 // In a real app, this might be generated at build time or cached.
 const KNOWN_STATES = [
