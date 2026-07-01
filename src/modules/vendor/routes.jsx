@@ -1,9 +1,9 @@
 import React, { lazy } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
-import VendorPortalLayout from '@/modules/vendor/layouts/PortalLayout';
 import { useAuth as useVendorAuth } from '@/modules/vendor/context/AuthContext';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 
+const VendorPortalLayout = lazy(() => import('@/modules/vendor/layouts/PortalLayout'));
 const VendorDashboard = lazy(() => import('@/modules/vendor/pages/Dashboard'));
 const VendorProducts = lazy(() => import('@/modules/vendor/pages/Products'));
 const VendorProductForm = lazy(() => import('@/modules/vendor/pages/ProductForm'));

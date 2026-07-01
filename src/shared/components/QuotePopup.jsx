@@ -89,21 +89,27 @@ const QuotePopup = () => {
            path.startsWith('/categories');
   };
 
-  // Fetch states on mount
+  // Fetch states only when the popup is actually visible.
   useEffect(() => {
+    if (!isVisible || states.length > 0) return undefined;
+
+    let cancelled = false;
     const loadStates = async () => {
       try {
         setLoadingLocations(true);
         const statesData = await directoryApi.getStates();
-        setStates(statesData);
+        if (!cancelled) setStates(statesData);
       } catch (error) {
         console.error('Error loading states:', error);
       } finally {
-        setLoadingLocations(false);
+        if (!cancelled) setLoadingLocations(false);
       }
     };
     loadStates();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [isVisible, states.length]);
 
   // Load cities when state changes
   useEffect(() => {

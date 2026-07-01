@@ -1,7 +1,6 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AppAuthContext';
 import { InternalAuthProvider } from '@/modules/admin/context/InternalAuthContext';
 import { SuperAdminProvider } from '@/modules/admin/context/SuperAdminContext';
@@ -18,6 +17,7 @@ import AnalyticsLoader from '@/components/AnalyticsLoader';
 import DeferredAIChatWidget from '@/shared/components/DeferredAIChatWidget';
 import ScrollToTopButton from '@/shared/components/ScrollToTopButton';
 import VisitorActivityTracker from '@/shared/components/VisitorActivityTracker';
+import { useDeferredMount } from '@/shared/hooks/useDeferredMount';
 
 const MaintenancePage = lazy(() => import('@/shared/components/MaintenancePage'));
 
@@ -30,6 +30,7 @@ const DirectoryRoutes = lazy(() => import('@/modules/directory/routes').then((m)
 const CareerRoutes = lazy(() => import('@/modules/career/routes').then((m) => ({ default: m.CareerRoutes })));
 
 const ManagementPortal = lazy(() => import('@/shared/pages/ManagementPortal'));
+const Toaster = lazy(() => import('@/components/ui/toaster').then((m) => ({ default: m.Toaster })));
 const SuperAdminLogin = lazy(() => import('@/modules/admin/pages/superadmin/SuperAdminLogin'));
 const SuperAdminDashboard = lazy(() => import('@/modules/admin/pages/superadmin/SuperAdminDashboard'));
 const SuperAdminProtectedRoute = lazy(() => import('@/modules/admin/routes/SuperAdminProtectedRoute'));
@@ -44,29 +45,56 @@ const DEFAULT_PUBLIC_CONFIG = {
   public_notice_variant: 'info',
 };
 
+const PUBLIC_CONFIG_CACHE_MS = 15000;
+const publicConfigCache = {
+  data: null,
+  expiresAt: 0,
+  promise: null,
+};
+
+const normalizePublicConfig = (config = {}) => ({
+  ...DEFAULT_PUBLIC_CONFIG,
+  ...(config || {}),
+  maintenance_mode: booleanValue(config?.maintenance_mode, false),
+  public_notice_enabled: booleanValue(config?.public_notice_enabled, false),
+});
+
 const fetchPublicConfig = async () => {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return DEFAULT_PUBLIC_CONFIG;
   }
 
-  const res = await fetch(apiUrl('/api/public/system-config'), {
-    method: 'GET',
-    cache: 'no-store',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  const payload = await res.json().catch(() => null);
-
-  if (!res.ok || payload?.success === false) {
-    throw new Error(payload?.error || `Public config request failed (${res.status})`);
+  const now = Date.now();
+  if (publicConfigCache.data && publicConfigCache.expiresAt > now) {
+    return publicConfigCache.data;
   }
 
-  return {
-    ...DEFAULT_PUBLIC_CONFIG,
-    ...(payload?.config || {}),
-    maintenance_mode: booleanValue(payload?.config?.maintenance_mode, false),
-    public_notice_enabled: booleanValue(payload?.config?.public_notice_enabled, false),
-  };
+  if (publicConfigCache.promise) {
+    return publicConfigCache.promise;
+  }
+
+  publicConfigCache.promise = (async () => {
+    const res = await fetch(apiUrl('/api/public/system-config'), {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    const payload = await res.json().catch(() => null);
+
+    if (!res.ok || payload?.success === false) {
+      throw new Error(payload?.error || `Public config request failed (${res.status})`);
+    }
+
+    const data = normalizePublicConfig(payload?.config || {});
+    publicConfigCache.data = data;
+    publicConfigCache.expiresAt = Date.now() + PUBLIC_CONFIG_CACHE_MS;
+    return data;
+  })().finally(() => {
+    publicConfigCache.promise = null;
+  });
+
+  return publicConfigCache.promise;
 };
 
 /** ✅ Full-screen overlay (blur + message) */
@@ -355,11 +383,14 @@ const PublicRouteStatusGate = ({ children }) => {
       }
     };
 
-    checkPageStatus();
-    const interval = window.setInterval(checkPageStatus, 10000);
+    setStatus({ blocked: false, message: '' });
+
+    const initialTimeout = window.setTimeout(checkPageStatus, 5000);
+    const interval = window.setInterval(checkPageStatus, 60000);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initialTimeout);
       window.clearInterval(interval);
     };
   }, [location.pathname]);
@@ -450,12 +481,26 @@ const AppRoutes = () => {
 };
 
 function App() {
+  const nonCriticalReady = useDeferredMount({ delay: 7000, idleTimeout: 9500 });
+
   useEffect(() => {
-    locationService.seedLocations().catch((err) => {
-      if (import.meta.env.DEV) {
-        console.error('Location seeding failed', err);
-      }
-    });
+    if (typeof window === 'undefined') return undefined;
+    let idleId = null;
+    const run = () => {
+      locationService.seedLocations().catch((err) => {
+        if (import.meta.env.DEV) {
+          console.error('Location seeding failed', err);
+        }
+      });
+    };
+
+    if (typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(run, { timeout: 9000 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timer = window.setTimeout(run, 8000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (
@@ -470,7 +515,7 @@ function App() {
           <SubdomainProvider>
             <MaintenanceGate>
               <AuthProvider>
-                <VisitorActivityTracker />
+                {nonCriticalReady && <VisitorActivityTracker />}
                 <InternalAuthProvider>
                   <VendorAuthProvider>
                     <EmployeeAuthProvider>
@@ -482,8 +527,8 @@ function App() {
                               <Suspense fallback={null}>
                                 <AppRoutes />
                               </Suspense>
-                              <ScrollToTopButton />
-                              <DeferredAIChatWidget />
+                              {nonCriticalReady && <ScrollToTopButton />}
+                              {nonCriticalReady && <DeferredAIChatWidget />}
                             </VendorSuspensionGate>
                           </PublicRouteStatusGate>
                         </PublicNoticeGate>
@@ -497,8 +542,12 @@ function App() {
         </Router>
       </PageStatusProvider>
 
-      <AnalyticsLoader />
-      <Toaster />
+      {nonCriticalReady && <AnalyticsLoader />}
+      {nonCriticalReady && (
+        <Suspense fallback={null}>
+          <Toaster />
+        </Suspense>
+      )}
     </>
   );
 }

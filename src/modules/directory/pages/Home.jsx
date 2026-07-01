@@ -14,10 +14,6 @@ const HOME_SEO = {
 };
 
 const PRECONNECT_ORIGINS = [
-  'https://fonts.googleapis.com',
-  'https://fonts.gstatic.com',
-  'https://images.unsplash.com',
-  'https://eimager.com',
 ].filter(Boolean);
 
 const SITE_URL = toAbsoluteSiteUrl('/');
@@ -80,29 +76,56 @@ const Home = () => {
 
     let timeoutId = null;
     let idleId = null;
+    let loadFallbackId = null;
+    let enabled = false;
 
-    const enable = () => setLoadDeferredSections(true);
-    const schedule = () => {
-      if (typeof window.requestIdleCallback === 'function') {
-        idleId = window.requestIdleCallback(enable, { timeout: 2500 });
-        return;
-      }
-      timeoutId = window.setTimeout(enable, 800);
+    const enable = () => {
+      if (enabled) return;
+      enabled = true;
+      setLoadDeferredSections(true);
     };
+
+    const scheduleIdle = () => {
+      if (enabled) return;
+      timeoutId = window.setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') {
+          idleId = window.requestIdleCallback(enable, { timeout: 9000 });
+          return;
+        }
+        enable();
+      }, 6500);
+    };
+
+    const schedule = () => {
+      scheduleIdle();
+    };
+
+    const interactionEvents = ['scroll', 'pointerdown', 'keydown', 'touchstart'];
+    interactionEvents.forEach((eventName) => {
+      window.addEventListener(eventName, enable, { once: true, passive: true });
+    });
 
     if (document.readyState === 'complete') {
       schedule();
     } else {
       const onLoad = () => {
         window.removeEventListener('load', onLoad);
+        if (loadFallbackId) {
+          window.clearTimeout(loadFallbackId);
+          loadFallbackId = null;
+        }
         schedule();
       };
       window.addEventListener('load', onLoad, { once: true });
-      timeoutId = window.setTimeout(onLoad, 1500);
+      loadFallbackId = window.setTimeout(onLoad, 4500);
     }
 
     return () => {
+      interactionEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, enable);
+      });
       if (timeoutId) window.clearTimeout(timeoutId);
+      if (loadFallbackId) window.clearTimeout(loadFallbackId);
       if (idleId && typeof window.cancelIdleCallback === 'function') {
         window.cancelIdleCallback(idleId);
       }

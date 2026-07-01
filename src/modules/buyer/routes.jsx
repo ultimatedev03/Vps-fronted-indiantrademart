@@ -1,10 +1,10 @@
 import React, { lazy, useEffect } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation, Link } from "react-router-dom";
 
-import BuyerLayout from "@/modules/buyer/layouts/BuyerLayout";
 import ProtectedRoute from "@/shared/components/ProtectedRoute";
 import { BuyerAuthProvider, useBuyerAuth } from "@/modules/buyer/context/AuthContext";
 import PageStatusWrapper from "@/components/PageStatusWrapper";
+const BuyerLayout = lazy(() => import("@/modules/buyer/layouts/BuyerLayout"));
 const BuyerDashboard = lazy(() => import("@/modules/buyer/pages/Dashboard"));
 const Proposals = lazy(() => import("@/modules/buyer/pages/Proposals"));
 const CreateProposal = lazy(() => import("@/modules/buyer/pages/CreateProposal"));
