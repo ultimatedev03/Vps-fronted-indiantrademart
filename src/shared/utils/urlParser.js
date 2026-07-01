@@ -42,6 +42,41 @@ const KNOWN_STATES = [
 const SORTED_STATES = KNOWN_STATES.sort((a, b) => b.slug.length - a.slug.length);
 
 export const urlParser = {
+    slugify: (text = '') => slugify(text),
+
+    parseLegacySeoSlug: (fullSlug) => {
+        if (!fullSlug || typeof fullSlug !== 'string') return null;
+
+        let decoded = fullSlug;
+        try {
+            decoded = decodeURIComponent(fullSlug);
+        } catch {
+            decoded = fullSlug;
+        }
+
+        const match = String(decoded).match(/^(.+?)-in-(.+)$/i);
+        if (!match) return null;
+
+        const serviceText = match[1].replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+        const locationText = match[2].replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+        const serviceSlug = slugify(serviceText);
+        const locationSlug = slugify(locationText);
+
+        if (!serviceSlug || !locationSlug) return null;
+
+        const exactState = SORTED_STATES.find((state) => state.slug === locationSlug);
+
+        return {
+            serviceText,
+            locationText,
+            serviceSlug,
+            locationSlug,
+            stateSlug: exactState ? exactState.slug : '',
+            citySlug: exactState ? '' : locationSlug,
+            isLegacySeo: true
+        };
+    },
+
     parseSeoSlug: (fullSlug) => {
         if (!fullSlug || typeof fullSlug !== 'string') return null;
 

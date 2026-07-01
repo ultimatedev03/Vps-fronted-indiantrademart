@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { dbClient } from '@/lib/dbClient';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
+import { urlParser } from '@/shared/utils/urlParser';
 import { ChevronRight, Home, Loader2 } from 'lucide-react';
 
 const toTitle = (slug) => (slug || '').replace(/-/g, ' ').trim();
@@ -49,6 +50,18 @@ const SubCategoryPage = () => {
       setSubs([]);
 
       try {
+        const legacySeo = urlParser.parseLegacySeoSlug(headSlug);
+        if (legacySeo?.serviceSlug) {
+          const query = new URLSearchParams();
+          query.set('q', legacySeo.serviceText || legacySeo.serviceSlug.replace(/-/g, ' '));
+          query.set('location', legacySeo.locationSlug);
+          const target = legacySeo.stateSlug
+            ? `/directory/search/${legacySeo.serviceSlug}/${legacySeo.stateSlug}?${query.toString()}`
+            : `/directory/search/${legacySeo.serviceSlug}?${query.toString()}`;
+          navigate(target, { replace: true });
+          return;
+        }
+
         // 1) Try HEAD category
         let head = null;
         try {

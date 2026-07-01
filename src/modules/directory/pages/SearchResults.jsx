@@ -450,6 +450,7 @@ const SearchResults = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchNotice, setSearchNotice] = useState(null);
+  const [seoMeta, setSeoMeta] = useState(null);
 
   const [filters, setFilters] = useState({
     priceRange: [0, 100000],
@@ -462,6 +463,10 @@ const SearchResults = () => {
   const rawSearchQuery = String(
     searchParams.get('q') || searchParams.get('query') || searchParams.get('term') || ''
   ).trim();
+  const rawLocationQuery = String(
+    searchParams.get('location') || searchParams.get('loc') || searchParams.get('city') || ''
+  ).trim();
+  const locationQuerySlug = rawLocationQuery ? slugify(rawLocationQuery) : '';
 
   const autoCorrectedRef = useRef(false);
 
@@ -488,6 +493,11 @@ const SearchResults = () => {
   const buildSearchUrl = (svc, st, ct, district = '') => {
     if (!svc) return '/directory';
     let u = `/directory/search/${svc}`;
+    if (!st && ct) {
+      const q = new URLSearchParams();
+      q.set('location', ct);
+      return `${u}?${q.toString()}`;
+    }
     if (st) u += `/${st}`;
     if (district) u += `/${district}`;
     if (ct) u += `/${ct}`;
@@ -505,6 +515,9 @@ const SearchResults = () => {
       state = params.state || '';
       district = params.district || '';
       city = params.city || '';
+      if (!city && !district && locationQuerySlug) {
+        city = locationQuerySlug;
+      }
     } else if (params.slug) {
       const parsed = urlParser.parseSeoSlug(params.slug);
       service = parsed?.serviceSlug || '';
@@ -520,7 +533,7 @@ const SearchResults = () => {
     });
 
     autoCorrectedRef.current = false;
-  }, [params, location.pathname, location.search]);
+  }, [params, location.pathname, location.search, locationQuerySlug]);
 
   const tryAutoCorrect = async ({ wrongSlug, stateSlug, districtSlug, citySlug }) => {
     if (!wrongSlug) return null;
@@ -757,6 +770,7 @@ const SearchResults = () => {
 
       setLoading(true);
       setSearchNotice(null);
+      setSeoMeta(null);
       try {
         const serviceSlug = parsedParams.serviceSlug;
         const rawServiceText = rawSearchQuery || serviceSlug.replace(/-/g, ' ');
@@ -773,6 +787,35 @@ const SearchResults = () => {
         const cityId = city?.id || null;
 
         try {
+          let categoryMeta = null;
+          if (ctx.type === 'micro') categoryMeta = await directoryApi.getMicroCategoryBySlug(serviceSlug);
+          else if (ctx.type === 'sub') categoryMeta = await directoryApi.getSubCategoryBySlug(serviceSlug);
+          else if (ctx.type === 'head') categoryMeta = await directoryApi.getHeadCategoryBySlug(serviceSlug);
+          setSeoMeta(categoryMeta || null);
+        } catch (metaError) {
+          console.warn('Category SEO metadata lookup failed:', metaError?.message || metaError);
+        }
+
+        const mapHybridRows = (rows = []) => dedupeProducts((Array.isArray(rows) ? rows : []).map((p) => {
+          const vendorObj = Array.isArray(p?.vendors) ? p.vendors[0] : p?.vendors;
+          const planName = p?.vendorPlanName || p?.vendor_plan_name || vendorObj?.plan_name || '';
+          const planPriority = Number(p?.vendor_plan_priority || p?.vendor_plan_priority_score || 0) || getPlanPriority(planName);
+          return {
+            ...p,
+            vendors: vendorObj,
+            vendorName: p?.vendorName || vendorObj?.company_name,
+            vendorId: p?.vendorId || vendorObj?.id || p?.vendor_id,
+            vendorCity: p?.vendorCity || vendorObj?.city,
+            vendorState: p?.vendorState || vendorObj?.state,
+            vendorRating: p?.vendorRating || vendorObj?.seller_rating || 4.5,
+            vendorVerified: p?.vendorVerified || vendorObj?.kyc_status === 'VERIFIED' || !!vendorObj?.verification_badge,
+            vendorPlanName: planName,
+            __planPriority: planPriority,
+            __premiumSlotRank: Number(p?.premium_slot_rank || 0),
+          };
+        }));
+
+        try {
           const hybridPayload = await directoryApi.hybridSearch({
             q: rawServiceText,
             microSlug: ctx.type === 'micro' ? serviceSlug : '',
@@ -785,25 +828,8 @@ const SearchResults = () => {
           });
 
           const hybridRows = Array.isArray(hybridPayload?.data) ? hybridPayload.data : [];
-          if (hybridPayload?.success && (hybridRows.length > 0 || hybridPayload?.availability?.exactAvailable === false)) {
-            const mappedHybridRows = dedupeProducts(hybridRows.map((p) => {
-              const vendorObj = Array.isArray(p?.vendors) ? p.vendors[0] : p?.vendors;
-              const planName = p?.vendorPlanName || p?.vendor_plan_name || vendorObj?.plan_name || '';
-              const planPriority = Number(p?.vendor_plan_priority || p?.vendor_plan_priority_score || 0) || getPlanPriority(planName);
-              return {
-                ...p,
-                vendors: vendorObj,
-                vendorName: p?.vendorName || vendorObj?.company_name,
-                vendorId: p?.vendorId || vendorObj?.id || p?.vendor_id,
-                vendorCity: p?.vendorCity || vendorObj?.city,
-                vendorState: p?.vendorState || vendorObj?.state,
-                vendorRating: p?.vendorRating || vendorObj?.seller_rating || 4.5,
-                vendorVerified: p?.vendorVerified || vendorObj?.kyc_status === 'VERIFIED' || !!vendorObj?.verification_badge,
-                vendorPlanName: planName,
-                __planPriority: planPriority,
-                __premiumSlotRank: Number(p?.premium_slot_rank || 0),
-              };
-            }));
+          if (hybridPayload?.success && hybridRows.length > 0) {
+            const mappedHybridRows = mapHybridRows(hybridRows);
 
             setSearchNotice(
               hybridPayload?.availability?.exactAvailable === false
@@ -816,6 +842,13 @@ const SearchResults = () => {
             );
             setResults(mappedHybridRows);
             return;
+          }
+          if (hybridPayload?.success && hybridPayload?.availability?.exactAvailable === false) {
+            setSearchNotice({
+              tone: 'amber',
+              title: `${serviceName || 'This product'} is currently not available`,
+              message: `${serviceName || 'This product'} is currently not available in ${locationName || 'this location'}. You may like these similar products.`,
+            });
           }
         } catch (hybridError) {
           console.warn('Hybrid search fallback activated:', hybridError?.message || hybridError);
@@ -912,6 +945,51 @@ const SearchResults = () => {
         const locationFiltered = mapped.filter((p) => productMatchesLocation(p, stateId, districtId, cityId));
 
         if (locationFiltered.length === 0) {
+          const fallbackScopes = [];
+          if (cityId || districtId) {
+            fallbackScopes.push({
+              label: state?.name ? `${state.name}` : 'nearby locations',
+              stateId,
+              districtId: '',
+              cityId: '',
+            });
+          }
+          if (stateId) {
+            fallbackScopes.push({
+              label: 'India',
+              stateId: '',
+              districtId: '',
+              cityId: '',
+            });
+          }
+
+          for (const scope of fallbackScopes) {
+            try {
+              const fallbackPayload = await directoryApi.hybridSearch({
+                q: rawServiceText,
+                microSlug: ctx.type === 'micro' ? serviceSlug : '',
+                stateId: scope.stateId,
+                districtId: scope.districtId,
+                cityId: scope.cityId,
+                sort: '',
+                page: 1,
+                limit: 30,
+              });
+              const fallbackRows = Array.isArray(fallbackPayload?.data) ? fallbackPayload.data : [];
+              if (fallbackPayload?.success && fallbackRows.length > 0) {
+                setSearchNotice({
+                  tone: 'amber',
+                  title: `${serviceName || 'This service'} is not available in ${locationName || 'this location'} yet`,
+                  message: `Abhi ${locationName || 'selected location'} me matching vendor available nahi hai. Aapke liye ${scope.label} ke relevant suppliers dikha rahe hain.`,
+                });
+                setResults(mapHybridRows(fallbackRows));
+                return;
+              }
+            } catch (fallbackError) {
+              console.warn('Location fallback search failed:', fallbackError?.message || fallbackError);
+            }
+          }
+
           await tryAutoCorrect({
             wrongSlug: serviceSlug,
             stateSlug: parsedParams.stateSlug,
@@ -1014,8 +1092,18 @@ const SearchResults = () => {
   const locationName = [cityName, districtName, stateName].filter(Boolean).join(', ');
 
   const pageTitle = serviceName
-    ? `${serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
+    ? `${seoMeta?.meta_tags || seoMeta?.name || serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
     : 'Search Results';
+
+  const pageDescription =
+    seoMeta?.meta_description ||
+    seoMeta?.description ||
+    `Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers.`;
+
+  const pageKeywords =
+    seoMeta?.meta_keywords ||
+    seoMeta?.keywords ||
+    `${serviceName}, ${serviceName} suppliers, ${serviceName} manufacturers, ${locationName || 'India'}, IndianTradeMart`;
 
   const canonicalPath = buildSearchUrl(
     parsedParams.serviceSlug,
@@ -1030,10 +1118,8 @@ const SearchResults = () => {
     <>
       <Helmet>
         <title>{pageTitle} | IndianTradeMart</title>
-        <meta
-          name="description"
-          content={`Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers.`}
-        />
+        <meta name="description" content={pageDescription} />
+        <meta name="keywords" content={pageKeywords} />
         <link rel="canonical" href={canonicalUrl} />
       </Helmet>
 

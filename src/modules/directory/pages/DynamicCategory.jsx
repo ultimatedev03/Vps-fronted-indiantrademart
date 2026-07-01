@@ -119,6 +119,7 @@ const DynamicCategory = () => {
     category.meta_tags ||
     `${category.name}, suppliers, manufacturers, IndianTradeMart`;
 
+  const children = [];
   const hasChildren = children && children.length > 0;
 
   return (
