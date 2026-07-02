@@ -988,11 +988,7 @@ const SearchResults = () => {
               });
               const fallbackRows = Array.isArray(fallbackPayload?.data) ? fallbackPayload.data : [];
               if (fallbackPayload?.success && fallbackRows.length > 0) {
-                setSearchNotice({
-                  tone: 'amber',
-                  title: `${serviceName || 'This service'} is not available in ${locationName || 'this location'} yet`,
-                  message: `Abhi ${locationName || 'selected location'} me matching vendor available nahi hai. Aapke liye ${scope.label} ke relevant suppliers dikha rahe hain.`,
-                });
+                setSearchNotice(null);
                 setResults(mapHybridRows(fallbackRows));
                 return;
               }
