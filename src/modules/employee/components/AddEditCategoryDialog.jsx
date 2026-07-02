@@ -32,6 +32,11 @@ const sanitizeDescription = (value = '') =>
     .replace(/[<>]/g, '')
     .replace(/\s{2,}/g, ' ');
 
+const sanitizeSeoText = (value = '') =>
+  String(value)
+    .replace(/[<>]/g, '')
+    .replace(/\s{2,}/g, ' ');
+
 const sanitizeImageUrl = (value = '') => String(value).trim().replace(/\s+/g, '');
 
 const isValidHttpUrl = (value = '') => {
@@ -139,6 +144,8 @@ const AddEditCategoryDialog = ({
     name: '',
     slug: '',
     description: '',
+    meta_tags: '',
+    keywords: '',
     image_urls: [],
     is_active: true
   });
@@ -213,6 +220,8 @@ const AddEditCategoryDialog = ({
         name: sanitizeCategoryName(category.name || ''),
         slug: sanitizeSlugInput(category.slug || ''),
         description: sanitizeDescription(category.description || ''),
+        meta_tags: sanitizeSeoText(category.meta_tags || ''),
+        keywords: sanitizeSeoText(category.keywords || ''),
         image_urls: initialImageUrls,
         is_active: category.is_active !== false
       });
@@ -221,6 +230,8 @@ const AddEditCategoryDialog = ({
         name: '',
         slug: '',
         description: '',
+        meta_tags: '',
+        keywords: '',
         image_urls: [],
         is_active: true
       });
@@ -345,6 +356,8 @@ const AddEditCategoryDialog = ({
     const cleanName = sanitizeCategoryName(formData.name || '').trim();
     const cleanSlug = sanitizeSlugInput(formData.slug || '').trim();
     const cleanDescription = sanitizeDescription(formData.description || '').trim();
+    const cleanMetaTags = sanitizeSeoText(formData.meta_tags || '').trim();
+    const cleanKeywords = sanitizeSeoText(formData.keywords || '').trim();
     const cleanImageUrls = (formData.image_urls || [])
       .map((url) => sanitizeImageUrl(url))
       .filter(Boolean)
@@ -364,6 +377,12 @@ const AddEditCategoryDialog = ({
     if (cleanDescription && cleanDescription.length > 500) {
       newErrors.description = 'Description cannot exceed 500 characters';
     }
+    if (cleanMetaTags && cleanMetaTags.length > 180) {
+      newErrors.meta_tags = 'SEO title cannot exceed 180 characters';
+    }
+    if (cleanKeywords && cleanKeywords.length > 500) {
+      newErrors.keywords = 'SEO keywords cannot exceed 500 characters';
+    }
 
     if (cleanImageUrls.length > maxImages) {
       newErrors.image_file = limitMessage;
@@ -376,6 +395,8 @@ const AddEditCategoryDialog = ({
       cleanName !== formData.name ||
       cleanSlug !== formData.slug ||
       cleanDescription !== (formData.description || '') ||
+      cleanMetaTags !== (formData.meta_tags || '') ||
+      cleanKeywords !== (formData.keywords || '') ||
       JSON.stringify(cleanImageUrls) !== JSON.stringify(formData.image_urls || [])
     ) {
       setFormData((prev) => ({
@@ -383,6 +404,8 @@ const AddEditCategoryDialog = ({
         name: cleanName,
         slug: cleanSlug,
         description: cleanDescription,
+        meta_tags: cleanMetaTags,
+        keywords: cleanKeywords,
         image_urls: cleanImageUrls,
       }));
     }
@@ -407,6 +430,8 @@ const AddEditCategoryDialog = ({
         name: sanitizeCategoryName(formData.name || '').trim(),
         slug: sanitizeSlugInput(formData.slug || '').trim(),
         description: sanitizeDescription(formData.description || '').trim(),
+        meta_tags: sanitizeSeoText(formData.meta_tags || '').trim(),
+        keywords: sanitizeSeoText(formData.keywords || '').trim(),
         image_urls: cleanImageUrls,
         imageFiles: newFiles,
         parentId,
@@ -527,7 +552,7 @@ const AddEditCategoryDialog = ({
     <>
       <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="w-[92vw] w-[32vw] max-h-[88vh] overflow-y-auto p-4 sm:p-5"
+          className="w-[92vw] max-w-2xl max-h-[88vh] overflow-y-auto p-4 sm:p-5"
           onEscapeKeyDown={(event) => {
             if (!previewOpen) return;
             event.preventDefault();
@@ -585,20 +610,64 @@ const AddEditCategoryDialog = ({
           </div>
           
           {level !== 'micro' && (
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description || ''}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, description: sanitizeDescription(e.target.value) }))
-                }
-                placeholder={`Optional description for ${getLevelName().toLowerCase()}`}
-                rows={3}
-              />
-              {errors.description && (
-                <p className="text-xs text-red-500 mt-1">{errors.description}</p>
-              )}
+            <div className="rounded-lg border bg-slate-50 p-3 space-y-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">SEO details</div>
+                <p className="text-xs text-slate-500">
+                  Data-entry yahan category landing pages ke title, description aur keywords set kar sakta hai.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="meta_tags">SEO Title</Label>
+                <Input
+                  id="meta_tags"
+                  value={formData.meta_tags || ''}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, meta_tags: sanitizeSeoText(e.target.value) }))
+                  }
+                  placeholder={`e.g. ${formData.name || getLevelName()} Suppliers & Manufacturers`}
+                  className={errors.meta_tags ? 'border-red-500' : ''}
+                />
+                {errors.meta_tags && (
+                  <p className="text-xs text-red-500 mt-1">{errors.meta_tags}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Location page par city/state automatically add ho sakta hai.</p>
+              </div>
+
+              <div>
+                <Label htmlFor="description">SEO Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description || ''}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, description: sanitizeDescription(e.target.value) }))
+                  }
+                  placeholder={`Short SEO description for ${getLevelName().toLowerCase()}`}
+                  rows={3}
+                />
+                {errors.description && (
+                  <p className="text-xs text-red-500 mt-1">{errors.description}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="keywords">SEO Keywords</Label>
+                <Textarea
+                  id="keywords"
+                  value={formData.keywords || ''}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, keywords: sanitizeSeoText(e.target.value) }))
+                  }
+                  placeholder="comma separated keywords, e.g. wholesale suppliers, manufacturers, dealers"
+                  rows={2}
+                  className={errors.keywords ? 'border-red-500' : ''}
+                />
+                {errors.keywords && (
+                  <p className="text-xs text-red-500 mt-1">{errors.keywords}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Comma separated keywords SEO meta tag me jayenge.</p>
+              </div>
             </div>
           )}
 

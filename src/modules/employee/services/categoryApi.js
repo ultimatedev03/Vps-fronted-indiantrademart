@@ -314,7 +314,7 @@ export const headCategoryApi = {
   },
 
   create: async (categoryData) => {
-    const { name, slug, description, is_active, image_url, imageFile, removeImage } = categoryData;
+    const { name, slug, description, meta_tags, keywords, is_active, image_url, imageFile, removeImage } = categoryData;
 
     let finalImageUrl = (image_url || '').trim() || null;
     if (imageFile) {
@@ -328,6 +328,8 @@ export const headCategoryApi = {
         name: name.trim(),
         slug: slug.trim(),
         description: description?.trim() || null,
+        meta_tags: meta_tags?.trim() || null,
+        keywords: keywords?.trim() || null,
         image_url: finalImageUrl,
         is_active: is_active !== false
       }])
@@ -339,7 +341,7 @@ export const headCategoryApi = {
   },
 
   update: async (id, categoryData) => {
-    const { name, slug, description, is_active, image_url, imageFile, removeImage } = categoryData;
+    const { name, slug, description, meta_tags, keywords, is_active, image_url, imageFile, removeImage } = categoryData;
     const categoryId = String(id || '').trim();
 
     await ensureRowExists('head_categories', categoryId, 'Head category not found. Please refresh and try again.');
@@ -356,6 +358,8 @@ export const headCategoryApi = {
         name: name.trim(),
         slug: slug.trim(),
         description: description?.trim() || null,
+        meta_tags: meta_tags?.trim() || null,
+        keywords: keywords?.trim() || null,
         image_url: finalImageUrl,
         is_active: is_active !== false
       })
@@ -428,7 +432,7 @@ export const subCategoryApi = {
   },
 
   create: async (categoryData, headCategoryId) => {
-    const { name, slug, description, is_active, image_url, imageFile, removeImage } = categoryData;
+    const { name, slug, description, meta_tags, keywords, is_active, image_url, imageFile, removeImage } = categoryData;
 
     let finalImageUrl = (image_url || '').trim() || null;
     if (imageFile) {
@@ -441,6 +445,8 @@ export const subCategoryApi = {
       name: name.trim(),
       slug: slug.trim(),
       description: description?.trim() || null,
+      meta_tags: meta_tags?.trim() || null,
+      keywords: keywords?.trim() || null,
       is_active: is_active !== false
     };
 
@@ -474,7 +480,7 @@ export const subCategoryApi = {
   },
 
   update: async (id, categoryData) => {
-    const { name, slug, description, is_active, image_url, imageFile, removeImage } = categoryData;
+    const { name, slug, description, meta_tags, keywords, is_active, image_url, imageFile, removeImage } = categoryData;
     const categoryId = String(id || '').trim();
 
     await ensureRowExists('sub_categories', categoryId, 'Sub category not found. Please refresh and try again.');
@@ -489,6 +495,8 @@ export const subCategoryApi = {
       name: name.trim(),
       slug: slug.trim(),
       description: description?.trim() || null,
+      meta_tags: meta_tags?.trim() || null,
+      keywords: keywords?.trim() || null,
       is_active: is_active !== false
     };
 
