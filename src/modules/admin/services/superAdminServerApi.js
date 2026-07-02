@@ -74,6 +74,11 @@ export const superAdminServerApi = {
       request(`/vendors/${vendorId}`, {
         method: 'DELETE',
       }),
+    updateAllIndia: (vendorId, enabled) =>
+      request(`/vendors/${vendorId}/all-india-visibility`, {
+        method: 'PUT',
+        body: JSON.stringify({ enabled }),
+      }),
   },
 
   plans: {

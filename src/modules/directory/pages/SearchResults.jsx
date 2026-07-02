@@ -74,6 +74,7 @@ const levenshtein = (a = '', b = '') => {
 
 const productMatchesLocation = (product, stateId, districtId, cityId) => {
   if (!stateId && !districtId && !cityId) return true;
+  if (product?.vendors?.all_india_visibility || product?.vendorAllIndiaVisibility) return true;
 
   const vendorStateId = product?.vendors?.state_id ? String(product.vendors.state_id) : '';
   const vendorDistrictId = product?.vendors?.district_id ? String(product.vendors.district_id) : '';
@@ -160,11 +161,7 @@ const buildPriceBounds = (items = []) => {
 };
 
 const applyLocationFilters = (query, stateId, districtId, cityId) => {
-  let scopedQuery = query;
-  if (stateId) scopedQuery = scopedQuery.eq('vendors.state_id', stateId);
-  if (districtId) scopedQuery = scopedQuery.eq('vendors.district_id', districtId);
-  if (cityId) scopedQuery = scopedQuery.eq('vendors.city_id', cityId);
-  return scopedQuery;
+  return query;
 };
 
 const buildKeywordProductQuery = ({ selectString, stateId, districtId, cityId }) => {
@@ -872,6 +869,7 @@ const SearchResults = () => {
             vendorId: p?.vendorId || vendorObj?.id || p?.vendor_id,
             vendorCity: p?.vendorCity || vendorObj?.city,
             vendorState: p?.vendorState || vendorObj?.state,
+            vendorAllIndiaVisibility: Boolean(p?.vendorAllIndiaVisibility || vendorObj?.all_india_visibility),
             vendorRating: p?.vendorRating || vendorObj?.seller_rating || 4.5,
             vendorVerified: p?.vendorVerified || vendorObj?.kyc_status === 'VERIFIED' || !!vendorObj?.verification_badge,
             vendorPlanName: planName,
@@ -925,6 +923,7 @@ const SearchResults = () => {
           *,
           vendors!inner (
             id, company_name, city, state, state_id, district_id, city_id,
+            all_india_visibility,
             seller_rating, kyc_status, verification_badge, trust_score,
             gst_verified, year_of_establishment, years_in_business, response_rate,
             is_active
@@ -992,6 +991,7 @@ const SearchResults = () => {
             vendorId,
             vendorCity: vendorObj?.city,
             vendorState: vendorObj?.state,
+            vendorAllIndiaVisibility: Boolean(vendorObj?.all_india_visibility),
             vendorRating: vendorObj?.seller_rating || 4.5,
             vendorVerified: vendorObj?.kyc_status === 'VERIFIED' || !!vendorObj?.verification_badge,
 

@@ -660,6 +660,7 @@ export default function SuperAdminDashboard() {
   const [vendorSearch, setVendorSearch] = useState('');
   const [vendorFilter, setVendorFilter] = useState('all');
   const [vendorDeletingId, setVendorDeletingId] = useState(null);
+  const [vendorAllIndiaSavingId, setVendorAllIndiaSavingId] = useState(null);
 
   // Plans
   const [plans, setPlans] = useState([]);
@@ -2175,6 +2176,31 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const toggleVendorAllIndia = async (vendor, enabled) => {
+    if (!vendor?.id) return;
+    setVendorAllIndiaSavingId(vendor.id);
+    try {
+      const response = await superAdminServerApi.vendors.updateAllIndia(vendor.id, enabled);
+      const updatedVendor = response?.vendor || {};
+      setVendors((current) =>
+        current.map((item) =>
+          item.id === vendor.id
+            ? { ...item, all_india_visibility: updatedVendor.all_india_visibility ?? (enabled ? 1 : 0) }
+            : item
+        )
+      );
+      toast({
+        title: enabled ? 'All India access enabled' : 'All India access disabled',
+        description: vendor.company_name || vendor.email || vendor.id,
+      });
+      await fetchAuditLogs();
+    } catch (error) {
+      handleError(error, 'Failed to update All India access');
+    } finally {
+      setVendorAllIndiaSavingId(null);
+    }
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (!passwordForm.current || !passwordForm.new) {
@@ -2852,6 +2878,7 @@ export default function SuperAdminDashboard() {
                         <TableHead className="text-neutral-300">Vendor</TableHead>
                         <TableHead className="text-neutral-300">KYC</TableHead>
                         <TableHead className="text-neutral-300">Active</TableHead>
+                        <TableHead className="text-neutral-300">All India</TableHead>
                         <TableHead className="text-neutral-300">Location</TableHead>
                         <TableHead className="text-neutral-300">Direct Leads</TableHead>
                         <TableHead className="text-neutral-300">Purchased Leads</TableHead>
@@ -2863,15 +2890,20 @@ export default function SuperAdminDashboard() {
                     <TableBody>
                       {filteredVendors.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center text-neutral-500 py-10">
+                          <TableCell colSpan={10} className="text-center text-neutral-500 py-10">
                             {vendorsLoading ? 'Loading vendors...' : 'No vendors found'}
                           </TableCell>
                         </TableRow>
                       ) : (
                         filteredVendors.map((vendor) => {
                           const busy = vendorDeletingId === vendor.id;
+                          const allIndiaBusy = vendorAllIndiaSavingId === vendor.id;
                           const kyc = String(vendor.kyc_status || 'PENDING').toUpperCase();
                           const active = isVendorActive(vendor);
+                          const allIndiaEnabled =
+                            vendor.all_india_visibility === true ||
+                            vendor.all_india_visibility === 1 ||
+                            String(vendor.all_india_visibility || '').toLowerCase() === 'true';
                           const stats = vendor.lead_stats || {};
                           return (
                             <TableRow key={vendor.id} className="hover:bg-neutral-800/50">
@@ -2904,6 +2936,26 @@ export default function SuperAdminDashboard() {
                                 >
                                   {active ? 'ACTIVE' : 'INACTIVE'}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Switch
+                                    checked={allIndiaEnabled}
+                                    disabled={allIndiaBusy}
+                                    onCheckedChange={(checked) => toggleVendorAllIndia(vendor, checked)}
+                                    aria-label={`Toggle All India access for ${vendor.company_name || vendor.email || 'vendor'}`}
+                                  />
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      allIndiaEnabled
+                                        ? 'border-cyan-800 bg-cyan-950/50 text-cyan-200'
+                                        : 'border-neutral-700 bg-neutral-900 text-neutral-400'
+                                    }
+                                  >
+                                    {allIndiaBusy ? 'Saving...' : allIndiaEnabled ? 'All India' : 'Local'}
+                                  </Badge>
+                                </div>
                               </TableCell>
                               <TableCell className="text-neutral-300 text-sm">
                                 {[vendor.city, vendor.state].filter(Boolean).join(', ') || '—'}
