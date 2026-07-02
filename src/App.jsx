@@ -555,6 +555,14 @@ function App() {
     <>
       <Helmet>
         <title>IndianTradeMart - B2B Marketplace</title>
+        <meta
+          name="description"
+          content="Find verified manufacturers, suppliers, exporters and B2B service providers across India on IndianTradeMart."
+        />
+        <meta
+          name="keywords"
+          content="IndianTradeMart, B2B marketplace, manufacturers, suppliers, exporters, business directory India"
+        />
       </Helmet>
 
       <PageStatusProvider>

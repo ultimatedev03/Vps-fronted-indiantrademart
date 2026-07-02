@@ -90,7 +90,7 @@ const escapeHtml = (value) =>
 
 const setTitle = (html, title) => {
   if (!title) return html;
-  const safeTitle = `<title>${escapeHtml(title)}</title>`;
+  const safeTitle = `<title data-react-helmet="true">${escapeHtml(title)}</title>`;
   if (/<title>.*<\/title>/i.test(html)) {
     return html.replace(/<title>.*<\/title>/i, safeTitle);
   }
@@ -100,7 +100,7 @@ const setTitle = (html, title) => {
 const upsertMeta = (html, name, content) => {
   if (!content) return html;
   const safe = escapeHtml(content);
-  const tag = `<meta name="${name}" content="${safe}">`;
+  const tag = `<meta data-react-helmet="true" name="${name}" content="${safe}">`;
   const re = new RegExp(`<meta\\s+name=["']${name}["'][^>]*>`, 'i');
   if (re.test(html)) return html.replace(re, tag);
   return html.replace('</head>', `  ${tag}\n</head>`);
@@ -109,7 +109,7 @@ const upsertMeta = (html, name, content) => {
 const upsertCanonical = (html, href) => {
   if (!href) return html;
   const safe = escapeHtml(href);
-  const tag = `<link rel="canonical" href="${safe}">`;
+  const tag = `<link data-react-helmet="true" rel="canonical" href="${safe}">`;
   const re = /<link\s+rel=["']canonical["'][^>]*>/i;
   if (re.test(html)) return html.replace(re, tag);
   return html.replace('</head>', `  ${tag}\n</head>`);

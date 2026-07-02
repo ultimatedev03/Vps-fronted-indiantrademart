@@ -49,6 +49,33 @@ const slugify = (text = '') =>
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
+const cleanMetaText = (value = '') =>
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const truncateMeta = (value = '', max = 160) => {
+  const text = cleanMetaText(value);
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).replace(/\s+\S*$/, '')}…`;
+};
+
+const buildSeoKeywords = (...values) => {
+  const seen = new Set();
+  return values
+    .flatMap((value) => String(value || '').split(','))
+    .map((value) => cleanMetaText(value))
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 40)
+    .join(', ');
+};
+
 const levenshtein = (a = '', b = '') => {
   a = String(a);
   b = String(b);
@@ -1152,19 +1179,28 @@ const SearchResults = () => {
   const stateName = formatName(parsedParams.stateSlug);
   const locationName = [cityName, districtName, stateName].filter(Boolean).join(', ');
 
+  const metaTitle = cleanMetaText(seoMeta?.title || seoMeta?.seo_title);
   const pageTitle = serviceName
-    ? `${seoMeta?.meta_tags || seoMeta?.name || serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
+    ? `${metaTitle || seoMeta?.name || serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
     : 'Search Results';
 
-  const pageDescription =
-    seoMeta?.meta_description ||
-    seoMeta?.description ||
-    `Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers.`;
+  const metaDescription = cleanMetaText(seoMeta?.meta_description || seoMeta?.description);
+  const pageDescription = truncateMeta(
+    metaDescription ||
+      `Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers on IndianTradeMart.`
+  );
 
-  const pageKeywords =
-    seoMeta?.meta_keywords ||
-    seoMeta?.keywords ||
-    `${serviceName}, ${serviceName} suppliers, ${serviceName} manufacturers, ${locationName || 'India'}, IndianTradeMart`;
+  const pageKeywords = buildSeoKeywords(
+    seoMeta?.meta_keywords,
+    seoMeta?.keywords,
+    seoMeta?.meta_tags,
+    serviceName,
+    serviceName ? `${serviceName} suppliers` : '',
+    serviceName ? `${serviceName} manufacturers` : '',
+    locationName,
+    locationName && serviceName ? `${serviceName} in ${locationName}` : '',
+    'IndianTradeMart'
+  );
 
   const canonicalPath = buildSearchUrl(
     parsedParams.serviceSlug,
@@ -1182,6 +1218,11 @@ const SearchResults = () => {
         <meta name="description" content={pageDescription} />
         <meta name="keywords" content={pageKeywords} />
         <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:title" content={`${pageTitle} | IndianTradeMart`} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta name="twitter:title" content={`${pageTitle} | IndianTradeMart`} />
+        <meta name="twitter:description" content={pageDescription} />
       </Helmet>
 
       <div className="min-h-screen bg-neutral-50 pb-16">
