@@ -57,8 +57,9 @@ const PremiumBrandRedirect = () => {
 const DirectorySingleSegmentRoute = () => {
   const { headSlug } = useParams();
   const legacySeo = urlParser.parseLegacySeoSlug(headSlug);
+  const stateTailSeo = urlParser.parseStateTailSeoSlug(headSlug);
 
-  if (legacySeo?.serviceSlug) {
+  if (legacySeo?.serviceSlug || stateTailSeo?.serviceSlug) {
     return <SearchResults />;
   }
 

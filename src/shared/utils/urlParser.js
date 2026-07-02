@@ -84,6 +84,38 @@ export const urlParser = {
         };
     },
 
+    parseStateTailSeoSlug: (fullSlug) => {
+        if (!fullSlug || typeof fullSlug !== 'string') return null;
+
+        let decoded = fullSlug;
+        try {
+            decoded = decodeURIComponent(fullSlug);
+        } catch {
+            decoded = fullSlug;
+        }
+
+        const normalizedSlug = slugify(decoded);
+        if (!normalizedSlug || normalizedSlug.includes('-in-')) return null;
+
+        const state = SORTED_STATES.find((row) => {
+            const suffix = `-${row.slug}`;
+            return normalizedSlug === row.slug || normalizedSlug.endsWith(suffix);
+        });
+
+        if (!state || normalizedSlug === state.slug) return null;
+
+        const prefixSlug = normalizedSlug.slice(0, -(state.slug.length + 1)).replace(/-+/g, '-').replace(/^-|-$/g, '');
+        if (!prefixSlug) return null;
+
+        return {
+            prefixSlug,
+            stateSlug: state.slug,
+            serviceSlug: prefixSlug,
+            citySlug: '',
+            isStateTailSeo: true
+        };
+    },
+
     parseSeoSlug: (fullSlug) => {
         if (!fullSlug || typeof fullSlug !== 'string') return null;
 

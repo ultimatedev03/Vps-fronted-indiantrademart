@@ -505,45 +505,99 @@ const SearchResults = () => {
   };
 
   useEffect(() => {
-    let service = '';
-    let state = '';
-    let district = '';
-    let city = '';
+    let alive = true;
 
-    if (params.service) {
-      service = params.service;
-      state = params.state || '';
-      district = params.district || '';
-      city = params.city || '';
-      if (!city && !district && locationQuerySlug) {
-        city = locationQuerySlug;
+    const resolveStateTailSeo = async (seoParts) => {
+      const prefixSlug = String(seoParts?.prefixSlug || '').trim();
+      const stateSlug = String(seoParts?.stateSlug || '').trim();
+      if (!prefixSlug || !stateSlug) {
+        return { service: '', state: stateSlug, district: '', city: '' };
       }
-    } else if (params.slug) {
-      const parsed = urlParser.parseSeoSlug(params.slug);
-      service = parsed?.serviceSlug || '';
-      state = parsed?.stateSlug || '';
-      city = parsed?.citySlug || '';
-    } else {
-      const lastPathSegment = String(location.pathname || '').split('/').filter(Boolean).pop() || '';
-      const legacySeo = urlParser.parseLegacySeoSlug(lastPathSegment);
-      if (legacySeo?.serviceSlug) {
-        service = legacySeo.serviceSlug;
-        state = legacySeo.stateSlug || '';
-        city = legacySeo.citySlug || '';
-        if (!city && !state && legacySeo.locationSlug) {
-          city = legacySeo.locationSlug;
+
+      let service = prefixSlug;
+      let city = '';
+
+      try {
+        const { state: stateRow } = await locationService.getLocationBySlug(stateSlug, '');
+        const cities = stateRow?.id ? await locationService.getCities(stateRow.id) : [];
+        const cityMatch = (cities || [])
+          .filter((row) => row?.slug)
+          .sort((a, b) => String(b.slug).length - String(a.slug).length)
+          .find((row) => prefixSlug === row.slug || prefixSlug.endsWith(`-${row.slug}`));
+
+        if (cityMatch?.slug) {
+          city = cityMatch.slug;
+          service =
+            prefixSlug === city
+              ? ''
+              : prefixSlug.slice(0, -(city.length + 1)).replace(/-+/g, '-').replace(/^-|-$/g, '');
+        }
+      } catch (error) {
+        console.warn('Legacy state-tail SEO location lookup failed:', error?.message || error);
+      }
+
+      return { service, state: stateSlug, district: '', city };
+    };
+
+    const parseRouteParams = async () => {
+      let service = '';
+      let state = '';
+      let district = '';
+      let city = '';
+
+      if (params.service) {
+        service = params.service;
+        state = params.state || '';
+        district = params.district || '';
+        city = params.city || '';
+        if (!city && !district && locationQuerySlug) {
+          city = locationQuerySlug;
+        }
+      } else if (params.slug) {
+        const stateTailSeo = urlParser.parseStateTailSeoSlug(params.slug);
+        if (stateTailSeo?.serviceSlug) {
+          ({ service, state, district, city } = await resolveStateTailSeo(stateTailSeo));
+        } else {
+          const parsed = urlParser.parseSeoSlug(params.slug);
+          service = parsed?.serviceSlug || '';
+          state = parsed?.stateSlug || '';
+          city = parsed?.citySlug || '';
+        }
+      } else {
+        const lastPathSegment = String(location.pathname || '').split('/').filter(Boolean).pop() || '';
+        const legacySeo = urlParser.parseLegacySeoSlug(lastPathSegment);
+        if (legacySeo?.serviceSlug) {
+          service = legacySeo.serviceSlug;
+          state = legacySeo.stateSlug || '';
+          city = legacySeo.citySlug || '';
+          if (!city && !state && legacySeo.locationSlug) {
+            city = legacySeo.locationSlug;
+          }
+        } else {
+          const stateTailSeo = urlParser.parseStateTailSeoSlug(lastPathSegment);
+          if (stateTailSeo?.serviceSlug) {
+            ({ service, state, district, city } = await resolveStateTailSeo(stateTailSeo));
+          }
         }
       }
-    }
 
-    setParsedParams({
-      serviceSlug: service || '',
-      stateSlug: state || '',
-      districtSlug: district || '',
-      citySlug: city || '',
-    });
+      if (!alive) return;
 
-    autoCorrectedRef.current = false;
+      setParsedParams({
+        serviceSlug: service || '',
+        stateSlug: state || '',
+        districtSlug: district || '',
+        citySlug: city || '',
+      });
+
+      autoCorrectedRef.current = false;
+    };
+
+    parseRouteParams();
+
+    return () => {
+      alive = false;
+    };
   }, [params, location.pathname, location.search, locationQuerySlug]);
 
   const tryAutoCorrect = async ({ wrongSlug, stateSlug, districtSlug, citySlug }) => {
