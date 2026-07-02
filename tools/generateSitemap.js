@@ -186,36 +186,6 @@ const addNormalizedKeys = (target, values = []) => {
 const getVendorKeys = (vendor = {}) =>
   [vendor.id, vendor.vendor_id].map(normalizeKey).filter(Boolean);
 
-const generateStaticSitemap = async () => {
-  console.log('🏠 Generating static sitemap...');
-  const today = getCurrentDate();
-  return [
-    createUrlEntry(`${BASE_URL}/`, today, '1.0', 'weekly'),
-    createUrlEntry(`${BASE_URL}/directory`, today, '0.9', 'weekly'),
-    createUrlEntry(`${BASE_URL}/directory/cities`, today, '0.7', 'weekly'),
-    createUrlEntry(`${BASE_URL}/directory/vendor`, today, '0.8', 'weekly'),
-    createUrlEntry(`${BASE_URL}/about-us`, today, '0.7', 'monthly'),
-    createUrlEntry(`${BASE_URL}/become-a-vendor`, today, '0.8', 'monthly'),
-    createUrlEntry(`${BASE_URL}/pricing`, today, '0.7', 'monthly'),
-    createUrlEntry(`${BASE_URL}/logistics`, today, '0.6', 'monthly'),
-    createUrlEntry(`${BASE_URL}/privacy`, today, '0.5', 'yearly'),
-    createUrlEntry(`${BASE_URL}/terms`, today, '0.5', 'yearly'),
-    createUrlEntry(`${BASE_URL}/press`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/investor`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/join-sales`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/success-stories`, today, '0.6', 'monthly'),
-    createUrlEntry(`${BASE_URL}/help`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/customer-care`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/complaints`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/jobs`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/contact`, today, '0.6', 'yearly'),
-    createUrlEntry(`${BASE_URL}/link-to-us`, today, '0.4', 'yearly'),
-    createUrlEntry(`${BASE_URL}/buyleads`, today, '0.6', 'weekly'),
-    createUrlEntry(`${BASE_URL}/learning-centre`, today, '0.5', 'monthly'),
-    createUrlEntry(`${BASE_URL}/products`, today, '0.6', 'weekly'),
-  ];
-};
-
 const loadPublicContent = async () => {
   const [products, vendors] = await Promise.all([
     safeSelectAll(
@@ -511,7 +481,6 @@ const generateAllSitemaps = async () => {
   const generated = [];
 
   const sitemapJobs = [
-    { name: 'sitemap-static.xml', generator: generateStaticSitemap },
     { name: 'sitemap-products.xml', generator: () => generateProductsSitemap(content) },
     { name: 'sitemap-vendors.xml', generator: () => generateVendorsSitemap(content) },
     { name: 'sitemap-categories.xml', generator: () => generateCategoriesSitemap(model, content) },
