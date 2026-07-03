@@ -1,10 +1,19 @@
 User-agent: *
-Disallow: /sitemap-static.xml
 Allow: /
 
+Disallow: /admin/
+Disallow: /superadmin/
+Disallow: /vendor/
+Disallow: /buyer/
+Disallow: /employee/
+Disallow: /finance-portal/
+Disallow: /migration-tools
+
 Sitemap: https://indiantrademart.com/sitemap.xml
+Sitemap: https://indiantrademart.com/sitemap-seo-exports.xml
+Sitemap: https://indiantrademart.com/sitemap-seo-files.xml
 
 # NOTE:
-# - This file allows bots to crawl all pages, including individual product/service pages.
-# - The sitemap index is generated from live product, vendor, category, and location data during build.
-# - Deleted vendors/products are removed from the next generated sitemap so stale URLs are not advertised.
+# - Public product, service, category, vendor, and location pages are crawlable.
+# - Sitemap index is generated dynamically from live database and latest SEO export CSV mirror.
+# - Deleted vendors/products are removed from the next dynamic sitemap response.
