@@ -10,10 +10,8 @@ Disallow: /finance-portal/
 Disallow: /migration-tools
 
 Sitemap: https://indiantrademart.com/sitemap.xml
-Sitemap: https://indiantrademart.com/sitemap-seo-exports.xml
-Sitemap: https://indiantrademart.com/sitemap-seo-files.xml
 
 # NOTE:
 # - Public product, service, category, vendor, and location pages are crawlable.
-# - Sitemap index is generated dynamically from live database and latest SEO export CSV mirror.
+# - Sitemap index is generated dynamically from live database.
 # - Deleted vendors/products are removed from the next dynamic sitemap response.
