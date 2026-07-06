@@ -8,7 +8,13 @@ dotenv.config({ path: '.env.local' });
 
 const BASE_URL = String(process.env.VITE_SITE_URL || 'https://indiantrademart.com').trim().replace(/\/+$/, '');
 const PUBLIC_DIR = path.join(FRONTEND_DIR, 'public');
-const SITEMAP_URL_LIMIT = Number(process.env.SITEMAP_URL_LIMIT || 45000);
+const DEFAULT_SITEMAP_URL_LIMIT = 5000;
+const parseSitemapLimit = (value) => {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_SITEMAP_URL_LIMIT;
+  return Math.min(50000, Math.max(1000, parsed));
+};
+const SITEMAP_URL_LIMIT = parseSitemapLimit(process.env.SITEMAP_URL_LIMIT);
 const INDEX_LASTMOD = String(process.env.SITEMAP_INDEX_LASTMOD || '').trim();
 
 const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
