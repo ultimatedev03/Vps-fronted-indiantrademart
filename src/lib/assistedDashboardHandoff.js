@@ -1,6 +1,7 @@
 import { getSuperAdminToken } from '@/lib/superAdminApiClient';
+import { apiUrl } from '@/lib/apiBase';
 
-const HANDOFF_ACTION = '/api/superadmin/impersonation/open';
+const HANDOFF_ACTION = apiUrl('/api/superadmin/impersonation/open');
 
 const appendHiddenField = (form, name, value) => {
   const input = document.createElement('input');
@@ -35,6 +36,7 @@ export function submitAssistedDashboardHandoff({ targetType, targetId } = {}) {
   appendHiddenField(form, 'superadmin_token', token);
   appendHiddenField(form, 'target_type', normalizedTargetType);
   appendHiddenField(form, 'target_id', normalizedTargetId);
+  appendHiddenField(form, 'return_to_origin', window.location.origin);
 
   document.body.appendChild(form);
   form.submit();
