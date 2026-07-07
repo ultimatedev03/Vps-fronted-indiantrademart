@@ -40,6 +40,8 @@ const PublicLayout = () => {
   const quotePopupReady = useDeferredMount({ delay: 9000, idleTimeout: 12000 });
   const prioritizeFooter = shouldPrioritizeFooter(location.pathname);
   const showFooter = footerReady || prioritizeFooter;
+  const mainClassName = prioritizeFooter ? 'pt-16' : 'flex-grow pt-16';
+  const mainStyle = prioritizeFooter ? undefined : { minHeight: 'calc(100vh - 4rem)' };
 
   useLayoutEffect(() => {
     if (!prioritizeFooter || typeof window === 'undefined') return undefined;
@@ -64,7 +66,7 @@ const PublicLayout = () => {
     <div className="min-h-screen flex flex-col bg-white">
       <Header />
 
-      <main className="flex-grow pt-16" style={{ minHeight: 'calc(100vh - 4rem)' }}>
+      <main className={mainClassName} style={mainStyle}>
         <Suspense fallback={<OutletFallback />}>
           <Outlet />
         </Suspense>
