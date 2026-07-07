@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSuperAdmin } from '@/modules/admin/context/SuperAdminContext';
 import { superAdminServerApi } from '@/modules/admin/services/superAdminServerApi';
+import { dbClient } from '@/lib/dbClient';
 import { toast } from '@/components/ui/use-toast';
 import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
@@ -475,6 +476,7 @@ const SuperAdminBuyerAccessPanel = ({ title = 'Buyer Dashboard Access' }) => {
         target_id: buyer.id,
       });
       const next = data?.next || '/buyer/dashboard';
+      await dbClient.auth.setSession();
       toast({
         title: 'Opening buyer dashboard',
         description: `Assisted access started for ${buyer.name || buyer.email || 'buyer'}.`,

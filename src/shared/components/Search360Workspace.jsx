@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
+import { dbClient } from '@/lib/dbClient';
 
 const TEAM_OPTIONS = [
   { value: 'ADMIN', label: 'Admin', icon: ShieldAlert, caseType: 'SUSPENSION_REVIEW' },
@@ -238,6 +239,7 @@ const Search360Workspace = ({
         target_id: selected.id,
       });
       const next = data?.next || '/vendor/dashboard';
+      await dbClient.auth.setSession();
       toast({
         title: 'Opening vendor dashboard',
         description: `Assisted access started for ${getName(selected)}.`,

@@ -50,6 +50,19 @@ const getCsrfToken = () => {
 
 const hasReadableAuthSessionHint = () => Boolean(getCsrfToken());
 
+const shouldProbeAuthWithoutHint = () => {
+  if (typeof window === 'undefined') return false;
+  const path = String(window.location?.pathname || '');
+  return (
+    path.startsWith('/buyer') ||
+    path.startsWith('/vendor') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/employee') ||
+    path.startsWith('/hr') ||
+    path.startsWith('/finance-portal')
+  );
+};
+
 const emit = (event, session) => {
   listeners.forEach((cb) => {
     try {
@@ -136,7 +149,9 @@ const buildSession = (user) =>
 const refreshSession = async (force = false) => {
   const now = Date.now();
   if (!force) {
-    if (!cachedUser && !hasReadableAuthSessionHint()) return buildSession(null);
+    if (!cachedUser && !hasReadableAuthSessionHint() && !shouldProbeAuthWithoutHint()) {
+      return buildSession(null);
+    }
     if (refreshCooldownUntil && now < refreshCooldownUntil) return buildSession(cachedUser);
     if (cachedUser && now - lastRefreshAt < SESSION_TTL_MS) return buildSession(cachedUser);
   }

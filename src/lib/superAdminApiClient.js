@@ -94,6 +94,7 @@ export async function superAdminFetch(path, options = {}) {
 
   const requestConfig = {
     cache: 'no-store',
+    credentials: 'include',
     ...options,
     headers,
   };
