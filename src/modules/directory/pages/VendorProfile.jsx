@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Button } from '@/components/ui/button';
@@ -321,6 +321,21 @@ const VendorProfileContent = () => {
     if (typeof window === 'undefined') return;
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [requestedVendorKey]);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined' || loading) return undefined;
+
+    const resetScroll = () => window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    resetScroll();
+
+    const frameId = window.requestAnimationFrame(resetScroll);
+    const timerIds = [120, 500].map((delay) => window.setTimeout(resetScroll, delay));
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      timerIds.forEach((timerId) => window.clearTimeout(timerId));
+    };
+  }, [loading, requestedVendorKey]);
 
   useEffect(() => {
     if (!guestEnquiryOpen) return undefined;
