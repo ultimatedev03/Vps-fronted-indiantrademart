@@ -210,7 +210,7 @@ class VendorProfileErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="w-[92vw] mx-auto py-8 w-[60vw]">
+        <div className="mx-auto w-[92vw] max-w-3xl py-8" style={{ minHeight: 'calc(100vh - 8rem)' }}>
           <Card>
             <Card.Content className="p-6 text-center text-gray-600 space-y-3">
               <div className="text-lg font-semibold text-gray-900">Something went wrong</div>
@@ -316,6 +316,11 @@ const VendorProfileContent = () => {
   const [guestEnquiry, setGuestEnquiry] = useState(() => createGuestEnquiryForm());
   const requestedVendorKey = String(vendorSlugOrId || '').trim();
   const vendorRecordId = String(vendor?.id || '').trim();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [requestedVendorKey]);
 
   useEffect(() => {
     if (!guestEnquiryOpen) return undefined;
@@ -899,9 +904,9 @@ const VendorProfileContent = () => {
 
   if (loading) {
     return (
-      <div className="w-[92vw] mx-auto py-8 space-y-6">
+      <div className="mx-auto w-[92vw] py-8 space-y-6" style={{ minHeight: 'calc(100vh - 8rem)' }}>
         <Skeleton className="h-64 w-full rounded-xl" />
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Skeleton className="h-48 w-full rounded-xl" />
           <Skeleton className="h-48 w-full rounded-xl" />
           <Skeleton className="h-48 w-full rounded-xl" />
@@ -913,7 +918,7 @@ const VendorProfileContent = () => {
 
   if (!displayVendor) {
     return (
-      <div className="w-[92vw] mx-auto py-8 w-[60vw]">
+      <div className="mx-auto w-[92vw] max-w-3xl py-8" style={{ minHeight: 'calc(100vh - 8rem)' }}>
         <Card>
           <Card.Content className="p-6 text-center text-gray-600 space-y-3">
             <div className="text-lg font-semibold text-gray-900">
