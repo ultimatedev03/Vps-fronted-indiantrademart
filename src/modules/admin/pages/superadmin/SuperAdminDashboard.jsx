@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSuperAdmin } from '@/modules/admin/context/SuperAdminContext';
 import { superAdminServerApi } from '@/modules/admin/services/superAdminServerApi';
-import { dbClient } from '@/lib/dbClient';
+import { submitAssistedDashboardHandoff } from '@/lib/assistedDashboardHandoff';
 import { toast } from '@/components/ui/use-toast';
 import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
@@ -471,19 +471,11 @@ const SuperAdminBuyerAccessPanel = ({ title = 'Buyer Dashboard Access' }) => {
     if (!buyer?.id || busyId) return;
     setBusyId(buyer.id);
     try {
-      const data = await superAdminServerApi.impersonation.start({
-        target_type: 'BUYER',
-        target_id: buyer.id,
-      });
-      const next = data?.next || '/buyer/dashboard';
-      await dbClient.auth.setSession();
       toast({
         title: 'Opening buyer dashboard',
         description: `Assisted access started for ${buyer.name || buyer.email || 'buyer'}.`,
       });
-      if (typeof window !== 'undefined') {
-        window.location.assign(next);
-      }
+      submitAssistedDashboardHandoff({ targetType: 'BUYER', targetId: buyer.id });
     } catch (error) {
       toast({
         title: 'Could not open buyer dashboard',
