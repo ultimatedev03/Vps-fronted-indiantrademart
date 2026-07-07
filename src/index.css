@@ -104,6 +104,16 @@ body,
   overflow-x: clip;
 }
 
+html[data-itm-detail-route='true'],
+html[data-itm-detail-route='true'] body,
+html[data-itm-detail-route='true'] #root {
+  min-height: 0;
+}
+
+html[data-itm-detail-route='true'] body {
+  background: #fff;
+}
+
 img,
 svg,
 video,

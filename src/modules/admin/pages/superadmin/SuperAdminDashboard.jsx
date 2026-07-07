@@ -468,7 +468,6 @@ const SuperAdminBuyerAccessPanel = ({ title = 'Buyer Dashboard Access' }) => {
 
   const openBuyerDashboard = async (buyer) => {
     if (!buyer?.id || busyId) return;
-    const tab = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null;
     setBusyId(buyer.id);
     try {
       const data = await superAdminServerApi.impersonation.start({
@@ -476,17 +475,14 @@ const SuperAdminBuyerAccessPanel = ({ title = 'Buyer Dashboard Access' }) => {
         target_id: buyer.id,
       });
       const next = data?.next || '/buyer/dashboard';
-      if (tab) {
-        tab.location.href = next;
-      } else if (typeof window !== 'undefined') {
-        window.location.href = next;
-      }
       toast({
-        title: 'Buyer dashboard opened',
+        title: 'Opening buyer dashboard',
         description: `Assisted access started for ${buyer.name || buyer.email || 'buyer'}.`,
       });
+      if (typeof window !== 'undefined') {
+        window.location.assign(next);
+      }
     } catch (error) {
-      if (tab) tab.close();
       toast({
         title: 'Could not open buyer dashboard',
         description: error?.message || 'Assisted access failed.',

@@ -231,7 +231,6 @@ const Search360Workspace = ({
 
   const openAssistedVendorDashboard = async () => {
     if (!canOpenAssistedVendor || impersonating) return;
-    const tab = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null;
     setImpersonating(true);
     try {
       const data = await impersonationApi.start({
@@ -239,17 +238,14 @@ const Search360Workspace = ({
         target_id: selected.id,
       });
       const next = data?.next || '/vendor/dashboard';
-      if (tab) {
-        tab.location.href = next;
-      } else if (typeof window !== 'undefined') {
-        window.location.href = next;
-      }
       toast({
-        title: 'Vendor dashboard opened',
+        title: 'Opening vendor dashboard',
         description: `Assisted access started for ${getName(selected)}.`,
       });
+      if (typeof window !== 'undefined') {
+        window.location.assign(next);
+      }
     } catch (error) {
-      if (tab) tab.close();
       toast({
         title: 'Could not open vendor dashboard',
         description: error?.message || 'Assisted access failed.',

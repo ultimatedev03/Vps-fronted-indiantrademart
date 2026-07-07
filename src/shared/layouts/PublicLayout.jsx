@@ -1,4 +1,4 @@
-import { Suspense, lazy, useLayoutEffect } from 'react';
+import { Suspense, lazy, useLayoutEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from '@/shared/components/Header';
 import { useDeferredMount } from '@/shared/hooks/useDeferredMount';
@@ -36,10 +36,12 @@ const OutletFallback = () => (
 
 const PublicLayout = () => {
   const location = useLocation();
+  const footerSlotRef = useRef(null);
   const footerReady = useDeferredMount({ delay: 6500, idleTimeout: 9000 });
   const quotePopupReady = useDeferredMount({ delay: 9000, idleTimeout: 12000 });
   const prioritizeFooter = shouldPrioritizeFooter(location.pathname);
   const showFooter = footerReady || prioritizeFooter;
+  const shellClassName = prioritizeFooter ? 'flex flex-col bg-white' : 'min-h-screen flex flex-col bg-white';
   const mainClassName = prioritizeFooter ? 'pt-16' : 'flex-grow pt-16';
   const mainStyle = prioritizeFooter ? undefined : { minHeight: 'calc(100vh - 4rem)' };
 
@@ -62,8 +64,62 @@ const PublicLayout = () => {
     };
   }, [location.pathname, prioritizeFooter]);
 
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    if (!prioritizeFooter) {
+      delete document.documentElement.dataset.itmDetailRoute;
+      return undefined;
+    }
+
+    document.documentElement.dataset.itmDetailRoute = 'true';
+
+    return () => {
+      delete document.documentElement.dataset.itmDetailRoute;
+    };
+  }, [prioritizeFooter]);
+
+  useLayoutEffect(() => {
+    if (!prioritizeFooter || typeof window === 'undefined') return undefined;
+
+    let rafId = 0;
+    const timers = [];
+
+    const clampAfterFooter = () => {
+      const footerSlot = footerSlotRef.current;
+      if (!footerSlot) return;
+
+      const footerBottom = footerSlot.getBoundingClientRect().bottom + window.scrollY;
+      const maxScrollTop = Math.max(0, Math.ceil(footerBottom - window.innerHeight));
+
+      if (window.scrollY > maxScrollTop + 2) {
+        window.scrollTo({ top: maxScrollTop, left: 0, behavior: 'auto' });
+      }
+    };
+
+    const scheduleClamp = () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(clampAfterFooter);
+    };
+
+    scheduleClamp();
+    [150, 500, 1200].forEach((delay) => {
+      timers.push(window.setTimeout(scheduleClamp, delay));
+    });
+
+    window.addEventListener('scroll', scheduleClamp, { passive: true });
+    window.addEventListener('resize', scheduleClamp);
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      timers.forEach((timerId) => window.clearTimeout(timerId));
+      window.removeEventListener('scroll', scheduleClamp);
+      window.removeEventListener('resize', scheduleClamp);
+    };
+  }, [location.pathname, prioritizeFooter, showFooter]);
+
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className={shellClassName}>
       <Header />
 
       <main className={mainClassName} style={mainStyle}>
@@ -73,9 +129,11 @@ const PublicLayout = () => {
       </main>
 
       {showFooter && (
-        <Suspense fallback={null}>
-          <Footer />
-        </Suspense>
+        <div ref={footerSlotRef} data-itm-site-footer="">
+          <Suspense fallback={null}>
+            <Footer />
+          </Suspense>
+        </div>
       )}
 
       {quotePopupReady && (
