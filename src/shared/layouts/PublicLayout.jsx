@@ -6,14 +6,14 @@ import { useDeferredMount } from '@/shared/hooks/useDeferredMount';
 const Footer = lazy(() => import('@/shared/components/Footer'));
 const QuotePopup = lazy(() => import('@/shared/components/QuotePopup'));
 
-const FOOTER_SUPPRESSED_ROUTES = [
+const FOOTER_PRIORITY_ROUTES = [
   /^\/directory\/vendor\/[^/?#]+\/?$/i,
   /^\/product\/[^/?#]+\/?$/i,
   /^\/directory\/search\/.+/i,
 ];
 
-const shouldSuppressFooter = (pathname = '') =>
-  FOOTER_SUPPRESSED_ROUTES.some((routePattern) => routePattern.test(pathname));
+const shouldPrioritizeFooter = (pathname = '') =>
+  FOOTER_PRIORITY_ROUTES.some((routePattern) => routePattern.test(pathname));
 
 const OutletFallback = () => (
   <div className="bg-slate-50 px-4 py-8" style={{ minHeight: 'calc(100vh - 8rem)' }}>
@@ -38,10 +38,11 @@ const PublicLayout = () => {
   const location = useLocation();
   const footerReady = useDeferredMount({ delay: 6500, idleTimeout: 9000 });
   const quotePopupReady = useDeferredMount({ delay: 9000, idleTimeout: 12000 });
-  const suppressFooter = shouldSuppressFooter(location.pathname);
+  const prioritizeFooter = shouldPrioritizeFooter(location.pathname);
+  const showFooter = footerReady || prioritizeFooter;
 
   useLayoutEffect(() => {
-    if (!suppressFooter || typeof window === 'undefined') return undefined;
+    if (!prioritizeFooter || typeof window === 'undefined') return undefined;
 
     const previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
@@ -57,7 +58,7 @@ const PublicLayout = () => {
       timerIds.forEach((timerId) => window.clearTimeout(timerId));
       window.history.scrollRestoration = previousScrollRestoration;
     };
-  }, [location.pathname, suppressFooter]);
+  }, [location.pathname, prioritizeFooter]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -69,7 +70,7 @@ const PublicLayout = () => {
         </Suspense>
       </main>
 
-      {footerReady && !suppressFooter && (
+      {showFooter && (
         <Suspense fallback={null}>
           <Footer />
         </Suspense>
