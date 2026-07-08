@@ -10,6 +10,7 @@ import SearchResultsList from '@/modules/directory/components/SearchResultsList'
 import { Loader2, Folder, ArrowRight, MapPin, Home, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getProductDetailPath } from '@/shared/utils/productRoutes';
+import { toAbsoluteSiteUrl } from '@/lib/siteUrl';
 
 const DynamicCategory = () => {
   const { fullSlug, slug: urlSlug } = useParams();
@@ -118,6 +119,58 @@ const DynamicCategory = () => {
     category.meta_keywords ||
     category.meta_tags ||
     `${category.name}, suppliers, manufacturers, IndianTradeMart`;
+  const canonicalUrl = toAbsoluteSiteUrl(window.location.pathname);
+  const categorySchema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${canonicalUrl}#breadcrumb`,
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: 'https://indiantrademart.com/',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Directory',
+            item: 'https://indiantrademart.com/directory',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: category.name,
+            item: canonicalUrl,
+          },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${canonicalUrl}#faq`,
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: `Where can I find ${category.name} suppliers?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `Browse ${category.name} suppliers, manufacturers and service providers on Indian Trade Mart by category and location.`,
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'How do buyers send enquiries?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Buyers can open listed products or supplier profiles and submit their requirement through the enquiry form.',
+            },
+          },
+        ],
+      },
+    ],
+  };
 
   const children = [];
   const hasChildren = children && children.length > 0;
@@ -128,6 +181,8 @@ const DynamicCategory = () => {
         <title>{pageTitle} | IndianTradeMart</title>
         <meta name="description" content={pageDescription} />
         <meta name="keywords" content={pageKeywords} />
+        <link rel="canonical" href={canonicalUrl} />
+        <script type="application/ld+json">{JSON.stringify(categorySchema)}</script>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50">

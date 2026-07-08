@@ -919,6 +919,79 @@ const ProductDetail = () => {
       .filter(Boolean)
       .join(', ');
 
+    const productSchema = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Product',
+          '@id': `${canonicalProductUrl || shareUtils.getCurrentUrl()}#product`,
+          name: data.name,
+          description: seoDescription,
+          image: images.slice(0, 5),
+          brand: {
+            '@type': 'Brand',
+            name: vendor?.company_name || 'Indian Trade Mart',
+          },
+          offers: {
+            '@type': 'Offer',
+            url: canonicalProductUrl || shareUtils.getCurrentUrl(),
+            priceCurrency: 'INR',
+            availability: 'https://schema.org/InStock',
+            seller: {
+              '@type': 'Organization',
+              name: vendor?.company_name || 'Indian Trade Mart',
+            },
+          },
+        },
+        {
+          '@type': 'BreadcrumbList',
+          '@id': `${canonicalProductUrl || shareUtils.getCurrentUrl()}#breadcrumb`,
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: 'Home',
+              item: 'https://indiantrademart.com/',
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: 'Directory',
+              item: 'https://indiantrademart.com/directory',
+            },
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: data.name,
+              item: canonicalProductUrl || shareUtils.getCurrentUrl(),
+            },
+          ],
+        },
+        {
+          '@type': 'FAQPage',
+          '@id': `${canonicalProductUrl || shareUtils.getCurrentUrl()}#faq`,
+          mainEntity: [
+            {
+              '@type': 'Question',
+              name: `How can I enquire about ${data.name}?`,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Use the enquiry form on this product page to share your requirement with the supplier.',
+              },
+            },
+            {
+              '@type': 'Question',
+              name: 'Can I compare suppliers on Indian Trade Mart?',
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: 'Yes, buyers can review vendor profiles, product details and contact options before sending an enquiry.',
+              },
+            },
+          ],
+        },
+      ],
+    };
+
     seoMetaTags = (
       <Helmet>
         <title>{seoTitle}</title>
@@ -929,6 +1002,7 @@ const ProductDetail = () => {
         <meta property="og:description" content={seoDescription} />
         {images[0] && <meta property="og:image" content={images[0]} />}
         <meta property="og:url" content={canonicalProductUrl || shareUtils.getCurrentUrl()} />
+        <script type="application/ld+json">{JSON.stringify(productSchema)}</script>
       </Helmet>
     );
   } catch (error) {

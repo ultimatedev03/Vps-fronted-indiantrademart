@@ -1210,6 +1210,57 @@ const SearchResults = () => {
   );
 
   const canonicalUrl = toAbsoluteSiteUrl(canonicalPath);
+  const searchSchema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${canonicalUrl}#breadcrumb`,
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: 'https://indiantrademart.com/',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Directory',
+            item: 'https://indiantrademart.com/directory',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: pageTitle,
+            item: canonicalUrl,
+          },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${canonicalUrl}#faq`,
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: `How do I find ${serviceName || 'suppliers'} on Indian Trade Mart?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Use the search filters, city pages and vendor profiles to shortlist relevant suppliers and send enquiries.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Can I contact suppliers directly?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes, buyers can submit requirements and contact listed suppliers through Indian Trade Mart enquiry flows.',
+            },
+          },
+        ],
+      },
+    ],
+  };
 
   return (
     <>
@@ -1223,6 +1274,7 @@ const SearchResults = () => {
         <meta property="og:url" content={canonicalUrl} />
         <meta name="twitter:title" content={`${pageTitle} | IndianTradeMart`} />
         <meta name="twitter:description" content={pageDescription} />
+        <script type="application/ld+json">{JSON.stringify(searchSchema)}</script>
       </Helmet>
 
       <div className="min-h-screen bg-neutral-50 pb-16">
