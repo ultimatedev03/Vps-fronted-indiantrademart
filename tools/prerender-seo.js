@@ -192,6 +192,24 @@ const PUBLIC_FALLBACK_STYLE_BLOCK = `
     line-height: 1.05;
   }
 
+  .itm-public-fallback-hero h2,
+  .itm-public-fallback-hero h3 {
+    width: 58vw;
+    margin: 16px 0 0;
+    letter-spacing: 0;
+    color: #1e293b;
+  }
+
+  .itm-public-fallback-hero h2 {
+    font-size: 24px;
+  }
+
+  .itm-public-fallback-hero h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #475569;
+  }
+
   .itm-public-fallback-hero p {
     width: 54vw;
     margin: 20px 0 0;
@@ -248,6 +266,11 @@ const PUBLIC_FALLBACK_STYLE_BLOCK = `
     font-size: 20px;
   }
 
+  .itm-public-fallback-card h3 {
+    margin: 14px 0 6px;
+    font-size: 16px;
+  }
+
   .itm-public-fallback-card p,
   .itm-public-fallback-card li {
     color: #475569;
@@ -285,7 +308,10 @@ const PUBLIC_FALLBACK_ROOT_HTML = `
 <div class="itm-public-fallback">
   <header class="itm-public-fallback-nav">
     <a class="itm-public-fallback-brand" href="/">
-      <img src="/itm-logo.png" alt="Indian Trade Mart" width="44" height="44" />
+      <picture>
+        <source srcset="/itm-logo.webp" type="image/webp" />
+        <img src="/itm-logo.png" alt="Indian Trade Mart" width="44" height="44" />
+      </picture>
       <span>Indian Trade Mart</span>
     </a>
     <nav class="itm-public-fallback-nav-links" aria-label="Primary">
@@ -300,9 +326,12 @@ const PUBLIC_FALLBACK_ROOT_HTML = `
   <main class="itm-public-fallback-main">
     <section class="itm-public-fallback-hero">
       <h1>Connect with verified manufacturers, suppliers and B2B service providers across India.</h1>
+      <h2>India B2B marketplace for supplier discovery and product sourcing</h2>
+      <h3>Browse categories, cities, vendors, products and business services</h3>
       <p>
         Indian Trade Mart is a B2B marketplace for supplier discovery, product sourcing, and business growth across
-        categories, cities, and industries.
+        categories, cities, and industries. Buyers can compare vendors, discover product pages, send enquiries and
+        explore business services from trusted Indian companies.
       </p>
       <div class="itm-public-fallback-actions">
         <a class="itm-public-fallback-button" href="/directory">Browse directory</a>
@@ -317,6 +346,7 @@ const PUBLIC_FALLBACK_ROOT_HTML = `
           <a href="/directory/cities">Top cities</a>
           <a href="/directory/vendor">Featured suppliers</a>
           <a href="/products">Products</a>
+          <a href="/pricing">Pricing</a>
         </div>
       </article>
       <article class="itm-public-fallback-card">
@@ -332,8 +362,32 @@ const PUBLIC_FALLBACK_ROOT_HTML = `
         <div class="itm-public-fallback-links">
           <a href="/privacy">Privacy Policy</a>
           <a href="/terms">Terms of Use</a>
+          <a href="/about-us">About Us</a>
+          <a href="/contact">Contact</a>
           <a href="https://blog.indiantrademart.com">Blog &amp; Insights</a>
         </div>
+      </article>
+      <article class="itm-public-fallback-card">
+        <h2>Why buyers use Indian Trade Mart</h2>
+        <p>
+          The platform helps buyers shortlist suppliers by category, location, products and vendor profile signals.
+          This creates stronger internal discovery paths for manufacturers, exporters, service providers and local
+          business listings.
+        </p>
+      </article>
+      <article class="itm-public-fallback-card">
+        <h2>Supplier visibility</h2>
+        <p>
+          Vendors can publish business profiles, product details and service information so buyers can evaluate
+          capabilities before sending a requirement.
+        </p>
+      </article>
+      <article class="itm-public-fallback-card">
+        <h2>Frequently asked questions</h2>
+        <h3>What is Indian Trade Mart?</h3>
+        <p>Indian Trade Mart is a B2B marketplace and business directory for Indian suppliers and buyers.</p>
+        <h3>How do I find suppliers?</h3>
+        <p>Use the directory, product search, city pages and vendor profiles to find relevant business partners.</p>
       </article>
     </section>
   </main>
@@ -397,12 +451,11 @@ const buildKeywords = (...items) => {
 };
 
 const HOME_SEO = {
-  title:
-    "Indian Trade Mart- India's leading online B2B marketplace and platform for Indian Manufacturers, Suppliers, Exporters, Service provider, Directory.",
+  title: 'Indian Trade Mart | B2B Marketplace in India',
   description:
-    "indiantrademart.com is  single window & India's leading online B2B marketplace and platform for Indian Manufacturers, Suppliers, Exporters & Service provider, serving as the pivotal link between buyers and suppliers, free online business directory & yellow page with listing Indian & International companies. We provide a platform to empowering generations of entrepreneurs, Small & Medium Enterprises, Large Enterprises as well as individual users. Find here quality products, trade leads, manufacturers, suppliers, exporters & international buyers.",
+    'Find verified manufacturers, suppliers, exporters and B2B service providers across India on Indian Trade Mart.',
   keywords:
-    'online B2B marketplace, online B2B platform, Business directory, business directory in India, business e-commerce, business listings, B2C online marketplaces in India, Digital commerce platform, business website, business marketplace, companies business listings, companies database india, companies directory, companies directory india, directory of companies, directory of indian companies, service provider, e-commerce in india, trade & commerce, exporter importer directory, exporters business directory, exporters in india, free business listings, free business listings in india, free business marketplace, free indian companies business listings, free manufacturers directory india, importers, india business directory, india export import, india importers, Indian Trade Mart, indian business, Indian companies directory, indian exporters, indian exporters directory, indian manufacturers directory, indian market, indian service providers, manufacturers directory, manufacturers in india, online business directory, suppliers directory, yellow pages, Properties, Builder & Real Estate, Survey & Soil Investigation, Engineering Services, Construction Materials & Machines, Construction Materials & Machines, Electrical Equipment, Electronics & Electrical, R & D and Testing Labs, Business & Audit Services, Product Rental & Leasing, Product Rental & Leasing, Hand & Machine Tools, Mechanical Parts & Spares, Industrial Supplies, Industrial Plants & Machinery, Food & Beverages, Apparel & Garments, Packaging Machines & Goods, Chemicals, Dyes & Solvents, Lab Instruments & Supplies, Furniture & Supplies, Automobile, Parts & Spares, Housewares & Supplies, Metals, Alloys & Minerals, Handicrafts & Decorative, Kitchen Utensils & Appliances, Textiles, Yarn & Fabrics, Books & Stationery, Cosmetics & Personal Care, Home Textile & Furnishing, Drugs & Pharmaceuticals, Gems, Jewelry & Astrology, Computer & IT Solutions, Fashion Accessories & Gear, Herbal & Ayurvedic Product, Security Systems & Services, Sports Goods, Toys & Games, Paper & Paper Products, Bags, Belts & Wallets, Media, PR & Publishing, Marble, Granite & Stones, Event Planner & Organizer, IT & Telecom Services, Transportation & Logistics, Financial & Legal Services, Education & Training, Travel, Tourism & Hotels, Call Center & BPO Services, Bicycle, Rickshaw & Spares, Hospital & Diagnostics, HR Planning & Recruitment, Rail, Shipping & Aviation, House Keeping Services, Leather Products, Misc Contractors & Freelancers, Electronics Components, Hospital, Clinic & Consultation, Construction & Infrastructural Consultant, Album, Movies, Commercial Ads',
+    'Indian Trade Mart, B2B marketplace India, manufacturers, suppliers, exporters, business directory',
 };
 
 const DIRECTORY_SEO = {

@@ -533,6 +533,33 @@ function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
+    const pixelId = String(import.meta.env.VITE_META_PIXEL_ID || '').trim();
+    if (!pixelId || window.fbq) return undefined;
+
+    window.fbq = function fbq() {
+      window.fbq.callMethod
+        ? window.fbq.callMethod.apply(window.fbq, arguments)
+        : window.fbq.queue.push(arguments);
+    };
+    if (!window._fbq) window._fbq = window.fbq;
+    window.fbq.push = window.fbq;
+    window.fbq.loaded = true;
+    window.fbq.version = '2.0';
+    window.fbq.queue = [];
+
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+    document.head.appendChild(script);
+
+    window.fbq('init', pixelId);
+    window.fbq('track', 'PageView');
+
+    return undefined;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
     let idleId = null;
     const run = () => {
       locationService.seedLocations().catch((err) => {
@@ -554,14 +581,14 @@ function App() {
   return (
     <>
       <Helmet>
-        <title>IndianTradeMart - B2B Marketplace</title>
+        <title>Indian Trade Mart | B2B Marketplace in India</title>
         <meta
           name="description"
-          content="Find verified manufacturers, suppliers, exporters and B2B service providers across India on IndianTradeMart."
+          content="Find verified manufacturers, suppliers, exporters and B2B service providers across India on Indian Trade Mart."
         />
         <meta
           name="keywords"
-          content="IndianTradeMart, B2B marketplace, manufacturers, suppliers, exporters, business directory India"
+          content="Indian Trade Mart, B2B marketplace India, manufacturers, suppliers, exporters, business directory"
         />
       </Helmet>
 
