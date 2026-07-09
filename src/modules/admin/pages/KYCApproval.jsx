@@ -19,6 +19,32 @@ const MIN_VALID_JOIN_DATE_MS = Date.UTC(2000, 0, 1);
 
 const looksLikePdf = (v = '') => String(v || '').toLowerCase().includes('.pdf');
 
+const normalizeUploadDocumentUrl = (value = '') => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (!/indiantrademart\.com$/i.test(parsed.hostname) && !/api\.indiantrademart\.com$/i.test(parsed.hostname)) {
+        return raw;
+      }
+      return normalizeUploadDocumentUrl(`${parsed.pathname}${parsed.search || ''}`);
+    } catch {
+      return raw;
+    }
+  }
+
+  let path = raw.replace(/\\/g, '/').replace(/^\/+/, '/').replace(/\/+/g, '/');
+  path = path.replace(/^\/?(uploads\/([^/]+)\/)(?:uploads\/\2\/)+/i, '/$1');
+
+  if (/^\/?uploads\//i.test(path)) {
+    return apiUrl(path.startsWith('/') ? path : `/${path}`);
+  }
+
+  return raw;
+};
+
 const prettyLabel = (t = '') => {
   const x = String(t || '').replaceAll('_', ' ').trim();
   return x ? x.toUpperCase() : 'DOCUMENT';
@@ -347,7 +373,7 @@ const KYCApproval = () => {
 
       const normalized = (json.documents || []).map((d) => ({
         ...d,
-        url: d.url || d.document_url || d.file_path || d.documentUrl || d.public_url || '',
+        url: normalizeUploadDocumentUrl(d.url || d.document_url || d.file_path || d.documentUrl || d.public_url || ''),
         document_type: d.document_type || d.type || 'document',
         status: d.status || d.verification_status || 'PENDING',
       }));

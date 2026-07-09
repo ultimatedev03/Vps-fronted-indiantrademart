@@ -43,6 +43,32 @@ const prettyLabel = (value = '') => {
 };
 const looksLikePdf = (value = '') => String(value || '').toLowerCase().includes('.pdf');
 
+const normalizeUploadDocumentUrl = (value = '') => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (!/indiantrademart\.com$/i.test(parsed.hostname) && !/api\.indiantrademart\.com$/i.test(parsed.hostname)) {
+        return raw;
+      }
+      return normalizeUploadDocumentUrl(`${parsed.pathname}${parsed.search || ''}`);
+    } catch {
+      return raw;
+    }
+  }
+
+  let path = raw.replace(/\\/g, '/').replace(/^\/+/, '/').replace(/\/+/g, '/');
+  path = path.replace(/^\/?(uploads\/([^/]+)\/)(?:uploads\/\2\/)+/i, '/$1');
+
+  if (/^\/?uploads\//i.test(path)) {
+    return apiUrl(path.startsWith('/') ? path : `/${path}`);
+  }
+
+  return raw;
+};
+
 const getStatusClasses = (status) => {
   const s = normalizeStatus(status);
   if (s === 'APPROVED' || s === 'VERIFIED') return 'border-green-200 bg-green-50 text-green-700';
@@ -62,7 +88,7 @@ const normalizeDocuments = (documents = []) =>
   (documents || []).map((doc) => ({
     ...doc,
     document_type: doc.document_type || doc.type || 'document',
-    document_url: doc.url || doc.document_url || doc.file_path || doc.original || '',
+    document_url: normalizeUploadDocumentUrl(doc.url || doc.document_url || doc.file_path || doc.original || ''),
     doc_status: doc.status || doc.verification_status || 'PENDING',
     created_at: doc.created_at || doc.uploaded_at || doc.updated_at || null,
   }));
