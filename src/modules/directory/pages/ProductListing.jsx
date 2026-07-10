@@ -19,16 +19,23 @@ const truncate = (s, n = 160) => {
   return `${t.slice(0, n - 1).trim()}…`;
 };
 
+const fitSeoPart = (value, limit) => {
+  const text = stripHtml(value);
+  if (text.length <= limit) return text;
+  return text.slice(0, limit).replace(/\s+\S*$/, '').trim() || text.slice(0, limit).trim();
+};
+
 const buildSeoTitle = (topic, location = '') => {
+  const maxLength = 60;
   const suffix = ' | IndianTradeMart';
-  const geo = location ? ` in ${location}` : '';
+  const locationBudget = maxLength - suffix.length - 14 - ' in '.length;
+  const fittedLocation = fitSeoPart(location, locationBudget);
+  const geo = fittedLocation ? ` in ${fittedLocation}` : '';
   const cleanTopic = stripHtml(topic)
     .replace(/\s*\|\s*IndianTradeMart.*$/i, '')
     .trim();
-  const available = Math.max(18, 60 - suffix.length - geo.length);
-  const fittedTopic = cleanTopic.length > available
-    ? cleanTopic.slice(0, available).replace(/\s+\S*$/, '').trim()
-    : cleanTopic;
+  const available = maxLength - suffix.length - geo.length;
+  const fittedTopic = fitSeoPart(cleanTopic, available);
   return `${fittedTopic || 'B2B Suppliers'}${geo}${suffix}`;
 };
 

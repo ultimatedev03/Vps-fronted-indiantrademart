@@ -60,19 +60,26 @@ const truncateMeta = (value = '', max = 160) => {
   return `${text.slice(0, max - 1).replace(/\s+\S*$/, '')}…`;
 };
 
+const fitSeoPart = (value = '', limit = 60) => {
+  const text = cleanMetaText(value);
+  if (text.length <= limit) return text;
+  return text.slice(0, limit).replace(/\s+\S*$/, '').trim() || text.slice(0, limit).trim();
+};
+
 const buildLocationSeoTitle = (topic = '', location = '') => {
+  const maxLength = 60;
   const suffix = ' | IndianTradeMart';
-  const geo = location ? ` in ${location}` : '';
+  const locationBudget = maxLength - suffix.length - 14 - ' in '.length;
+  const fittedLocation = fitSeoPart(location, locationBudget);
+  const geo = fittedLocation ? ` in ${fittedLocation}` : '';
   let cleanTopic = cleanMetaText(topic)
     .replace(/\s*\|\s*IndianTradeMart.*$/i, '')
     .trim();
   if (!/\b(supplier|manufacturer|service provider)s?\b/i.test(cleanTopic)) {
     cleanTopic = `${cleanTopic} Suppliers`.trim();
   }
-  const available = Math.max(18, 60 - suffix.length - geo.length);
-  const fittedTopic = cleanTopic.length > available
-    ? cleanTopic.slice(0, available).replace(/\s+\S*$/, '').trim()
-    : cleanTopic;
+  const available = maxLength - suffix.length - geo.length;
+  const fittedTopic = fitSeoPart(cleanTopic, available);
   return `${fittedTopic || 'B2B Suppliers'}${geo}${suffix}`;
 };
 
