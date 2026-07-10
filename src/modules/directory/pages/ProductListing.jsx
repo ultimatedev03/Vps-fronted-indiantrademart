@@ -19,6 +19,19 @@ const truncate = (s, n = 160) => {
   return `${t.slice(0, n - 1).trim()}…`;
 };
 
+const buildSeoTitle = (topic, location = '') => {
+  const suffix = ' | IndianTradeMart';
+  const geo = location ? ` in ${location}` : '';
+  const cleanTopic = stripHtml(topic)
+    .replace(/\s*\|\s*IndianTradeMart.*$/i, '')
+    .trim();
+  const available = Math.max(18, 60 - suffix.length - geo.length);
+  const fittedTopic = cleanTopic.length > available
+    ? cleanTopic.slice(0, available).replace(/\s+\S*$/, '').trim()
+    : cleanTopic;
+  return `${fittedTopic || 'B2B Suppliers'}${geo}${suffix}`;
+};
+
 const toTitleCase = (slug) =>
   safeStr(slug)
     .replace(/-/g, ' ')
@@ -134,6 +147,10 @@ const ProductListing = () => {
     () => [citySlug, districtSlug, stateSlug].filter(Boolean).map(toTitleCase).join(', '),
     [citySlug, districtSlug, stateSlug]
   );
+  const seoLocationName = useMemo(
+    () => toTitleCase(citySlug || districtSlug || stateSlug),
+    [citySlug, districtSlug, stateSlug]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -141,7 +158,7 @@ const ProductListing = () => {
       if (!microSlug) return;
       setSeoLoading(true);
       try {
-        const m = await directoryApi.getMicroCategoryBySlug(microSlug);
+        const m = await directoryApi.getMicroCategoryBySlug(microSlug, { headSlug, subSlug });
         if (!alive) return;
         setMicroInfo(m || null);
       } catch {
@@ -156,33 +173,38 @@ const ProductListing = () => {
     return () => {
       alive = false;
     };
-  }, [microSlug]);
+  }, [headSlug, subSlug, microSlug]);
 
   const pageTitle = useMemo(() => {
     const metaTitle = safeStr(microInfo?.meta_tags);
-    if (metaTitle) return metaTitle;
-    return `${microName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''} | IndianTradeMart`;
-  }, [microInfo, microName, locationName]);
+    return buildSeoTitle(metaTitle || `${microName} Suppliers & Manufacturers`, seoLocationName);
+  }, [microInfo, microName, seoLocationName]);
 
   const pageDescription = useMemo(() => {
     const metaDesc = safeStr(microInfo?.meta_description);
+    if (metaDesc && locationName) {
+      return truncate(`Find ${microName} suppliers and manufacturers in ${locationName}. ${metaDesc}`);
+    }
     if (metaDesc) return truncate(metaDesc);
     return truncate(`Browse ${microName} products and verified suppliers${locationName ? ` in ${locationName}` : ''} on IndianTradeMart.`);
   }, [microInfo, microName, locationName]);
 
   const pageKeywords = useMemo(() => {
     const metaKw = safeStr(microInfo?.meta_keywords);
-    if (metaKw) return metaKw;
     return buildKeywords(
+      metaKw,
       microInfo?.meta_tags,
       microName,
       subName,
       headName,
+      locationName,
+      locationName ? `${microName} suppliers in ${locationName}` : '',
+      locationName ? `${microName} manufacturers in ${locationName}` : '',
       'suppliers',
       'manufacturers',
       'IndianTradeMart'
     );
-  }, [microInfo, microName, subName, headName]);
+  }, [microInfo, microName, subName, headName, locationName]);
 
   const canonicalUrl = useMemo(() => {
     try {

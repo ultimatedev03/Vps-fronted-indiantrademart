@@ -794,50 +794,17 @@ export const directoryApi = {
     return (res.data && res.data.length ? res.data[0] : null);
   },
 
-  getMicroCategoryBySlug: async (microSlug) => {
+  getMicroCategoryBySlug: async (microSlug, { headSlug = '', subSlug = '' } = {}) => {
     try {
-      const { data: micro, error } = await dbClient
-        .from('micro_categories')
-        .select(`
-          id, name, slug,
-          sub_categories (
-            id, name, slug,
-            head_categories (id, name, slug)
-          )
-        `)
-        .eq('slug', microSlug)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error || !micro) return null;
-
-      const runMetaQuery = async (col, fields) =>
-        dbClient
-          .from('micro_category_meta')
-          .select(fields)
-          .eq(col, micro.id)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-      let metaRes = await runMetaQuery('micro_categories', 'meta_tags, description, keywords');
-      if (metaRes.error && isMissingColumnError(metaRes.error)) {
-        metaRes = await runMetaQuery('micro_categories', 'meta_tags, description');
-      }
-      if (metaRes.error && isMissingColumnError(metaRes.error)) {
-        metaRes = await runMetaQuery('micro_category_id', 'meta_tags, description, keywords');
-      }
-      if (metaRes.error && isMissingColumnError(metaRes.error)) {
-        metaRes = await runMetaQuery('micro_category_id', 'meta_tags, description');
-      }
-
-      return {
-        ...micro,
-        meta_tags: metaRes?.data?.meta_tags,
-        meta_description: metaRes?.data?.description,
-        meta_keywords: metaRes?.data?.keywords
-      };
+      const params = new URLSearchParams();
+      if (headSlug) params.set('headSlug', headSlug);
+      if (subSlug) params.set('subSlug', subSlug);
+      const suffix = params.toString() ? `?${params.toString()}` : '';
+      const payload = await fetchDirectoryJson(
+        `/api/dir/category/micro/${encodeURIComponent(microSlug)}${suffix}`,
+        'Micro category request failed'
+      );
+      return payload?.category || null;
     } catch (err) {
       console.warn('Error fetching micro category by slug:', err);
       return null;

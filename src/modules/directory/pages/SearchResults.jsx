@@ -60,6 +60,22 @@ const truncateMeta = (value = '', max = 160) => {
   return `${text.slice(0, max - 1).replace(/\s+\S*$/, '')}…`;
 };
 
+const buildLocationSeoTitle = (topic = '', location = '') => {
+  const suffix = ' | IndianTradeMart';
+  const geo = location ? ` in ${location}` : '';
+  let cleanTopic = cleanMetaText(topic)
+    .replace(/\s*\|\s*IndianTradeMart.*$/i, '')
+    .trim();
+  if (!/\b(supplier|manufacturer|service provider)s?\b/i.test(cleanTopic)) {
+    cleanTopic = `${cleanTopic} Suppliers`.trim();
+  }
+  const available = Math.max(18, 60 - suffix.length - geo.length);
+  const fittedTopic = cleanTopic.length > available
+    ? cleanTopic.slice(0, available).replace(/\s+\S*$/, '').trim()
+    : cleanTopic;
+  return `${fittedTopic || 'B2B Suppliers'}${geo}${suffix}`;
+};
+
 const buildSeoKeywords = (...values) => {
   const seen = new Set();
   return values
@@ -1178,15 +1194,21 @@ const SearchResults = () => {
   const districtName = formatName(parsedParams.districtSlug);
   const stateName = formatName(parsedParams.stateSlug);
   const locationName = [cityName, districtName, stateName].filter(Boolean).join(', ');
+  const seoLocationName = cityName || districtName || stateName;
 
   const metaTitle = cleanMetaText(seoMeta?.title || seoMeta?.seo_title);
-  const pageTitle = serviceName
+  const pageHeading = serviceName
     ? `${metaTitle || seoMeta?.name || serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
     : 'Search Results';
+  const pageTitle = serviceName
+    ? buildLocationSeoTitle(metaTitle || seoMeta?.name || serviceName, seoLocationName)
+    : 'Search Results | IndianTradeMart';
 
   const metaDescription = cleanMetaText(seoMeta?.meta_description || seoMeta?.description);
   const pageDescription = truncateMeta(
-    metaDescription ||
+    metaDescription && locationName
+      ? `Find ${serviceName} suppliers and manufacturers in ${locationName}. ${metaDescription}`
+      : metaDescription ||
       `Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers on IndianTradeMart.`
   );
 
@@ -1232,7 +1254,7 @@ const SearchResults = () => {
           {
             '@type': 'ListItem',
             position: 3,
-            name: pageTitle,
+            name: pageHeading,
             item: canonicalUrl,
           },
         ],
@@ -1265,14 +1287,14 @@ const SearchResults = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle} | IndianTradeMart</title>
+        <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
         <meta name="keywords" content={pageKeywords} />
         <link rel="canonical" href={canonicalUrl} />
-        <meta property="og:title" content={`${pageTitle} | IndianTradeMart`} />
+        <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
         <meta property="og:url" content={canonicalUrl} />
-        <meta name="twitter:title" content={`${pageTitle} | IndianTradeMart`} />
+        <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />
         <script type="application/ld+json">{JSON.stringify(searchSchema)}</script>
       </Helmet>
@@ -1300,7 +1322,7 @@ const SearchResults = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="text-base md:text-lg font-bold text-gray-900 leading-snug line-clamp-2"
               >
-                {pageTitle}
+                {pageHeading}
               </motion.h1>
 
               <div className="flex-shrink-0 text-xs md:text-sm text-gray-500 pt-1 md:pt-0">
