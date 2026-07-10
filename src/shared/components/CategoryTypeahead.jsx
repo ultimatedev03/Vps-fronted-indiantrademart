@@ -4,12 +4,14 @@ import { Loader2, Search } from 'lucide-react';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { cn } from '@/lib/utils';
 
+const DEFAULT_ALLOWED_TYPES = Object.freeze(['micro', 'sub']);
+
 const CategoryTypeahead = ({
   onSelect,
   defaultValue = '',
   placeholder = 'Search category...',
   disabled = false,
-  allowedTypes = ['micro', 'sub'],
+  allowedTypes = DEFAULT_ALLOWED_TYPES,
 }) => {
   const [query, setQuery] = useState(defaultValue);
   const [suggestions, setSuggestions] = useState([]);
@@ -18,13 +20,15 @@ const CategoryTypeahead = ({
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const wrapperRef = useRef(null);
   const selectedLabelRef = useRef(String(defaultValue || '').trim());
+  const requestIdRef = useRef(0);
 
+  const allowedTypesKey = Array.isArray(allowedTypes)
+    ? allowedTypes.map((value) => String(value || '').trim().toLowerCase()).filter(Boolean).sort().join('|')
+    : '';
   const normalizedAllowedTypes = useMemo(
     () =>
-      Array.isArray(allowedTypes)
-        ? allowedTypes.map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
-        : [],
-    [allowedTypes]
+      allowedTypesKey ? allowedTypesKey.split('|') : [],
+    [allowedTypesKey]
   );
 
   useEffect(() => {
@@ -46,33 +50,50 @@ const CategoryTypeahead = ({
 
   useEffect(() => {
     const timer = setTimeout(async () => {
+      const requestId = ++requestIdRef.current;
+      if (selectedLabelRef.current && query.trim() === selectedLabelRef.current) {
+        setSuggestions([]);
+        setShow(false);
+        setLoading(false);
+        return;
+      }
       if (query.length >= 2) {
         setLoading(true);
         try {
-          const results = await directoryApi.searchMicroCategories(query);
-          const filteredResults =
+          // The backend autocomplete endpoint uses direct category indexes and is
+          // more reliable than the legacy browser database query for this picker.
+          let results = await directoryApi.autocomplete(query).catch(() => []);
+          let filteredResults =
             normalizedAllowedTypes.length > 0
               ? results.filter((item) => normalizedAllowedTypes.includes(String(item?.type || '').toLowerCase()))
               : results;
-          setSuggestions(filteredResults);
-          
-          // Just show dropdown, don't auto-select
-          if (filteredResults.length > 0) {
-            setShow(true);
-          } else {
-            setShow(false);
+
+          // Preserve sub-category selection and retain a fallback for older API
+          // deployments where autocomplete has no category match.
+          if (!filteredResults.length) {
+            results = await directoryApi.searchMicroCategories(query);
+            filteredResults =
+              normalizedAllowedTypes.length > 0
+                ? results.filter((item) => normalizedAllowedTypes.includes(String(item?.type || '').toLowerCase()))
+                : results;
           }
-          
+
+          if (requestId !== requestIdRef.current) return;
+          setSuggestions(filteredResults);
+          setShow(filteredResults.length > 0);
           setHighlightIndex(-1);
         } catch (e) {
+          if (requestId !== requestIdRef.current) return;
           console.error(e);
           setSuggestions([]);
+          setShow(false);
         } finally {
-          setLoading(false);
+          if (requestId === requestIdRef.current) setLoading(false);
         }
       } else {
         setSuggestions([]);
         setShow(false);
+        setLoading(false);
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -98,8 +119,12 @@ const CategoryTypeahead = ({
   };
 
   const handleSelect = (item) => {
+    if (!item?.id || !item?.name) return;
+    requestIdRef.current += 1;
     setQuery(item.name);
     selectedLabelRef.current = String(item?.name || '').trim();
+    setSuggestions([]);
+    setHighlightIndex(-1);
     setShow(false);
     onSelect(item);
   };
@@ -107,7 +132,7 @@ const CategoryTypeahead = ({
   return (
     <div className="relative" ref={wrapperRef}>
       <div className="relative">
-        <Input 
+        <Input
           value={query} 
           onChange={(e) => {
             const nextValue = e.target.value;
@@ -129,15 +154,23 @@ const CategoryTypeahead = ({
       </div>
       
       {show && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto" role="listbox">
           {suggestions.map((item, idx) => (
-            <div 
-              key={item.id} 
+            <button
+              key={`${item.type || 'category'}:${item.id}`}
+              type="button"
               className={cn(
-                "px-4 py-2 cursor-pointer text-sm border-b last:border-0",
+                "block w-full px-4 py-2 cursor-pointer text-left text-sm border-b last:border-0",
                 idx === highlightIndex ? "bg-blue-50 text-[#003D82]" : "hover:bg-slate-50 text-slate-700"
               )}
-              onClick={() => handleSelect(item)}
+              // Selecting on mouse down keeps the input focused and prevents
+              // browser blur/click ordering from discarding the chosen category.
+              onMouseDown={(event) => {
+                event.preventDefault();
+                handleSelect(item);
+              }}
+              role="option"
+              aria-selected={idx === highlightIndex}
             >
               <div className="font-medium flex items-center gap-2">
                 {item.name}
@@ -148,9 +181,9 @@ const CategoryTypeahead = ({
                 )}
               </div>
               <div className="text-xs text-slate-500 flex items-center gap-1">
-                 {item.path.split(' > ').join(' › ')}
+                 {String(item.path || item.name).split(' > ').join(' › ')}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

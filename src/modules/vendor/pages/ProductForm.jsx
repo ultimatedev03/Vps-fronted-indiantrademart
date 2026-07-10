@@ -1,5 +1,5 @@
 // ✅ File: src/modules/vendor/pages/ProductForm.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { vendorApi as vendorDataApi } from '@/modules/vendor/services/vendorApi';
 import { vendorApi } from '@/modules/vendor/services/vendorApi';
@@ -113,6 +113,7 @@ const ProductForm = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [matchingCategory, setMatchingCategory] = useState(false);
+  const categorySelectionVersionRef = useRef(0);
 
   // Location Data
   const [states, setStates] = useState([]);
@@ -411,18 +412,37 @@ const ProductForm = () => {
       (formData.name || '').length < 3
     ) return;
 
+    const nameAtRequest = String(formData.name || '').trim();
+    const selectionVersionAtRequest = categorySelectionVersionRef.current;
     setMatchingCategory(true);
     try {
       const match = await vendorDataApi.products.matchCategory(formData.name);
+      if (categorySelectionVersionRef.current !== selectionVersionAtRequest) return;
+
       if (match) {
-        setFormData((p) => ({
-          ...p,
-          micro_category_id: match.micro_category_id,
-          sub_category_id: match.sub_category_id,
-          head_category_id: match.head_category_id,
-          category_path: match.path,
-          category_other: '',
-        }));
+        let applied = false;
+        setFormData((p) => {
+          // Never overwrite a category chosen manually while this lookup was in flight.
+          if (
+            categorySelectionVersionRef.current !== selectionVersionAtRequest ||
+            String(p.name || '').trim() !== nameAtRequest ||
+            p.category_path ||
+            p.category_other
+          ) {
+            return p;
+          }
+          applied = true;
+          return {
+            ...p,
+            micro_category_id: match.micro_category_id,
+            sub_category_id: match.sub_category_id,
+            head_category_id: match.head_category_id,
+            category_path: match.path,
+            category_other: '',
+          };
+        });
+
+        if (!applied) return;
 
         const confidence = match.matchScore || match.confidence || 0;
         if (confidence > 80) {
@@ -567,7 +587,7 @@ const ProductForm = () => {
       let url;
       if (isDataEntryMode) {
         url = await dataEntryApi.uploadProductMedia(file, uploadType);
-      } else {
+      } else if (categorySelectionVersionRef.current === selectionVersionAtRequest) {
         await dbClient.auth.getSession();
         url = await vendorApi.auth.uploadImage(file, 'product-media');
       }
@@ -1034,15 +1054,16 @@ const ProductForm = () => {
                           size="sm"
                           variant="ghost"
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            categorySelectionVersionRef.current += 1;
                             setFormData((p) => ({
                               ...p,
                               category_path: '',
                               micro_category_id: null,
                               sub_category_id: null,
                               head_category_id: null,
-                            }))
-                          }
+                            }));
+                          }}
                         >
                           Change
                         </Button>
@@ -1052,6 +1073,7 @@ const ProductForm = () => {
                         <CategoryTypeahead
                           onSelect={(item) => {
                             if (item) {
+                              categorySelectionVersionRef.current += 1;
                               const isSub = item.type === 'sub';
                               setFormData((p) => ({
                                 ...p,

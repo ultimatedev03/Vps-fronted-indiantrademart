@@ -2,7 +2,7 @@
 import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
-import { generateUniqueSlug, mergeProductSlugAliases } from '@/shared/utils/slugUtils';
+import { generateUniqueSlug } from '@/shared/utils/slugUtils';
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
 import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
 
@@ -1936,18 +1936,12 @@ export const vendorApi = {
   // --- PRODUCTS API ---
   products: {
     list: async (filters = {}) => {
-      const vendorId = await getVendorId();
-      let query = dbClient
-        .from('products')
-        .select('*')
-        .eq('vendor_id', vendorId);
-
-      if (filters.status) query = query.eq('status', filters.status);
-      if (filters.category) query = query.eq('micro_category_id', filters.category);
-
-      const { data, error } = await query.order('created_at', { ascending: false });
-      if (error) throw error;
-      return enrichProductsWithCategoryNames(data || []);
+      const query = new URLSearchParams();
+      if (filters.status) query.set('status', filters.status);
+      if (filters.category) query.set('category', filters.category);
+      const suffix = query.toString() ? `?${query.toString()}` : '';
+      const response = await fetchVendorJson(`/api/vendors/me/products${suffix}`);
+      return enrichProductsWithCategoryNames(response?.products || []);
     },
 
     listByStatus: async (status = 'ACTIVE') => {
@@ -1963,71 +1957,27 @@ export const vendorApi = {
     },
 
     get: async (id) => {
-      // Avoid broken relationships in cache: select plain columns only
-      const { data, error } = await dbClient
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error('Product not found');
-      const [enriched] = await enrichProductsWithCategoryNames([data]);
-      return enriched || data;
+      const response = await fetchVendorJson(`/api/vendors/me/products/${encodeURIComponent(id)}`);
+      const product = response?.product;
+      if (!product) throw new Error('Product not found');
+      const [enriched] = await enrichProductsWithCategoryNames([product]);
+      return enriched || product;
     },
 
     create: async (productData) => {
-      const vendorId = await getVendorId();
-      const slug = await generateUniqueSlug(productData.name);
-
-      const insertData = {
-        ...productData,
-        vendor_id: vendorId,
-        slug,
-        status: productData.status || 'DRAFT',
-        views: 0,
-        created_at: new Date().toISOString()
-      };
-
-      const { data, error } = await dbClient
-        .from('products')
-        .insert([insertData])
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      const response = await fetchVendorJson('/api/vendors/me/products', {
+        method: 'POST',
+        body: JSON.stringify(productData),
+      });
+      return response?.product || null;
     },
 
     update: async (id, updates) => {
-      const updateData = { ...updates };
-      if (updates.name) {
-        const { data: existingProduct, error: existingProductError } = await dbClient
-          .from('products')
-          .select('slug, metadata')
-          .eq('id', id)
-          .maybeSingle();
-
-        if (existingProductError) throw existingProductError;
-
-        const nextSlug = await generateUniqueSlug(updates.name, { excludeId: id });
-        const currentSlug = String(existingProduct?.slug || '').trim();
-
-        updateData.slug = nextSlug;
-        updateData.metadata = mergeProductSlugAliases(
-          updateData.metadata ?? existingProduct?.metadata,
-          currentSlug,
-          nextSlug
-        );
-      }
-      updateData.updated_at = new Date().toISOString();
-
-      const { data, error } = await dbClient
-        .from('products')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      const response = await fetchVendorJson(`/api/vendors/me/products/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return response?.product || null;
     },
 
     updateStatus: async (id, status) => {
