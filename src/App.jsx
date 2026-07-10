@@ -69,6 +69,28 @@ class RouteErrorBoundary extends React.Component {
   }
 }
 
+// Optional integrations must never be able to take down the main application shell.
+class NonCriticalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    if (import.meta.env.DEV) {
+      console.error('[NonCriticalErrorBoundary]', error);
+    }
+  }
+
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
+
 // Route Modules (lazy)
 const VendorRoutes = lazy(() => import('@/modules/vendor/routes').then((m) => ({ default: m.VendorRoutes })));
 const BuyerRoutes = lazy(() => import('@/modules/buyer/routes').then((m) => ({ default: m.BuyerRoutes })));
@@ -624,10 +646,14 @@ function App() {
               </AuthProvider>
             </MaintenanceGate>
           </SubdomainProvider>
+          {nonCriticalReady && (
+            <NonCriticalErrorBoundary>
+              <AnalyticsLoader />
+            </NonCriticalErrorBoundary>
+          )}
         </Router>
       </PageStatusProvider>
 
-      {nonCriticalReady && <AnalyticsLoader />}
       {nonCriticalReady && (
         <Suspense fallback={null}>
           <Toaster />
