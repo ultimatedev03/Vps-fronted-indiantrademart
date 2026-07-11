@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const GTAG_ID = String(import.meta.env.VITE_GTAG_ID || 'G-POC7N2ZTP5').trim();
+const GTAG_ID = String(import.meta.env.VITE_GTAG_ID || 'G-P0C7N2ZTP5').trim();
 
 const AnalyticsLoader = () => {
   const location = useLocation();
