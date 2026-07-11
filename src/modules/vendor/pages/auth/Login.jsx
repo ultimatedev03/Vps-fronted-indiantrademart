@@ -13,6 +13,7 @@ import Logo from '@/shared/components/Logo';
 import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
 import { useSubdomain } from '@/contexts/SubdomainContext';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 
 const readVendorAccountIsActive = (vendor) => {
   if (!vendor || typeof vendor !== 'object') return null;
@@ -134,6 +135,11 @@ const VendorLogin = () => {
       // 4. Success
       // Redirect is handled by auth state effect above. Avoid pushing twice, which causes
       // the login page to flash when guards/auth bootstrap settle a moment later.
+      trackGoogleAnalyticsEvent('login', {
+        method: 'password',
+        itm_user_role: 'vendor',
+        itm_vendor_id: vendor.id,
+      });
       toast({ title: "Welcome back!", description: "Logged in successfully." });
 
     } catch (error) {

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/modules/vendor/context/AuthContext';
 import { apiUrl } from '@/lib/apiBase';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 import {
   DEFAULT_PLAN_CURRENCY,
   formatPlanMoney,
@@ -929,6 +930,23 @@ const Services = () => {
             throw new Error(message);
           }
           await verifyResponse.json();
+
+          trackGoogleAnalyticsEvent('purchase', {
+            transaction_id: orderData.id,
+            currency: orderData.currency || 'INR',
+            value: Number(orderData.amount) > 0 ? Number(orderData.amount) / 100 : undefined,
+            itm_user_role: 'vendor',
+            itm_vendor_id: vendorId,
+            items: [
+              {
+                item_id: plan.id,
+                item_name: plan.name,
+                item_category: 'Subscription',
+                price: Number(orderData.amount) > 0 ? Number(orderData.amount) / 100 : undefined,
+                quantity: 1,
+              },
+            ],
+          });
 
           toast({ title: 'Success!', description: 'Subscription activated! Invoice sent to your email.' });
           if (String(orderData?.billing_cycle || selectedBillingCycle).toLowerCase() === 'monthly') {

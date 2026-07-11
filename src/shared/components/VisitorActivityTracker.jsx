@@ -115,12 +115,13 @@ const inferRouteEvent = (path = '') => {
   return null;
 };
 
-const buildBasePayload = (location, appType = '') => ({
+const buildBasePayload = (location, appType = '', userRole = '') => ({
   page_path: location.pathname || '/',
   page_url: typeof window !== 'undefined' ? window.location.href : '',
   page_title: typeof document !== 'undefined' ? document.title || '' : '',
   metadata: {
     app_type: appType || 'public',
+    user_role: String(userRole || 'public').trim().toLowerCase(),
     hash: location.hash || '',
     viewport:
       typeof window !== 'undefined'
@@ -152,7 +153,7 @@ const VisitorActivityTracker = () => {
     if (!isPublicTrackingRoute(appType, location.pathname)) return undefined;
 
     const timer = window.setTimeout(() => {
-      const basePayload = buildBasePayload(location, appType);
+      const basePayload = buildBasePayload(location, appType, user?.role);
       trackVisitorEvent('PAGE_VIEW', basePayload, { dedupeMs: 90 * 1000 });
 
       const searchQuery = getSearchQueryFromRoute(location.pathname, location.search);
@@ -183,7 +184,7 @@ const VisitorActivityTracker = () => {
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [appType, location.hash, location.pathname, location.search]);
+  }, [appType, location.hash, location.pathname, location.search, user?.role]);
 
   return null;
 };

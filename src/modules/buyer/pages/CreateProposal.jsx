@@ -9,6 +9,7 @@ import { buyerApi } from '@/modules/buyer/services/buyerApi';
 import { toast } from '@/components/ui/use-toast';
 import CategoryTypeahead from '@/shared/components/CategoryTypeahead';
 import { StateDropdown, CityDropdown } from '@/shared/components/LocationSelectors';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 import {
   ArrowLeft,
   Building2,
@@ -294,6 +295,15 @@ const CreateProposal = () => {
         city_id: normalizeText(formData.city_id),
         pincode,
         description,
+      });
+
+      trackGoogleAnalyticsEvent('generate_lead', {
+        currency: 'INR',
+        value: Number(budgetValue) > 0 ? Number(budgetValue) : undefined,
+        itm_user_role: 'buyer',
+        itm_lead_type: effectiveVendor?.id || vendorId ? 'direct_vendor' : 'marketplace',
+        itm_vendor_id: effectiveVendor?.id || vendorId || undefined,
+        itm_location: location,
       });
 
       toast({

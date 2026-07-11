@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { dbClient } from '@/lib/dbClient';
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 
 const AuthContext = createContext({});
 
@@ -229,6 +230,11 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
 
+      trackGoogleAnalyticsEvent('login', {
+        method: 'password',
+        itm_user_role: canonicalizeRole(metadata?.role || authUser?.role || 'buyer').toLowerCase(),
+      });
+
       return { data, error: null };
     } catch (error) {
       setLoading(false);
@@ -257,6 +263,11 @@ export const AuthProvider = ({ children }) => {
       } else {
         setLoading(false);
       }
+
+      trackGoogleAnalyticsEvent('sign_up', {
+        method: 'email',
+        itm_user_role: canonicalizeRole(metadata?.role || 'buyer').toLowerCase(),
+      });
 
       return { data, error: null };
     } catch (error) {

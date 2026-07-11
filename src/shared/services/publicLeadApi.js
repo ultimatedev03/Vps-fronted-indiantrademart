@@ -1,6 +1,7 @@
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { getVisitorLeadContext, identifyVisitorContact } from '@/shared/utils/visitorTracking';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 
 const stripUndefined = (payload = {}) =>
   Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
@@ -59,6 +60,16 @@ const postLeadPayload = async (payload = {}) => {
   if (!response.ok || !json?.success) {
     throw new Error(json?.error || 'Failed to submit requirement');
   }
+
+  const budget = Number(payload.budget);
+  trackGoogleAnalyticsEvent('generate_lead', {
+    currency: 'INR',
+    value: Number.isFinite(budget) && budget > 0 ? budget : undefined,
+    itm_lead_type: vendorId ? 'direct_vendor' : 'marketplace',
+    itm_vendor_id: vendorId || undefined,
+    itm_product_id: payload.product_id || payload.productId || undefined,
+    itm_location: payload.location || payload.city || payload.state || undefined,
+  });
 
   return json?.lead || json?.proposal || json || null;
 };

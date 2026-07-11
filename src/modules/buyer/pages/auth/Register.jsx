@@ -13,6 +13,7 @@ import { isAlreadyRegisteredError } from '@/modules/buyer/services/buyerSession'
 import { validateStrongPassword } from '@/lib/passwordPolicy';
 import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 
 // âœ… FIX: Default 5 minutes (pehle 1/2 tha)
 const OTP_TIMER_SECONDS = 5 * 60;
@@ -235,6 +236,11 @@ const Register = () => {
 
       const userId = authUserFromRegister?.id || userRes?.user?.id;
       if (!userId) throw new Error('Registration completed but user session could not be confirmed.');
+
+      trackGoogleAnalyticsEvent('sign_up', {
+        method: 'email_otp',
+        itm_user_role: 'buyer',
+      });
 
       try {
         await dbClient.from('notifications').insert([

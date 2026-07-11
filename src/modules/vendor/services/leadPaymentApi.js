@@ -1,6 +1,7 @@
 import { fetchWithCsrf } from '@/lib/fetchWithCsrf';
 import { apiUrl } from '@/lib/apiBase';
 import { leadApi } from '@/modules/lead/services/leadApi';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 
 let razorpayScriptPromise = null;
 
@@ -151,6 +152,11 @@ export const leadPaymentApi = {
           purchase: consumePayload?.purchase || null,
           payment_skipped: true,
         };
+        trackGoogleAnalyticsEvent('unlock_lead', {
+          itm_user_role: 'vendor',
+          itm_lead_type: String(payload?.purchase?.consumption_type || mode || 'included').toLowerCase(),
+          items: [{ item_id: leadId, item_name: 'Lead access' }],
+        });
         emitLeadPurchasedEvent({ lead_id: leadId, purchase: payload?.purchase || null });
         return payload;
       } catch (error) {
@@ -187,6 +193,14 @@ export const leadPaymentApi = {
 
     await ensureRazorpayLoaded();
     const payload = await openCheckoutAndVerify({ order, keyId, leadId });
+    trackGoogleAnalyticsEvent('purchase', {
+      transaction_id: order.id,
+      currency: order.currency || 'INR',
+      value: Number(order.amount) > 0 ? Number(order.amount) / 100 : leadPrice,
+      itm_user_role: 'vendor',
+      itm_lead_type: 'paid_extra',
+      items: [{ item_id: leadId, item_name: 'Lead access', price: Number(order.amount) / 100, quantity: 1 }],
+    });
     emitLeadPurchasedEvent({ lead_id: leadId, purchase: payload?.purchase || null });
     return payload;
   },

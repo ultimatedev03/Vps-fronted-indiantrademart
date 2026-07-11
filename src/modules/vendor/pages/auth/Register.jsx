@@ -16,6 +16,7 @@ import TurnstileField from '@/shared/components/TurnstileField';
 import { useCaptchaGate } from '@/shared/hooks/useCaptchaGate';
 import { useSubdomain } from '@/contexts/SubdomainContext';
 import { getPortalUrl, switchToVendor } from '@/shared/services/roleSwitchApi';
+import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 
 // ✅ Logo component
 import Logo from '@/shared/components/Logo';
@@ -360,7 +361,7 @@ const VendorRegister = () => {
 
       if (!authData?.user) throw new Error('Failed to create auth user');
 
-      await vendorApi.registerVendor({
+      const registeredVendor = await vendorApi.registerVendor({
         userId: authData.user.id,
         ...formData,
       });
@@ -405,6 +406,12 @@ const VendorRegister = () => {
       } catch (e) {
         console.warn('Welcome notification failed:', e);
       }
+
+      trackGoogleAnalyticsEvent('sign_up', {
+        method: isBuyerConversion ? 'buyer_conversion' : 'email_otp',
+        itm_user_role: 'vendor',
+        itm_vendor_id: registeredVendor?.id || registeredVendor?.vendor_id || undefined,
+      });
 
       toast({
         title: 'Registration Successful!',

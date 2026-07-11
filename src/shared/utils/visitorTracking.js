@@ -1,4 +1,5 @@
 import { apiUrl } from '@/lib/apiBase';
+import { trackVisitorAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 
 const VISITOR_COOKIE = 'itm_visitor_id';
 const SESSION_KEY = 'itm_visitor_session_id';
@@ -204,6 +205,10 @@ export const trackVisitorEvent = (eventType, payload = {}, options = {}) => {
     ? Math.max(0, Number(options.dedupeMs))
     : DEFAULT_DEDUPE_MS;
   if (!shouldSendEvent(normalizedType, eventPayload, dedupeMs)) return false;
+
+  if (normalizedType !== 'PAGE_VIEW') {
+    trackVisitorAnalyticsEvent(normalizedType, eventPayload);
+  }
 
   const body = JSON.stringify(eventPayload);
   const endpoint = apiUrl('/api/visitor/events');
