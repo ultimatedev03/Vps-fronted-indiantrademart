@@ -30,7 +30,7 @@ jobs:
           cd /opt/indiantrademart-frontend
           git fetch origin main
           git pull --ff-only origin main
-          test "$(git rev-parse --short HEAD)" = "25e22fc"
+          git merge-base --is-ancestor 25e22fc HEAD
           npm ci
 
           export VITE_GTAG_ID="G-P0C7N2ZTP5"
