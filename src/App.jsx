@@ -646,11 +646,9 @@ function App() {
               </AuthProvider>
             </MaintenanceGate>
           </SubdomainProvider>
-          {nonCriticalReady && (
-            <NonCriticalErrorBoundary>
-              <AnalyticsLoader />
-            </NonCriticalErrorBoundary>
-          )}
+          <NonCriticalErrorBoundary>
+            <AnalyticsLoader />
+          </NonCriticalErrorBoundary>
         </Router>
       </PageStatusProvider>
 
