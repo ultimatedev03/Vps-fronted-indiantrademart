@@ -760,7 +760,12 @@ export default function SuperAdminDashboard() {
   // Settings
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [passwordSaving, setPasswordSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('system');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === 'undefined') return 'system';
+    return new URLSearchParams(window.location.search).get('tab') === 'category-demand'
+      ? 'category-demand'
+      : 'system';
+  });
 
   const handleError = (error, fallback) => {
     toast({

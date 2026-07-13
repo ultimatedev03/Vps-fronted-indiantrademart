@@ -103,6 +103,7 @@ const ManagementPortal = lazy(() => import('@/shared/pages/ManagementPortal'));
 const Toaster = lazy(() => import('@/components/ui/toaster').then((m) => ({ default: m.Toaster })));
 const SuperAdminLogin = lazy(() => import('@/modules/admin/pages/superadmin/SuperAdminLogin'));
 const SuperAdminDashboard = lazy(() => import('@/modules/admin/pages/superadmin/SuperAdminDashboard'));
+const SuperAdminCategoryDemandPage = lazy(() => import('@/modules/admin/pages/superadmin/CategoryDemandDetailsPage'));
 const SuperAdminProtectedRoute = lazy(() => import('@/modules/admin/routes/SuperAdminProtectedRoute'));
 const MigrationTools = lazy(() => import('@/shared/pages/MigrationTools'));
 const Unauthorized = lazy(() => import('@/shared/pages/Unauthorized'));
@@ -529,6 +530,7 @@ const AppRoutes = () => {
       <Route element={<SuperAdminProtectedRoute />}>
         <Route path="/admin/register/superadmin/dashboard" element={<SuperAdminDashboard />} />
         <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
+        <Route path="/superadmin/category-demand/:level/:categoryId" element={<SuperAdminCategoryDemandPage />} />
       </Route>
 
       {/* MIGRATION TOOLS */}

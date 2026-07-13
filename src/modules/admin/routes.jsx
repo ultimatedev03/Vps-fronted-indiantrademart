@@ -19,6 +19,7 @@ const AdminFinance = lazy(() => import('@/modules/admin/pages/Finance'));
 const FinanceDashboard = lazy(() => import('@/modules/finance/pages/Dashboard'));
 const SuperAdminLogin = lazy(() => import('@/modules/admin/pages/superadmin/SuperAdminLogin'));
 const SuperAdminDashboard = lazy(() => import('@/modules/admin/pages/superadmin/SuperAdminDashboard'));
+const SuperAdminCategoryDemandPage = lazy(() => import('@/modules/admin/pages/superadmin/CategoryDemandDetailsPage'));
 const SuperAdminProtectedRoute = lazy(() => import('@/modules/admin/routes/SuperAdminProtectedRoute'));
 
 // Reuse Employee Support pages for Admin
@@ -193,6 +194,7 @@ export const AdminRoutes = () => {
           <Route path="superadmin/login" element={<SuperAdminLogin />} />
           <Route element={<SuperAdminProtectedRoute />}>
             <Route path="superadmin/dashboard" element={<SuperAdminDashboard />} />
+            <Route path="superadmin/category-demand/:level/:categoryId" element={<SuperAdminCategoryDemandPage />} />
           </Route>
         </>
       ) : null}

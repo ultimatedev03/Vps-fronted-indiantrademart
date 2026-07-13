@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { superAdminServerApi } from '@/modules/admin/services/superAdminServerApi';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -213,6 +214,8 @@ function ContactItem({ icon: Icon, value, href }) {
 }
 
 export default function CategoryDemandAnalytics() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [level, setLevel] = useState('head');
   const [days, setDays] = useState(90);
   const [sortBy, setSortBy] = useState('opportunity');
@@ -252,6 +255,24 @@ export default function CategoryDemandAnalytics() {
     setSelectedCategory(null);
     setDetails(null);
   }, [days, level, search, sortBy]);
+
+  const openCategoryDetails = useCallback((row) => {
+    if (!row?.category_id) return;
+    const basePath = location.pathname.startsWith('/admin/')
+      ? '/admin/superadmin'
+      : '/superadmin';
+    const query = new URLSearchParams({
+      days: String(days),
+      vendors: String(row.vendor_count || 0),
+      requirements: String(row.requirement_count || 0),
+      status: String(row.match_status || ''),
+      path: String(row.category_path || row.category_name || ''),
+    });
+
+    navigate(`${basePath}/category-demand/${level}/${encodeURIComponent(row.category_id)}?${query.toString()}`, {
+      state: { category: row },
+    });
+  }, [days, level, location.pathname, navigate]);
 
   const fetchCategoryDetails = useCallback(async (row) => {
     if (!row?.category_id) return;
@@ -493,7 +514,7 @@ export default function CategoryDemandAnalytics() {
                     variant="outline"
                     size="sm"
                     className="h-8 border-neutral-700 text-neutral-300 hover:bg-neutral-800"
-                    onClick={() => fetchCategoryDetails(row)}
+                    onClick={() => openCategoryDetails(row)}
                   >
                     <Eye className="mr-1.5 h-3.5 w-3.5" />
                     Verify
@@ -592,8 +613,8 @@ export default function CategoryDemandAnalytics() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-neutral-400 hover:bg-neutral-800 hover:text-cyan-300"
-                        onClick={() => fetchCategoryDetails(row)}
-                        title="Verify matching leads and vendors"
+                        onClick={() => openCategoryDetails(row)}
+                        title="Open category match review"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
