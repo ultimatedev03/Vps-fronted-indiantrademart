@@ -6,6 +6,7 @@ import { toast } from '@/components/ui/use-toast';
 import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
 import Search360Workspace from '@/shared/components/Search360Workspace';
+import CategoryDemandAnalytics from './CategoryDemandAnalytics';
 import {
   DEFAULT_PLAN_CURRENCY,
   PLAN_MARKET_REGION_OPTIONS,
@@ -2252,6 +2253,7 @@ export default function SuperAdminDashboard() {
         label: 'Intelligence',
         items: [
           { value: 'monitoring', label: 'Monitoring', icon: BarChart3 },
+          { value: 'category-demand', label: 'Category Match', icon: TrendingUp },
           { value: 'behavioral', label: 'Demand Intel', icon: Activity },
           { value: 'search360', label: 'Search 360', icon: Search },
         ],
@@ -4315,6 +4317,10 @@ export default function SuperAdminDashboard() {
               </DialogContent>
             </Dialog>
 
+          </TabsContent>
+
+          <TabsContent value="category-demand" className="space-y-4">
+            <CategoryDemandAnalytics />
           </TabsContent>
 
           <TabsContent value="behavioral" className="space-y-6">

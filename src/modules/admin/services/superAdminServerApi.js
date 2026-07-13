@@ -177,6 +177,13 @@ export const superAdminServerApi = {
       if (refresh) qs.set('refresh', 'true');
       return request(`/behavioral-intelligence?${qs.toString()}`);
     },
+    categoryDemand: ({ level = 'head', days = 90, limit = 2000 } = {}) => {
+      const qs = new URLSearchParams();
+      qs.set('level', String(level));
+      qs.set('days', String(days));
+      qs.set('limit', String(limit));
+      return request(`/analytics/category-demand?${qs.toString()}`);
+    },
   },
 
   search360: {
