@@ -184,6 +184,21 @@ export const superAdminServerApi = {
       qs.set('limit', String(limit));
       return request(`/analytics/category-demand?${qs.toString()}`);
     },
+    categoryDemandDetails: ({
+      categoryId,
+      level = 'head',
+      days = 90,
+      vendorLimit = 100,
+      demandLimit = 100,
+    } = {}) => {
+      const qs = new URLSearchParams();
+      qs.set('categoryId', String(categoryId || ''));
+      qs.set('level', String(level));
+      qs.set('days', String(days));
+      qs.set('vendorLimit', String(vendorLimit));
+      qs.set('demandLimit', String(demandLimit));
+      return request(`/analytics/category-demand/details?${qs.toString()}`);
+    },
   },
 
   search360: {

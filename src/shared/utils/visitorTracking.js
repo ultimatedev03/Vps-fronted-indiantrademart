@@ -8,6 +8,12 @@ const EVENT_DEDUPE_KEY = 'itm_visitor_event_dedupe';
 const CONTACT_KEY = 'itm_visitor_contact';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 const DEFAULT_DEDUPE_MS = 4 * 60 * 1000;
+const EVENT_BATCH_SIZE = 8;
+const EVENT_FLUSH_DELAY_MS = 1500;
+
+let eventBuffer = [];
+let eventFlushTimer = null;
+let flushListenersBound = false;
 
 const makeId = (prefix) => {
   const randomPart =
@@ -174,6 +180,77 @@ const shouldSendEvent = (eventType, payload, dedupeMs) => {
   return true;
 };
 
+const scheduleEventFlush = () => {
+  if (typeof window === 'undefined' || eventFlushTimer) return;
+  eventFlushTimer = window.setTimeout(() => {
+    eventFlushTimer = null;
+    void flushVisitorEvents();
+  }, EVENT_FLUSH_DELAY_MS);
+};
+
+const bindFlushListeners = () => {
+  if (typeof window === 'undefined' || flushListenersBound) return;
+  flushListenersBound = true;
+  window.addEventListener('pagehide', () => {
+    void flushVisitorEvents({ useBeacon: true });
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      void flushVisitorEvents({ useBeacon: true });
+    }
+  });
+};
+
+export const flushVisitorEvents = async ({ useBeacon = false } = {}) => {
+  if (typeof window === 'undefined' || !eventBuffer.length) return false;
+  if (eventFlushTimer) {
+    window.clearTimeout(eventFlushTimer);
+    eventFlushTimer = null;
+  }
+
+  const batch = eventBuffer.splice(0, EVENT_BATCH_SIZE);
+  const body = JSON.stringify({ events: batch });
+  const endpoint = apiUrl('/api/visitor/events/batch');
+
+  if (useBeacon && navigator.sendBeacon) {
+    try {
+      const blob = new Blob([body], { type: 'application/json' });
+      if (navigator.sendBeacon(endpoint, blob)) {
+        if (eventBuffer.length) scheduleEventFlush();
+        return true;
+      }
+    } catch {
+      // Fall through to fetch when beacon transport is unavailable.
+    }
+  }
+
+  try {
+    await fetch(endpoint, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body,
+      keepalive: true,
+    });
+    if (eventBuffer.length) scheduleEventFlush();
+    return true;
+  } catch {
+    if (eventBuffer.length) scheduleEventFlush();
+    return false;
+  }
+};
+
+const enqueueVisitorEvent = (event, immediate = false) => {
+  bindFlushListeners();
+  eventBuffer.push(event);
+  if (eventBuffer.length > 50) eventBuffer = eventBuffer.slice(-50);
+  if (immediate || eventBuffer.length >= EVENT_BATCH_SIZE) {
+    void flushVisitorEvents();
+  } else {
+    scheduleEventFlush();
+  }
+};
+
 export const getVisitorActivityContext = () => {
   if (typeof window === 'undefined') return {};
 
@@ -210,30 +287,8 @@ export const trackVisitorEvent = (eventType, payload = {}, options = {}) => {
     trackVisitorAnalyticsEvent(normalizedType, eventPayload);
   }
 
-  const body = JSON.stringify(eventPayload);
-  const endpoint = apiUrl('/api/visitor/events');
-
-  try {
-    if (navigator.sendBeacon) {
-      const blob = new Blob([body], { type: 'application/json' });
-      if (navigator.sendBeacon(endpoint, blob)) return true;
-    }
-  } catch {
-    // Fall through to fetch.
-  }
-
-  try {
-    fetch(endpoint, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body,
-      keepalive: true,
-    }).catch(() => {});
-    return true;
-  } catch {
-    return false;
-  }
+  enqueueVisitorEvent(eventPayload, options.immediate === true || normalizedType === 'REQUIREMENT_SUBMIT');
+  return true;
 };
 
 export const getVisitorLeadContext = () => {

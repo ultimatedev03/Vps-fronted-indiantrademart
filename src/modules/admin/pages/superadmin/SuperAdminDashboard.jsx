@@ -740,7 +740,13 @@ export default function SuperAdminDashboard() {
   const [monitoringActivity, setMonitoringActivity] = useState(null);
   const [monitoringRevenue, setMonitoringRevenue] = useState([]);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
-  const [visitorActivity, setVisitorActivity] = useState({ stats: {}, events: [] });
+  const [visitorActivity, setVisitorActivity] = useState({
+    stats: {},
+    events: [],
+    top_searches: [],
+    top_pages: [],
+    event_breakdown: [],
+  });
   const [visitorActivityLoading, setVisitorActivityLoading] = useState(false);
   const [monitoringActivityDays, setMonitoringActivityDays] = useState(7);
   const [behavioralIntel, setBehavioralIntel] = useState(null);
@@ -1046,6 +1052,9 @@ export default function SuperAdminDashboard() {
       setVisitorActivity({
         stats: visitorRes?.stats || {},
         events: visitorRes?.events || [],
+        top_searches: visitorRes?.top_searches || [],
+        top_pages: visitorRes?.top_pages || [],
+        event_breakdown: visitorRes?.event_breakdown || [],
       });
     } catch (err) {
       handleError(err, 'Failed to load monitoring data');
@@ -1062,6 +1071,9 @@ export default function SuperAdminDashboard() {
       setVisitorActivity({
         stats: visitorRes?.stats || {},
         events: visitorRes?.events || [],
+        top_searches: visitorRes?.top_searches || [],
+        top_pages: visitorRes?.top_pages || [],
+        event_breakdown: visitorRes?.event_breakdown || [],
       });
     } catch (err) {
       handleError(err, 'Failed to load visitor activity');
@@ -4003,6 +4015,9 @@ export default function SuperAdminDashboard() {
             <WebsiteVisitorActivityCard
               events={visitorActivity.events || []}
               stats={visitorActivity.stats || {}}
+              topSearches={visitorActivity.top_searches || []}
+              topPages={visitorActivity.top_pages || []}
+              eventBreakdown={visitorActivity.event_breakdown || []}
               loading={visitorActivityLoading}
               onRefresh={() => fetchVisitorActivity(monitoringActivityDays)}
               dark
@@ -4882,6 +4897,9 @@ export default function SuperAdminDashboard() {
               <WebsiteVisitorActivityCard
                 events={visitorActivity.events || []}
                 stats={visitorActivity.stats || {}}
+                topSearches={visitorActivity.top_searches || []}
+                topPages={visitorActivity.top_pages || []}
+                eventBreakdown={visitorActivity.event_breakdown || []}
                 loading={visitorActivityLoading}
                 onRefresh={() => fetchVisitorActivity(monitoringActivityDays)}
                 dark

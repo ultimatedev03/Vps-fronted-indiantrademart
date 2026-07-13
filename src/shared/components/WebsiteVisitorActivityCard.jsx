@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, RefreshCw } from 'lucide-react';
+import { Activity, FileText, RefreshCw, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +58,9 @@ const getContactLine = (event) =>
 const WebsiteVisitorActivityCard = ({
   events = [],
   stats = {},
+  topSearches = [],
+  topPages = [],
+  eventBreakdown = [],
   loading = false,
   onRefresh,
   dark = false,
@@ -114,6 +117,65 @@ const WebsiteVisitorActivityCard = ({
             </div>
           ))}
         </div>
+
+        {eventBreakdown.length ? (
+          <div className={`mb-5 flex flex-wrap gap-x-5 gap-y-2 border-y py-3 ${border}`}>
+            {eventBreakdown.map((item) => (
+              <div key={item.event_type} className="flex items-center gap-2 text-xs">
+                <span className={muted}>{eventTypeLabel(item.event_type)}</span>
+                <span className={dark ? 'font-semibold text-white' : 'font-semibold text-slate-950'}>
+                  {Number(item.event_count || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {topSearches.length || topPages.length ? (
+          <div className="mb-5 grid gap-6 lg:grid-cols-2">
+            <section aria-labelledby="visitor-top-searches">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 id="visitor-top-searches" className={`flex items-center gap-2 text-sm font-semibold ${dark ? 'text-white' : 'text-slate-950'}`}>
+                  <Search className="h-4 w-4 text-blue-500" /> Top customer searches
+                </h3>
+                <span className={`text-xs ${muted}`}>Searches / visitors</span>
+              </div>
+              <div className={`divide-y border-y ${border}`}>
+                {topSearches.slice(0, 8).map((item, index) => (
+                  <div key={`${item.search_query}-${index}`} className="grid min-h-10 grid-cols-[1fr_auto] items-center gap-3 py-2 text-sm">
+                    <span className={`truncate ${dark ? 'text-neutral-200' : 'text-slate-800'}`} title={item.search_query}>
+                      {item.search_query || '-'}
+                    </span>
+                    <span className={`whitespace-nowrap text-xs ${muted}`}>
+                      {Number(item.event_count || 0).toLocaleString('en-IN')} / {Number(item.unique_visitors || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section aria-labelledby="visitor-top-pages">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 id="visitor-top-pages" className={`flex items-center gap-2 text-sm font-semibold ${dark ? 'text-white' : 'text-slate-950'}`}>
+                  <FileText className="h-4 w-4 text-emerald-500" /> Most visited pages
+                </h3>
+                <span className={`text-xs ${muted}`}>Views / visitors</span>
+              </div>
+              <div className={`divide-y border-y ${border}`}>
+                {topPages.slice(0, 8).map((item, index) => (
+                  <div key={`${item.page_path}-${index}`} className="grid min-h-10 grid-cols-[1fr_auto] items-center gap-3 py-2 text-sm">
+                    <span className={`truncate font-mono text-xs ${dark ? 'text-neutral-200' : 'text-slate-800'}`} title={item.page_path}>
+                      {item.page_path || '/'}
+                    </span>
+                    <span className={`whitespace-nowrap text-xs ${muted}`}>
+                      {Number(item.page_views || 0).toLocaleString('en-IN')} / {Number(item.unique_visitors || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        ) : null}
 
         {events.length === 0 ? (
           <div className={`rounded-lg border border-dashed p-8 text-center text-sm ${muted}`}>
