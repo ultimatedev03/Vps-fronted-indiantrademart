@@ -60,18 +60,23 @@ const CategoryTypeahead = ({
       if (query.length >= 2) {
         setLoading(true);
         try {
-          // The backend autocomplete endpoint uses direct category indexes and is
-          // more reliable than the legacy browser database query for this picker.
-          let results = await directoryApi.autocomplete(query).catch(() => []);
-          let filteredResults =
-            normalizedAllowedTypes.length > 0
-              ? results.filter((item) => normalizedAllowedTypes.includes(String(item?.type || '').toLowerCase()))
-              : results;
+          // Use the category-only endpoint so product/vendor suggestions cannot
+          // consume the result limit before matching micro categories are returned.
+          let filteredResults = await directoryApi
+            .searchCategorySuggestions(query, normalizedAllowedTypes)
+            .catch(() => []);
 
-          // Preserve sub-category selection and retain a fallback for older API
-          // deployments where autocomplete has no category match.
+          // Retain rolling-deploy compatibility with older backend versions.
           if (!filteredResults.length) {
-            results = await directoryApi.searchMicroCategories(query);
+            const results = await directoryApi.autocomplete(query).catch(() => []);
+            filteredResults =
+              normalizedAllowedTypes.length > 0
+                ? results.filter((item) => normalizedAllowedTypes.includes(String(item?.type || '').toLowerCase()))
+                : results;
+          }
+
+          if (!filteredResults.length) {
+            const results = await directoryApi.searchMicroCategories(query);
             filteredResults =
               normalizedAllowedTypes.length > 0
                 ? results.filter((item) => normalizedAllowedTypes.includes(String(item?.type || '').toLowerCase()))

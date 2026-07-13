@@ -9,6 +9,7 @@ import { buyerApi } from '@/modules/buyer/services/buyerApi';
 import { toast } from '@/components/ui/use-toast';
 import CategoryTypeahead from '@/shared/components/CategoryTypeahead';
 import { StateDropdown, CityDropdown } from '@/shared/components/LocationSelectors';
+import QuantityUnitSelect from '@/shared/components/QuantityUnitSelect';
 import { trackGoogleAnalyticsEvent } from '@/shared/utils/googleAnalytics';
 import {
   ArrowLeft,
@@ -65,6 +66,7 @@ const CreateProposal = () => {
     sub_category_id: '',
     head_category_id: '',
     quantity: '',
+    unit: 'Nos',
     budget: '',
     state_id: '',
     state: '',
@@ -206,6 +208,7 @@ const CreateProposal = () => {
     const categoryName = normalizeText(formData.category_text);
     const categoryPath = normalizeText(formData.category_path);
     const quantity = normalizeText(formData.quantity);
+    const unit = normalizeText(formData.unit);
     const budget = normalizeText(formData.budget);
     const description = normalizeText(formData.description);
     const stateName = normalizeText(formData.state);
@@ -223,7 +226,7 @@ const CreateProposal = () => {
       return;
     }
 
-    if (!quantity || !budget || !stateName || !cityName || !pincode || !description) {
+    if (!quantity || !unit || !budget || !stateName || !cityName || !pincode || !description) {
       toast({
         title: 'Validation Error',
         description: 'Please fill all required fields.',
@@ -287,6 +290,7 @@ const CreateProposal = () => {
         sub_category_id: normalizeText(formData.sub_category_id),
         head_category_id: normalizeText(formData.head_category_id),
         quantity: quantityValue,
+        unit,
         budget: budgetValue,
         location,
         state: stateName,
@@ -317,7 +321,6 @@ const CreateProposal = () => {
       setTimeout(() => navigate('/buyer/proposals'), 300);
     } catch (error) {
       console.error('Submission failed:', error);
-      proposalCaptcha.resetCaptcha();
       toast({
         title: 'Error',
         description: error.message || 'Failed to create proposal. Please try again.',
@@ -463,9 +466,13 @@ const CreateProposal = () => {
                     value={formData.quantity}
                     onChange={(event) => handleChange('quantity', event.target.value)}
                   />
-                  <div className="flex min-w-[58px] items-center justify-center rounded-md border bg-gray-50 px-3 text-sm text-gray-500">
-                    Units
-                  </div>
+                  <QuantityUnitSelect
+                    id="quantity-unit"
+                    value={formData.unit}
+                    onValueChange={(value) => handleChange('unit', value)}
+                    required
+                    className="w-40 shrink-0"
+                  />
                 </div>
               </div>
 

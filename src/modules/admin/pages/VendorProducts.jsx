@@ -689,8 +689,10 @@ export default function VendorProducts() {
                 <div className="flex gap-2">
                   <CategoryTypeahead
                     onSelect={setExtraCatInput}
+                    defaultValue={extraCatInput?.name || ''}
                     placeholder="Search keyword..."
                     disabled={normalizeList(editProduct.extra_micro_categories).length >= 2}
+                    allowedTypes={['micro']}
                   />
                   <Button type="button" onClick={() => addKeyword(extraCatInput)} disabled={!extraCatInput}>
                     Add

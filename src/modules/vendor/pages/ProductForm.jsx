@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/use-toast';
 import CategoryTypeahead from '@/shared/components/CategoryTypeahead';
+import QuantityUnitSelect from '@/shared/components/QuantityUnitSelect';
 import { generateSlug, generateUniqueSlug, needsProductSlugNormalization } from '@/shared/utils/slugUtils';
 import { ArrowLeft, ChevronDown, Loader2, Upload, X, Plus } from 'lucide-react';
 import { useSubdomain } from '@/contexts/SubdomainContext';
@@ -20,19 +21,6 @@ const MAX_IMAGES = 7;
 const MIN_PRODUCT_IMAGE_BYTES = 10 * 1024;
 const MAX_PRODUCT_IMAGE_BYTES = 25 * 1024 * 1024;
 const MAX_PRODUCT_MEDIA_BYTES = 50 * 1024 * 1024;
-
-// ✅ IndiaMART-style common UOMs (practical + familiar)
-const UNIT_OPTIONS = [
-  'Piece', 'Nos', 'Unit', 'Set', 'Pair', 'Dozen',
-  'Pack', 'Packet', 'Box', 'Carton', 'Bundle', 'Bag',
-  'Bottle', 'Can', 'Jar',
-  'Kg', 'Gram', 'Ton', 'Quintal',
-  'Litre', 'ML',
-  'Meter', 'CM', 'MM', 'Inch', 'Foot',
-  'Sq Ft', 'Sq M', 'Cubic Ft', 'Cubic M',
-  'Roll', 'Sheet', 'Tray',
-  'Hour', 'Day', 'Month', 'Job/Service',
-];
 
 const SimpleRichText = ({ value, onChange, placeholder }) => (
   <textarea
@@ -1109,8 +1097,10 @@ const ProductForm = () => {
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <CategoryTypeahead
                         onSelect={setExtraCatInput}
+                        defaultValue={extraCatInput?.name || ''}
                         placeholder="Search keyword..."
                         disabled={formData.extra_micro_categories.length >= 2}
+                        allowedTypes={['micro']}
                       />
                       <Button
                         type="button"
@@ -1172,19 +1162,13 @@ const ProductForm = () => {
 
                     <div className="space-y-2">
                       <Label>Unit</Label>
-                      <SimpleSelect
+                      <QuantityUnitSelect
                         value={formData.price_unit || ''}
                         onValueChange={(v) =>
                           setFormData((p) => ({ ...p, price_unit: v }))
                         }
                         placeholder="Select unit"
-                      >
-                        {UNIT_OPTIONS.map((u) => (
-                          <option key={u} value={u}>
-                            {u}
-                          </option>
-                        ))}
-                      </SimpleSelect>
+                      />
                       <p className="text-[11px] text-slate-500">
                         IndiaMART style: Piece / Nos / Kg / Litre / Meter etc.
                       </p>

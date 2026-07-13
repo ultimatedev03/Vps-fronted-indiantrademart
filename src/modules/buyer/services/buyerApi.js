@@ -5,6 +5,7 @@ import { resolveBuyerId, resolveBuyerProfile, getAuthUserOrThrow } from '@/modul
 import { MIN_IMAGE_UPLOAD_BYTES, validateImageFile } from '@/shared/utils/fileValidation';
 import { fileToDataUrl, optimizeMediaFile } from '@/shared/utils/mediaOptimizer';
 import { getVisitorLeadContext, identifyVisitorContact } from '@/shared/utils/visitorTracking';
+import { formatQuantityWithUnit } from '@/shared/constants/quantityUnits';
 
 // Helper to get current buyer ID from auth user
 const getBuyerId = async () => {
@@ -401,6 +402,7 @@ export const buyerApi = {
     const normalizedSubCategoryId = normalizeOptionalText(proposalData?.sub_category_id);
     const normalizedHeadCategoryId = normalizeOptionalText(proposalData?.head_category_id);
     const normalizedRequiredByDate = normalizeOptionalText(proposalData?.required_by_date);
+    const normalizedUnit = normalizeOptionalText(proposalData?.unit);
     const normalizedQuantity = Number(proposalData?.quantity);
     const normalizedBudget = Number(proposalData?.budget);
 
@@ -426,6 +428,10 @@ export const buyerApi = {
 
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new Error('Quantity must be greater than 0');
+    }
+
+    if (!normalizedUnit) {
+      throw new Error('Quantity unit is required');
     }
 
     if (!Number.isFinite(normalizedBudget) || normalizedBudget <= 0) {
@@ -489,6 +495,7 @@ export const buyerApi = {
     const buyerEmail = String(user?.email || '').trim().toLowerCase();
     const buyerPhone = buyerProfile?.phone || buyerProfile?.mobile_number || '';
     const createdAt = new Date().toISOString();
+    const quantityWithUnit = formatQuantityWithUnit(normalizedQuantity, normalizedUnit);
 
     if (resolvedVendorEmail) {
       resolvedVendorEmail = String(resolvedVendorEmail).toLowerCase().trim();
@@ -510,7 +517,7 @@ export const buyerApi = {
       city_id: normalizedCityId,
       location: normalizedLocation,
       pincode: normalizedPincode,
-      quantity: normalizedQuantity,
+      quantity: quantityWithUnit,
       budget: normalizedBudget,
       required_by_date: normalizedRequiredByDate,
       description: normalizedDescription,
@@ -539,6 +546,7 @@ export const buyerApi = {
       description: payload.description,
       message: payload.description,
       quantity: payload.quantity,
+      unit: normalizedUnit,
       budget: payload.budget,
       category: normalizedCategory,
       category_name: normalizedCategoryName,

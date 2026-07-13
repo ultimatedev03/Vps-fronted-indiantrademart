@@ -130,6 +130,27 @@ export const directoryApi = {
     return payload?.suggestions || [];
   },
 
+  searchCategorySuggestions: async (q, allowedTypes = ['micro', 'sub']) => {
+    const value = String(q || '').trim();
+    if (value.length < 2) return [];
+
+    const types = Array.from(
+      new Set(
+        (Array.isArray(allowedTypes) ? allowedTypes : [])
+          .map((type) => String(type || '').trim().toLowerCase())
+          .filter((type) => type === 'micro' || type === 'sub')
+      )
+    );
+    const query = new URLSearchParams({ q: value, limit: '30' });
+    if (types.length) query.set('types', types.join(','));
+
+    const payload = await fetchDirectoryJson(
+      `/api/dir/category-suggestions?${query.toString()}`,
+      'Category search failed'
+    );
+    return payload?.suggestions || [];
+  },
+
   getHeadCategories: async () => {
     const { data, error } = await dbClient
       .from('head_categories')

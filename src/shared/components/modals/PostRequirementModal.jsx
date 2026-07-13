@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { dbClient } from '@/lib/dbClient';
 import { StateDropdown, CityDropdown } from '@/shared/components/LocationSelectors';
+import QuantityUnitSelect from '@/shared/components/QuantityUnitSelect';
 import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
 import { setGlobalModalOpen, suppressQuotePopup } from '@/shared/utils/popupCoordinator';
+import { formatQuantityWithUnit } from '@/shared/constants/quantityUnits';
 
 const safe = (value) => (value == null ? '' : String(value).trim());
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
@@ -22,6 +24,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
     head_category_id: '',
     description: '',
     quantity: '',
+    unit: 'Nos',
     budget: '',
     state_id: '',
     state_name: '',
@@ -259,10 +262,10 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
       });
       return;
     }
-    if (!safe(formData.quantity)) {
+    if (!safe(formData.quantity) || !safe(formData.unit)) {
       toast({
         title: "Missing Information",
-        description: "Please enter quantity",
+        description: "Please enter quantity and select a unit",
         variant: "destructive"
       });
       return;
@@ -333,7 +336,8 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
         product_name: safe(formData.title) || categoryValue,
         category: categoryValue,
         description: safe(formData.description),
-        quantity: safe(formData.quantity),
+        quantity: formatQuantityWithUnit(formData.quantity, formData.unit),
+        unit: safe(formData.unit),
         budget: Number(String(formData.budget || '').replace(/,/g, '')) || 0,
         location: derivedLocation || null,
         company_name: safe(formData.companyName),
@@ -376,6 +380,7 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
         head_category_id: '',
         description: '',
         quantity: '',
+        unit: 'Nos',
         budget: '',
         state_id: '',
         state_name: '',
@@ -529,14 +534,25 @@ const PostRequirementModal = ({ isOpen, onClose }) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Quantity *
                 </label>
-                <input
-                  type="text"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  placeholder="e.g., 100 units"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleChange}
+                    placeholder="e.g., 100"
+                    className="min-w-0 flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <QuantityUnitSelect
+                    id="requirement-unit"
+                    value={formData.unit}
+                    onValueChange={(unit) => setFormData((prev) => ({ ...prev, unit }))}
+                    required
+                    className="w-40 shrink-0"
+                  />
+                </div>
               </div>
               
               <div>

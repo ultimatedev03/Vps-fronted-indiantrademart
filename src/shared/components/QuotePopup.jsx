@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { isValidIndianPhone, normalizeIndianPhone, submitPublicLead } from '@/shared/services/publicLeadApi';
+import QuantityUnitSelect from '@/shared/components/QuantityUnitSelect';
+import { formatQuantityWithUnit } from '@/shared/constants/quantityUnits';
 import {
   isBlockingPopupOpen,
   isQuotePopupSuppressed,
@@ -278,7 +280,8 @@ const QuotePopup = () => {
          title: `Quote request for ${formData.productName}`,
          product_name: formData.productName,
          product_interest: formData.productName,
-         quantity: formData.quantity,
+         quantity: formatQuantityWithUnit(formData.quantity, formData.unit),
+         unit: formData.unit,
          buyer_name: formData.email.split('@')[0] || 'Buyer',
          buyer_email: formData.email,
          buyer_phone: phoneNum,
@@ -385,13 +388,11 @@ const QuotePopup = () => {
                                 <Label htmlFor="unit" className="text-xs font-bold uppercase text-gray-500">
                                     Unit <span className="text-red-500">*</span>
                                 </Label>
-                                <Input 
+                                <QuantityUnitSelect
                                     id="unit"
-                                    name="unit"
-                                    placeholder="e.g. Pcs"
-                                    required
                                     value={formData.unit}
-                                    onChange={handleInputChange}
+                                    onValueChange={(unit) => setFormData((prev) => ({ ...prev, unit }))}
+                                    required
                                 />
                             </div>
                         </div>
