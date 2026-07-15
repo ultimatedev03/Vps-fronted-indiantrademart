@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import HeroSection from '@/modules/directory/components/HeroSection';
 import { toAbsoluteSiteUrl } from '@/lib/siteUrl';
+import { HOME_FAQS } from '@/modules/directory/pages/homeStoryContent';
 
 const HomeDeferredSections = lazy(() => import('./HomeDeferredSections'));
 
@@ -61,6 +62,18 @@ const STRUCTURED_DATA = {
         target: SEARCH_TARGET_URL,
         'query-input': 'required name=search_term_string',
       },
+    },
+    {
+      '@type': 'FAQPage',
+      '@id': `${SITE_URL}#faq`,
+      mainEntity: HOME_FAQS.map((faq) => ({
+        '@type': 'Question',
+        name: faq.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: faq.answer,
+        },
+      })),
     },
   ],
 };

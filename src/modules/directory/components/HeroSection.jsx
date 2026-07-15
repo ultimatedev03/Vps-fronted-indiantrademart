@@ -249,7 +249,7 @@ const HeroSection = () => {
               <Search className="h-5 w-5 text-blue-200 mr-3 flex-shrink-0" />
               <Input
                 className="!border-0 !bg-transparent !px-0 h-14 text-white caret-cyan-200 placeholder:text-blue-100/55 font-medium shadow-none outline-none focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!shadow-none"
-                placeholder="Search products, services, or companies..."
+                placeholder="Search products or suppliers"
                 aria-label="Search products services or companies"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
