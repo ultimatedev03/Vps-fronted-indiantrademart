@@ -255,6 +255,7 @@ const HomeDeferredSections = () => {
   const [feed, setFeed] = useState(EMPTY_FEED);
   const [loading, setLoading] = useState(true);
   const [showPostRequirement, setShowPostRequirement] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
 
   useEffect(() => {
@@ -269,7 +270,7 @@ const HomeDeferredSections = () => {
         if (import.meta.env.DEV) console.error('Homepage feed failed:', error);
 
         const [categories, vendors] = await Promise.all([
-          categoryApi.getHomeShowcaseCategories({ headLimit: 8, subLimit: 1, microLimit: 0 }),
+          categoryApi.getHomeShowcaseCategories({ headLimit: 100, subLimit: 1, microLimit: 0 }),
           vendorService.getFeaturedVendors({ limit: 6 }),
         ]);
 
@@ -291,7 +292,11 @@ const HomeDeferredSections = () => {
     };
   }, []);
 
-  const categories = useMemo(() => feed.categories.slice(0, 8), [feed.categories]);
+  const categories = useMemo(() => feed.categories, [feed.categories]);
+  const visibleCategories = useMemo(
+    () => (showAllCategories ? categories : categories.slice(0, 8)),
+    [categories, showAllCategories]
+  );
   const products = useMemo(() => feed.products.slice(0, 6), [feed.products]);
   const vendors = useMemo(() => feed.vendors.slice(0, 4), [feed.vendors]);
   const visualProducts = useMemo(
@@ -355,7 +360,7 @@ const HomeDeferredSections = () => {
           </Reveal>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {categories.map((category, index) => {
+            {visibleCategories.map((category, index) => {
               const style = CATEGORY_STYLES[index % CATEGORY_STYLES.length];
               const Icon = style.icon;
               return (
@@ -384,6 +389,22 @@ const HomeDeferredSections = () => {
               );
             })}
           </div>
+          {categories.length > 8 ? (
+            <div className="mt-8 flex flex-col items-center gap-3 border-t border-slate-200 pt-8">
+              <button
+                type="button"
+                onClick={() => setShowAllCategories((value) => !value)}
+                aria-expanded={showAllCategories}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-900 transition hover:border-slate-500 hover:shadow-sm"
+              >
+                {showAllCategories ? 'Show featured categories' : `Explore all ${categories.length} live categories`}
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
+              </button>
+              <p className="text-center text-xs text-slate-500">
+                Category names and sourcing segments are loaded directly from the active marketplace catalogue.
+              </p>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -541,40 +562,72 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-[#0b1f33] py-20 text-white sm:py-24" aria-labelledby="marketplace-story-heading">
-        <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:52px_52px]" />
+      <section className="relative isolate min-h-[760px] overflow-hidden bg-[#0b1f33] py-20 text-white sm:py-24" aria-labelledby="marketplace-story-heading">
+        <img
+          src="/media/itm-marketplace-story.webp"
+          alt="Indian procurement and manufacturing partners connected through Indian Trade Mart"
+          className="absolute inset-0 -z-30 h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
+        {!reduceMotion ? (
+          <video
+            className="absolute inset-0 -z-20 h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/media/itm-marketplace-story.webp"
+            aria-hidden="true"
+          >
+            <source src="/media/itm-marketplace-story.webm" type="video/webm" />
+          </video>
+        ) : null}
+        <div className="absolute inset-0 -z-10 bg-[#06172b]/75" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(6,23,43,0.98)_0%,rgba(6,23,43,0.82)_48%,rgba(6,23,43,0.3)_100%)]" />
         <div className="relative mx-auto w-[92vw] max-w-7xl">
-          <div className="grid gap-10 lg:grid-cols-[1fr_0.8fr] lg:items-end">
+          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.7fr] lg:items-end">
             <Reveal>
-              <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-orange-300">Why Indian Trade Mart</p>
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-orange-300">Our story and vision</p>
               <h2 id="marketplace-story-heading" className="max-w-3xl text-3xl font-semibold leading-tight tracking-normal sm:text-5xl">
-                Indian business moves on trust, context, and timely conversations.
+                Every Indian business deserves a clear path to its next trusted partner.
               </h2>
               <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-                Our vision is to make that movement visible: the right product, the right supplier, the right city, and a buying requirement that does not lose its meaning between search and sale.
+                Indian Trade Mart connects real buying intent with active manufacturers, suppliers, products, and cities. Our vision is a more discoverable Indian market where trust and business context travel together from search to sale.
               </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setShowPostRequirement(true)}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-orange-500 px-6 text-sm font-bold text-slate-950 hover:bg-orange-400"
+                >
+                  Get free quotes <ArrowRight className="h-4 w-4" />
+                </button>
+                <Link to="/vendor/register" className="inline-flex h-12 items-center justify-center rounded-lg border border-white/35 bg-black/15 px-6 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/10">
+                  Register as a supplier
+                </Link>
+              </div>
             </Reveal>
 
-            {visualProducts.length ? (
-              <div className="grid grid-cols-3 gap-2" aria-label="Live marketplace products">
-                {visualProducts.map((product, index) => (
-                  <motion.div
-                    key={product.id || index}
-                    initial={reduceMotion ? false : { opacity: 1, y: index === 1 ? -4 : 12 }}
-                    whileInView={reduceMotion ? undefined : { opacity: 1, y: index === 1 ? -18 : 0 }}
-                    viewport={{ once: true, amount: 0.25 }}
-                    transition={{ duration: 0.7, delay: index * 0.08 }}
-                    className={`overflow-hidden rounded-lg border border-white/15 ${index === 1 ? 'mt-8' : ''}`}
-                  >
-                    <MediaImage
-                      src={getProductImage(product)}
-                      alt={product.name || 'Live marketplace product'}
-                      className="aspect-[3/4] h-full w-full object-cover"
-                    />
-                  </motion.div>
-                ))}
+            <Reveal delay={0.12}>
+              <div className="border-y border-white/25 bg-black/15 p-6 backdrop-blur-md" aria-label="Live marketplace signals">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" /> Live marketplace
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-7">
+                  {statItems.slice(0, 4).map((stat) => (
+                    <div key={stat.label}>
+                      <p className="text-2xl font-bold text-white">{formatMetric(stat.value)}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-300">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-7 border-t border-white/15 pt-5 text-xs leading-5 text-slate-300">
+                  Counts update from active marketplace records, not promotional estimates.
+                </p>
               </div>
-            ) : null}
+            </Reveal>
           </div>
 
           <div className="mt-14 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
