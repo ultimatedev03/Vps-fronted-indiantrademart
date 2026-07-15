@@ -123,10 +123,12 @@ export const directoryApi = {
     return fetchDirectoryJson(`/api/dir/hybrid-search${suffix}`, 'Hybrid search failed');
   },
 
-  autocomplete: async (q) => {
+  autocomplete: async (q, scope = 'all') => {
     const value = String(q || '').trim();
     if (value.length < 2) return [];
-    const payload = await fetchDirectoryJson(`/api/dir/autocomplete?q=${encodeURIComponent(value)}`, 'Autocomplete failed');
+    const query = new URLSearchParams({ q: value });
+    if (scope && scope !== 'all') query.set('scope', scope);
+    const payload = await fetchDirectoryJson(`/api/dir/autocomplete?${query.toString()}`, 'Autocomplete failed');
     return payload?.suggestions || [];
   },
 

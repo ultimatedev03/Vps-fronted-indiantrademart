@@ -130,12 +130,12 @@ const Header = () => {
   );
 
   return (
-    <header className="fixed top-0 z-50 h-16 w-full border-b border-white/10 bg-[#0b1f33] shadow-md">
+    <header className="fixed top-0 z-50 h-[76px] w-full border-b border-white/10 bg-[#0a1729]/95 shadow-md backdrop-blur-xl">
       <div className="mx-auto h-full w-[94vw] max-w-[1500px]">
         <div className="flex justify-between items-center h-full">
           
           {/* Logo & Desktop Nav */}
-          <div className="flex items-center gap-4 md:gap-8">
+          <div className="flex min-w-0 items-center gap-3 md:gap-7">
             {/* Mobile Menu Trigger */}
             <div className="md:hidden">
               <Button
@@ -150,8 +150,8 @@ const Header = () => {
               </Button>
             </div>
 
-            <div className="flex-shrink-0 flex items-center">
-               <Logo variant="light" className="h-10 w-auto sm:h-11" showTagline compact={false} />
+            <div className="flex flex-shrink-0 items-center">
+               <Logo lockup className="h-[52px] w-auto sm:h-[58px]" />
             </div>
             
             <nav className="hidden md:flex space-x-1">
@@ -254,7 +254,7 @@ const Header = () => {
           />
           <aside className="absolute inset-y-0 left-0 flex w-[min(320px,92vw)] flex-col overflow-y-auto bg-white p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between border-b pb-4">
-              <Logo className="h-11 w-auto" showTagline compact={false} />
+              <Logo lockup className="h-16 w-auto" />
               <Button variant="ghost" size="icon" onClick={closeMobileMenu} aria-label="Close navigation menu">
                 <span className="text-2xl leading-none">&times;</span>
               </Button>

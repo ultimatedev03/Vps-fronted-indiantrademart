@@ -17,14 +17,14 @@ const Logo = ({
         className={`inline-flex items-center ${className}`}
       >
         <img
-          src="/itm-logo.png"
+          src="/itm-logo.webp"
           alt="IndianTradeMart"
-          width="563"
-          height="289"
+          width="532"
+          height="266"
           className="h-full w-auto object-contain"
           loading="eager"
           decoding="async"
-          fetchPriority="high"
+          fetchpriority="high"
         />
       </Link>
     );
@@ -58,7 +58,7 @@ const Logo = ({
           className="h-full w-full object-contain"
           loading="eager"
           decoding="async"
-          fetchPriority="high"
+          fetchpriority="high"
         />
       </div>
 

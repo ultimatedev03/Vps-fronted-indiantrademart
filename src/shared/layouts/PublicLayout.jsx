@@ -41,9 +41,13 @@ const PublicLayout = () => {
   const quotePopupReady = useDeferredMount({ delay: 9000, idleTimeout: 12000 });
   const prioritizeFooter = shouldPrioritizeFooter(location.pathname);
   const showFooter = footerReady || prioritizeFooter;
-  const shellClassName = prioritizeFooter ? 'flex flex-col bg-white' : 'min-h-screen flex flex-col bg-white';
-  const mainClassName = prioritizeFooter ? 'pt-16' : 'flex-grow pt-16';
-  const mainStyle = prioritizeFooter ? undefined : { minHeight: 'calc(100vh - 4rem)' };
+  const shellClassName = prioritizeFooter
+    ? 'itm-public-canvas flex flex-col'
+    : 'itm-public-canvas min-h-screen flex flex-col';
+  const mainClassName = prioritizeFooter
+    ? 'itm-cinematic-enter pt-[76px]'
+    : 'itm-cinematic-enter flex-grow pt-[76px]';
+  const mainStyle = prioritizeFooter ? undefined : { minHeight: 'calc(100vh - 76px)' };
 
   useLayoutEffect(() => {
     if (!prioritizeFooter || typeof window === 'undefined') return undefined;

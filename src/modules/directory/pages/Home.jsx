@@ -170,7 +170,7 @@ const Home = () => {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f4f6f5] font-sans">
+    <div className="flex min-h-screen flex-col bg-[#f6f8f7] font-sans">
       <Helmet>
         <title>{HOME_SEO.title}</title>
         <meta name="description" content={HOME_SEO.description} />

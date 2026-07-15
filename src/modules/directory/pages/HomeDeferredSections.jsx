@@ -154,6 +154,27 @@ const getVendorFromProduct = (product) => {
   return product?.vendors || {};
 };
 
+const selectDiverseProducts = (rows = [], limit = 6) => {
+  const primary = [];
+  const overflow = [];
+  const seenVendors = new Set();
+
+  (Array.isArray(rows) ? rows : []).forEach((product) => {
+    const vendor = getVendorFromProduct(product);
+    const vendorKey = String(
+      product?.vendor_id || vendor?.id || vendor?.vendor_id || vendor?.company_name || ''
+    ).trim();
+    if (vendorKey && !seenVendors.has(vendorKey)) {
+      seenVendors.add(vendorKey);
+      primary.push(product);
+    } else {
+      overflow.push(product);
+    }
+  });
+
+  return [...primary, ...overflow].slice(0, limit);
+};
+
 const boolish = (value) => {
   if (value === true || value === 1) return true;
   return ['true', '1', 'yes', 'verified'].includes(String(value || '').trim().toLowerCase());
@@ -200,7 +221,7 @@ const SectionHeading = ({ eyebrow, title, description, action, light = false }) 
       <p className={`mb-3 text-xs font-bold uppercase tracking-normal ${light ? 'text-orange-300' : 'text-orange-700'}`}>
         {eyebrow}
       </p>
-      <h2 className={`text-3xl font-semibold leading-tight tracking-normal sm:text-4xl ${light ? 'text-white' : 'text-slate-950'}`}>
+      <h2 className={`itm-display text-3xl leading-tight sm:text-4xl ${light ? 'text-white' : 'text-slate-950'}`}>
         {title}
       </h2>
       {description ? (
@@ -244,7 +265,7 @@ const MediaImage = ({
 };
 
 const StorySkeleton = () => (
-  <div className="bg-[#f8f7f3] py-14" aria-hidden="true">
+  <div className="bg-[#f6f8f7] py-14" aria-hidden="true">
     <div className="mx-auto w-[92vw] max-w-7xl">
       <div className="mb-8 h-8 w-64 animate-pulse rounded bg-slate-200" />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -302,11 +323,11 @@ const HomeDeferredSections = () => {
     () => (showAllCategories ? categories : categories.slice(0, 8)),
     [categories, showAllCategories]
   );
-  const products = useMemo(() => feed.products.slice(0, 6), [feed.products]);
+  const products = useMemo(() => selectDiverseProducts(feed.products, 6), [feed.products]);
   const vendors = useMemo(() => feed.vendors.slice(0, 4), [feed.vendors]);
   const visualProducts = useMemo(
-    () => feed.products.filter((product) => getProductImage(product)).slice(0, 3),
-    [feed.products]
+    () => products.filter((product) => getProductImage(product)).slice(0, 3),
+    [products]
   );
 
   const statItems = useMemo(
@@ -349,7 +370,7 @@ const HomeDeferredSections = () => {
 
       {loading ? <StorySkeleton /> : null}
 
-      <section className="border-b border-slate-200 bg-[#e8eef0] py-16 text-slate-950 sm:py-20" aria-labelledby="popular-categories-heading">
+      <section className="border-b border-slate-200 bg-[#edf2ef] py-16 text-slate-950 sm:py-20" aria-labelledby="popular-categories-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
@@ -424,7 +445,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-[#f4f6f5] py-16 sm:py-20" aria-labelledby="trending-products-heading">
+      <section className="bg-white py-16 sm:py-20" aria-labelledby="trending-products-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
@@ -509,7 +530,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="border-y border-slate-200 bg-[#e8eef0] py-16 sm:py-20" aria-labelledby="featured-suppliers-heading">
+      <section className="border-y border-slate-200 bg-[#f3f6f4] py-16 sm:py-20" aria-labelledby="featured-suppliers-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
@@ -592,7 +613,7 @@ const HomeDeferredSections = () => {
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.7fr] lg:items-end">
             <Reveal>
               <p className="mb-3 text-xs font-bold uppercase tracking-normal text-orange-300">Our story and vision</p>
-              <h2 id="marketplace-story-heading" className="max-w-3xl text-3xl font-semibold leading-tight tracking-normal sm:text-5xl">
+              <h2 id="marketplace-story-heading" className="itm-display max-w-3xl text-3xl leading-tight sm:text-5xl">
                 Every Indian business deserves a clear path to its next trusted partner.
               </h2>
               <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
@@ -651,10 +672,10 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-[#f4f6f5] py-16 sm:py-20" aria-labelledby="how-it-works-heading">
+      <section className="bg-white py-16 sm:py-20" aria-labelledby="how-it-works-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
-            <div className="grid overflow-hidden rounded-lg border border-slate-200 bg-[#f8f7f3] sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid overflow-hidden rounded-lg border border-slate-200 bg-[#f3f6f4] sm:grid-cols-2 lg:grid-cols-5">
               {statItems.map((stat, index) => {
                 const Icon = stat.icon;
                 return (
@@ -696,7 +717,7 @@ const HomeDeferredSections = () => {
       <TopCitiesSection />
       <PremiumBrandsSection />
 
-      <section className="border-y border-slate-200 bg-[#e8eef0] py-16 sm:py-20" aria-labelledby="customer-stories-heading">
+      <section className="border-y border-slate-200 bg-[#edf2ef] py-16 sm:py-20" aria-labelledby="customer-stories-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
@@ -731,7 +752,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-[#f4f6f5] py-16 sm:py-20" aria-labelledby="trade-desk-heading">
+      <section className="bg-white py-16 sm:py-20" aria-labelledby="trade-desk-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
@@ -778,12 +799,12 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-[#e8eef0] py-16 sm:py-20" aria-labelledby="home-faq-heading">
+      <section className="border-t border-slate-200 bg-[#f3f6f4] py-16 sm:py-20" aria-labelledby="home-faq-heading">
         <div className="mx-auto grid w-[92vw] max-w-7xl gap-10 lg:grid-cols-[0.75fr_1.25fr]">
           <Reveal>
             <div>
               <p className="text-xs font-bold uppercase tracking-normal text-orange-700">FAQ</p>
-              <h2 id="home-faq-heading" className="mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+              <h2 id="home-faq-heading" className="itm-display mt-3 text-3xl leading-tight text-slate-950 sm:text-4xl">
                 Answers before you ask
               </h2>
               <p className="mt-4 max-w-md text-base leading-7 text-slate-600">
@@ -831,7 +852,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-[#e8eef0] pb-16 sm:pb-20" aria-labelledby="home-final-cta-heading">
+      <section className="bg-[#f3f6f4] pb-16 sm:pb-20" aria-labelledby="home-final-cta-heading">
         <Reveal className="mx-auto w-[92vw] max-w-7xl">
           <div
             className="relative min-h-[360px] overflow-hidden rounded-lg bg-[#0b1f33] px-6 py-12 text-white sm:px-10 lg:px-14"
@@ -840,7 +861,7 @@ const HomeDeferredSections = () => {
             <div className="absolute inset-0 bg-[#0b1f33]/90" />
             <div className="relative flex min-h-[260px] max-w-3xl flex-col justify-center">
               <p className="text-xs font-bold uppercase tracking-normal text-orange-300">Build the next connection</p>
-              <h2 id="home-final-cta-heading" className="mt-4 text-3xl font-semibold leading-tight sm:text-5xl">
+              <h2 id="home-final-cta-heading" className="itm-display mt-4 text-3xl leading-tight sm:text-5xl">
                 Grow through a marketplace designed around real Indian trade.
               </h2>
               <p className="mt-5 max-w-2xl text-base leading-7 text-slate-200">

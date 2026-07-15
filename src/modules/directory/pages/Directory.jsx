@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Loader2 } from 'lucide-react';
-import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBar';
+import MarketplaceSearchPanel from '@/modules/directory/components/MarketplaceSearchPanel';
 import HeadCategoryShowcase from '@/modules/directory/components/HeadCategoryShowcase';
 import { categoryApi } from '@/modules/directory/services/categoryApi';
 
 const DIRECTORY_SEO = {
-  title: 'Business Directory, India Business Directory,Companies Directory in India',
+  title: 'Indian Business Directory | Products & Suppliers',
   description:
-    'India Business Directory - Online business & companies directory with free business listings of indian companies, exporter importer and detailed information about their business profiles. Free list yourself at largest & most trusted business directory in india.',
+    'Browse Indian manufacturers, suppliers, products and services by category and city. Compare active businesses and request free quotations on Indian Trade Mart.',
   keywords:
     'Business directory, india business directory, directory of companies, exporter importer directory, companies directory in india, companies database india, business directory in india, business listings, companies directories, online business directory, free directory, Indian companies directory, free business listings in india, free business listings, business directory, companies directory, business to business companies, directory of indian companies, exporters business directory, companies business listings, companies directory india, free indian companies business listings, indiamart',
 };
@@ -51,23 +51,33 @@ const Directory = () => {
         <meta name="keywords" content={DIRECTORY_SEO.keywords} />
       </Helmet>
 
-      {/* ✅ Hero Search (KEEP THIS SAME) */}
-      <div className="bg-[#003D82] py-16 px-4">
-        <div className="w-[92vw] mx-auto w-[60vw] text-center">
-          <h1 className="text-3xl md:text-5xl font-bold text-white mb-6">Find Products & Suppliers</h1>
-
-          <div className="w-[60vw] mx-auto">
-            <DirectorySearchBar enableSuggestions className="shadow-xl" />
+      <section className="relative isolate overflow-hidden bg-[#14253a] py-14 text-white sm:py-20">
+        <img
+          src="/media/itm-marketplace-story.webp?v=20260716-directory"
+          alt="Indian manufacturers and suppliers in the business directory"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-center"
+          width="1600"
+          height="900"
+          loading="eager"
+          decoding="async"
+        />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(8,27,47,0.96),rgba(8,27,47,0.72),rgba(8,27,47,0.45))]" />
+        <div className="mx-auto w-[92vw] max-w-7xl">
+          <p className="text-xs font-extrabold uppercase text-orange-300">The active Indian business catalogue</p>
+          <h1 className="itm-display mt-3 max-w-3xl text-4xl leading-tight sm:text-6xl">Find the market behind every requirement.</h1>
+          <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-slate-200 sm:text-lg">
+            Search products, categories, suppliers, and cities across verified marketplace records, then explore the complete industry hierarchy below.
+          </p>
+          <div className="mt-8 max-w-5xl text-slate-900">
+            <MarketplaceSearchPanel compact />
           </div>
-
-          <p className="text-white/80 text-sm mt-4">Select a State/City to filter suppliers by location.</p>
         </div>
-      </div>
+      </section>
 
       {/* ✅ Browse Industries (IndiaMART style showcase) */}
-      <div className="w-[92vw] mx-auto py-12">
+      <div className="mx-auto w-[92vw] max-w-7xl py-12 sm:py-16">
         <div className="flex items-center justify-between gap-4 mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">Browse Industries</h2>
+          <h2 className="itm-display text-3xl text-slate-950 sm:text-4xl">Browse industries</h2>
 
           {hasMore && !loadingCategories && (
             <button

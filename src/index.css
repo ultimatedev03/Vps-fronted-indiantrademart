@@ -46,9 +46,41 @@
   }
   body {
     @apply bg-slate-50 text-slate-900;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
+    font-family: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont,
+      'Segoe UI', sans-serif;
+    letter-spacing: 0;
+  }
+}
+
+.itm-display {
+  font-family: 'Newsreader Variable', 'Newsreader', Georgia, serif;
+  font-weight: 620;
+  letter-spacing: 0;
+}
+
+.itm-public-canvas {
+  background: #f6f8f7;
+  isolation: isolate;
+}
+
+.itm-cinematic-enter {
+  animation: itm-cinematic-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes itm-cinematic-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .itm-cinematic-enter {
+    animation: none;
   }
 }
 
