@@ -172,7 +172,7 @@ const formatPrice = (value) => {
 
 const formatMetric = (value) => {
   const count = Number(value);
-  if (!Number.isFinite(count) || count < 0) return 'Live';
+  if (!Number.isFinite(count) || count < 0) return '--';
   if (count >= 10000000) return `${(count / 10000000).toFixed(count >= 100000000 ? 0 : 1)} Cr+`;
   if (count >= 100000) return `${(count / 100000).toFixed(count >= 1000000 ? 0 : 1)} Lakh+`;
   return `${new Intl.NumberFormat('en-IN').format(count)}+`;
@@ -197,7 +197,7 @@ const Reveal = ({ children, className = '', delay = 0, amount = 0.16 }) => {
 const SectionHeading = ({ eyebrow, title, description, action, light = false }) => (
   <div className="mb-8 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between">
     <div className="max-w-3xl">
-      <p className={`mb-3 text-xs font-bold uppercase tracking-[0.2em] ${light ? 'text-orange-300' : 'text-orange-700'}`}>
+      <p className={`mb-3 text-xs font-bold uppercase tracking-normal ${light ? 'text-orange-300' : 'text-orange-700'}`}>
         {eyebrow}
       </p>
       <h2 className={`text-3xl font-semibold leading-tight tracking-normal sm:text-4xl ${light ? 'text-white' : 'text-slate-950'}`}>
@@ -213,7 +213,13 @@ const SectionHeading = ({ eyebrow, title, description, action, light = false }) 
   </div>
 );
 
-const MediaImage = ({ src, alt, className, fallbackIcon: FallbackIcon = Package }) => {
+const MediaImage = ({
+  src,
+  alt,
+  className,
+  fallbackIcon: FallbackIcon = Package,
+  loading = 'lazy',
+}) => {
   const [failed, setFailed] = useState(false);
   const optimized = optimizeImageUrl(src, { width: 720, height: 540, quality: 76 });
 
@@ -230,7 +236,7 @@ const MediaImage = ({ src, alt, className, fallbackIcon: FallbackIcon = Package 
       src={optimized}
       alt={alt}
       className={className}
-      loading="lazy"
+      loading={loading}
       decoding="async"
       onError={() => setFailed(true)}
     />
@@ -306,7 +312,7 @@ const HomeDeferredSections = () => {
   const statItems = useMemo(
     () => [
       { label: 'Active suppliers', value: feed.stats?.suppliers, icon: UsersRound },
-      { label: 'Live products', value: feed.stats?.products, icon: Boxes },
+      { label: 'Listed products', value: feed.stats?.products, icon: Boxes },
       { label: 'Categories', value: feed.stats?.categories, icon: Target },
       { label: 'Cities covered', value: feed.stats?.cities, icon: MapPinned },
       { label: 'Buyer requirements', value: feed.stats?.requirements, icon: ClipboardCheck },
@@ -318,7 +324,7 @@ const HomeDeferredSections = () => {
     if (!categories[0]) return TRADE_DESK_BASE;
     return [
       {
-        tag: 'Live category',
+        tag: 'Category guide',
         title: `Source ${categories[0].name} with a clearer shortlist`,
         description: truncate(categories[0].description, 120) || `Explore active suppliers and listings across ${categories[0].name}.`,
         href: `/directory/${categories[0].slug}`,
@@ -343,16 +349,15 @@ const HomeDeferredSections = () => {
 
       {loading ? <StorySkeleton /> : null}
 
-      <section className="border-b border-white/10 bg-[#071726] py-16 text-white sm:py-20" aria-labelledby="popular-categories-heading">
+      <section className="border-b border-slate-200 bg-[#e8eef0] py-16 text-slate-950 sm:py-20" aria-labelledby="popular-categories-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
               eyebrow="Popular categories"
               title="Sourcing starts with the right market"
-              description="Explore live business categories from the Indian Trade Mart catalogue and move directly into relevant supplier networks."
-              light
+              description="Explore active business categories from the Indian Trade Mart catalogue and move directly into relevant supplier networks."
               action={(
-                <Link to="/directory" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">
+                <Link to="/directory" className="inline-flex items-center gap-2 text-sm font-semibold text-[#003d82] hover:text-orange-700">
                   Browse all categories <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
@@ -374,6 +379,7 @@ const HomeDeferredSections = () => {
                       alt={`${category.name} sourcing category`}
                       className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
                       fallbackIcon={Icon}
+                      loading={index < 8 ? 'eager' : 'lazy'}
                     />
                     <div className="absolute inset-0 bg-slate-950/45 transition duration-500 group-hover:bg-slate-950/35" />
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.04)_10%,rgba(2,6,23,0.92)_100%)]" />
@@ -387,7 +393,6 @@ const HomeDeferredSections = () => {
                       </span>
                     </div>
                     <div className="relative mt-auto p-5 pt-8">
-                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-orange-300">Live marketplace category</p>
                       <h3 className="text-lg font-semibold leading-6 text-white">{category.name}</h3>
                       <p className="mt-2 text-sm text-slate-300">
                         {Number(category.subcategory_count || category.subcategories?.length || 0) > 0
@@ -401,17 +406,17 @@ const HomeDeferredSections = () => {
             })}
           </div>
           {categories.length > 8 ? (
-            <div className="mt-8 flex flex-col items-center gap-3 border-t border-white/15 pt-8">
+            <div className="mt-8 flex flex-col items-center gap-3 border-t border-slate-300 pt-8">
               <button
                 type="button"
                 onClick={() => setShowAllCategories((value) => !value)}
                 aria-expanded={showAllCategories}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition hover:border-orange-300/70 hover:bg-white/15"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-900 transition hover:border-orange-400 hover:text-orange-700"
               >
-                {showAllCategories ? 'Show featured categories' : `Explore all ${categories.length} live categories`}
+                {showAllCategories ? 'Show featured categories' : `Explore all ${categories.length} categories`}
                 <ChevronDown className={`h-4 w-4 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
               </button>
-              <p className="text-center text-xs text-slate-400">
+              <p className="text-center text-xs text-slate-500">
                 Category names and sourcing segments are loaded directly from the active marketplace catalogue.
               </p>
             </div>
@@ -419,13 +424,13 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-white py-16 sm:py-20" aria-labelledby="trending-products-heading">
+      <section className="bg-[#f4f6f5] py-16 sm:py-20" aria-labelledby="trending-products-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
-              eyebrow="Live product catalogue"
+              eyebrow="Product catalogue"
               title="Fresh listings from active suppliers"
-              description="Every product below comes from the live marketplace feed, with its current supplier, location, and commercial information."
+              description="Every product below comes from current marketplace records, with its supplier, location, and commercial information."
               action={(
                 <Link to="/products" className="inline-flex items-center gap-2 text-sm font-semibold text-[#003d82] hover:text-orange-700">
                   View all products <ArrowRight className="h-4 w-4" />
@@ -495,7 +500,7 @@ const HomeDeferredSections = () => {
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
               <Package className="mx-auto h-8 w-8 text-slate-400" />
-              <p className="mt-3 font-semibold text-slate-800">Live product listings are refreshing.</p>
+              <p className="mt-3 font-semibold text-slate-800">Product listings are refreshing.</p>
               <Link to="/products" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[#003d82]">
                 Browse the product catalogue <ArrowRight className="h-4 w-4" />
               </Link>
@@ -504,13 +509,13 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="border-y border-slate-200 bg-[#f8f7f3] py-16 sm:py-20" aria-labelledby="featured-suppliers-heading">
+      <section className="border-y border-slate-200 bg-[#e8eef0] py-16 sm:py-20" aria-labelledby="featured-suppliers-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
               eyebrow="Featured suppliers"
               title="Meet businesses ready for the next conversation"
-              description="Active supplier profiles selected from the live marketplace, with verification and location context visible upfront."
+              description="Active supplier profiles selected from current marketplace records, with verification and location context visible upfront."
               action={(
                 <Link to="/directory/vendor" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-orange-700">
                   Find more suppliers <ArrowRight className="h-4 w-4" />
@@ -573,20 +578,20 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="relative isolate min-h-[760px] overflow-hidden bg-[#0b1f33] py-20 text-white sm:py-24" aria-labelledby="marketplace-story-heading">
+      <section className="relative isolate min-h-[720px] overflow-hidden bg-[#0b1f33] py-20 text-white sm:py-24" aria-labelledby="marketplace-story-heading">
         <img
           src="/media/itm-marketplace-story.webp"
-          alt="Indian procurement and manufacturing partners connected through Indian Trade Mart"
-          className="absolute inset-0 -z-20 h-full w-full scale-110 object-cover object-[70%_center]"
+          alt="Business partners completing a trusted marketplace introduction"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[70%_center]"
           loading="lazy"
           decoding="async"
         />
-        <div className="absolute inset-0 -z-10 bg-[#06172b]/75" />
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(6,23,43,0.98)_0%,rgba(6,23,43,0.82)_48%,rgba(6,23,43,0.3)_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[#06172b]/65" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(6,23,43,0.96)_0%,rgba(6,23,43,0.78)_50%,rgba(6,23,43,0.28)_100%)]" />
         <div className="relative mx-auto w-[92vw] max-w-7xl">
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.7fr] lg:items-end">
             <Reveal>
-              <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-orange-300">Our story and vision</p>
+              <p className="mb-3 text-xs font-bold uppercase tracking-normal text-orange-300">Our story and vision</p>
               <h2 id="marketplace-story-heading" className="max-w-3xl text-3xl font-semibold leading-tight tracking-normal sm:text-5xl">
                 Every Indian business deserves a clear path to its next trusted partner.
               </h2>
@@ -608,9 +613,9 @@ const HomeDeferredSections = () => {
             </Reveal>
 
             <Reveal delay={0.12}>
-              <div className="border-y border-white/25 bg-black/15 p-6 backdrop-blur-md" aria-label="Live marketplace signals">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" /> Live marketplace
+              <div className="border-y border-white/25 bg-black/15 p-6 backdrop-blur-md" aria-label="Marketplace statistics">
+                <div className="text-xs font-bold uppercase tracking-normal text-orange-200">
+                  Marketplace at a glance
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-7">
                   {statItems.slice(0, 4).map((stat) => (
@@ -621,7 +626,7 @@ const HomeDeferredSections = () => {
                   ))}
                 </div>
                 <p className="mt-7 border-t border-white/15 pt-5 text-xs leading-5 text-slate-300">
-                  Counts update from active marketplace records, not promotional estimates.
+                  Counts are drawn from active marketplace records, not promotional estimates.
                 </p>
               </div>
             </Reveal>
@@ -646,7 +651,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-white py-16 sm:py-20" aria-labelledby="how-it-works-heading">
+      <section className="bg-[#f4f6f5] py-16 sm:py-20" aria-labelledby="how-it-works-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <div className="grid overflow-hidden rounded-lg border border-slate-200 bg-[#f8f7f3] sm:grid-cols-2 lg:grid-cols-5">
@@ -656,7 +661,7 @@ const HomeDeferredSections = () => {
                   <div key={stat.label} className={`p-5 ${index ? 'border-t border-slate-200 sm:border-l lg:border-t-0' : ''}`}>
                     <Icon className="h-5 w-5 text-orange-700" />
                     <p className="mt-4 text-2xl font-bold text-slate-950">{formatMetric(stat.value)}</p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{stat.label}</p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-normal text-slate-500">{stat.label}</p>
                   </div>
                 );
               })}
@@ -691,7 +696,7 @@ const HomeDeferredSections = () => {
       <TopCitiesSection />
       <PremiumBrandsSection />
 
-      <section className="border-y border-slate-200 bg-[#f8f7f3] py-16 sm:py-20" aria-labelledby="customer-stories-heading">
+      <section className="border-y border-slate-200 bg-[#e8eef0] py-16 sm:py-20" aria-labelledby="customer-stories-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
@@ -726,7 +731,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-white py-16 sm:py-20" aria-labelledby="trade-desk-heading">
+      <section className="bg-[#f4f6f5] py-16 sm:py-20" aria-labelledby="trade-desk-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
@@ -758,7 +763,7 @@ const HomeDeferredSections = () => {
                       <div className="absolute inset-0 bg-slate-950/30" />
                     </div>
                     <div className="flex flex-1 flex-col p-5">
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700">{item.tag}</p>
+                      <p className="text-xs font-bold uppercase tracking-normal text-orange-700">{item.tag}</p>
                       <h3 className="mt-3 text-xl font-semibold leading-7 text-slate-950">{item.title}</h3>
                       <p className="mt-3 text-sm leading-6 text-slate-600">{item.description}</p>
                       <Link to={item.href} className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-semibold text-[#003d82] hover:text-orange-700">
@@ -773,11 +778,11 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-[#f8f7f3] py-16 sm:py-20" aria-labelledby="home-faq-heading">
+      <section className="border-t border-slate-200 bg-[#e8eef0] py-16 sm:py-20" aria-labelledby="home-faq-heading">
         <div className="mx-auto grid w-[92vw] max-w-7xl gap-10 lg:grid-cols-[0.75fr_1.25fr]">
           <Reveal>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-700">FAQ</p>
+              <p className="text-xs font-bold uppercase tracking-normal text-orange-700">FAQ</p>
               <h2 id="home-faq-heading" className="mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
                 Answers before you ask
               </h2>
@@ -826,7 +831,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-[#f8f7f3] pb-16 sm:pb-20" aria-labelledby="home-final-cta-heading">
+      <section className="bg-[#e8eef0] pb-16 sm:pb-20" aria-labelledby="home-final-cta-heading">
         <Reveal className="mx-auto w-[92vw] max-w-7xl">
           <div
             className="relative min-h-[360px] overflow-hidden rounded-lg bg-[#0b1f33] px-6 py-12 text-white sm:px-10 lg:px-14"
@@ -834,12 +839,12 @@ const HomeDeferredSections = () => {
           >
             <div className="absolute inset-0 bg-[#0b1f33]/90" />
             <div className="relative flex min-h-[260px] max-w-3xl flex-col justify-center">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-300">Build the next connection</p>
+              <p className="text-xs font-bold uppercase tracking-normal text-orange-300">Build the next connection</p>
               <h2 id="home-final-cta-heading" className="mt-4 text-3xl font-semibold leading-tight sm:text-5xl">
                 Grow through a marketplace designed around real Indian trade.
               </h2>
               <p className="mt-5 max-w-2xl text-base leading-7 text-slate-200">
-                Discover live supply, present your business clearly, or share a requirement and start with the right context.
+                Discover current supply, present your business clearly, or share a requirement and start with the right context.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link

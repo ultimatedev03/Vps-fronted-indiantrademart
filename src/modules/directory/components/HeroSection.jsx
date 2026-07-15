@@ -206,7 +206,7 @@ const HeroSection = () => {
     <section className="relative isolate min-h-[650px] overflow-hidden bg-[#06172b] text-white sm:min-h-[690px] lg:min-h-[720px]">
       <img
         src="/media/itm-marketplace-story.webp"
-        alt="Indian buyer and manufacturer building a trusted trade partnership"
+        alt="Business representatives completing a trusted trade partnership"
         className="absolute inset-0 -z-30 h-full w-full object-cover object-[62%_center] sm:object-center"
         width="1600"
         height="900"
@@ -216,25 +216,27 @@ const HeroSection = () => {
       />
       {!reduceMotion ? (
         <video
-          className="absolute inset-0 -z-20 h-full w-full object-cover object-[62%_center] sm:object-center"
+          className="pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover object-[62%_center] sm:object-center"
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/media/itm-marketplace-story.webp"
+          disablePictureInPicture
+          controlsList="nodownload noplaybackrate noremoteplayback"
           aria-hidden="true"
         >
           <source src="/media/itm-marketplace-story.webm" type="video/webm" />
         </video>
       ) : null}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[#031326]/55" />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,19,38,0.96)_0%,rgba(3,19,38,0.82)_45%,rgba(3,19,38,0.34)_76%,rgba(3,19,38,0.48)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[#07192b]/45" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,19,38,0.96)_0%,rgba(3,19,38,0.8)_46%,rgba(3,19,38,0.28)_78%,rgba(3,19,38,0.4)_100%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-40 bg-[linear-gradient(180deg,transparent,rgba(3,19,38,0.9))]" />
 
       <div className="relative z-10 mx-auto flex min-h-[650px] w-[92vw] max-w-7xl flex-col justify-center py-12 sm:min-h-[690px] sm:py-16 lg:min-h-[720px]">
         <div className="max-w-3xl">
-          <div className="mb-5 inline-flex items-center border-l-2 border-orange-400 bg-black/25 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-orange-200 backdrop-blur-sm sm:text-sm">
+          <div className="mb-5 inline-flex items-center border-l-2 border-orange-400 bg-black/25 px-3 py-2 text-xs font-bold uppercase tracking-normal text-orange-200 backdrop-blur-sm sm:text-sm">
             India's marketplace for real business intent
           </div>
 

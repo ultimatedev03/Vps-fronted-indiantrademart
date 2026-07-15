@@ -40,16 +40,16 @@ const Logo = ({
 
   const titleSize = isCompact
     ? 'text-sm sm:text-base'
-    : 'text-base sm:text-lg md:text-xl';
+    : 'text-[17px] sm:text-xl';
 
   return (
     <Link
       to={to}
       aria-label="Indian Trade Mart"
       title="IndianTradeMart"
-      className={`inline-flex items-center gap-2 ${className}`}
+      className={`inline-flex min-w-max items-center gap-2.5 ${className}`}
     >
-      <div className="flex h-full aspect-square flex-shrink-0 items-center justify-center overflow-hidden">
+      <div className="flex aspect-square h-full flex-shrink-0 items-center justify-center overflow-hidden">
         <img
           src="/itm-mark.png"
           alt="IndianTradeMART Logo"
@@ -62,20 +62,18 @@ const Logo = ({
         />
       </div>
 
-      {/* Text */}
       <div className="min-w-0 flex flex-col leading-none">
         <div
-          className={`font-semibold tracking-tight whitespace-nowrap ${titleSize}`}
+          className={`whitespace-nowrap font-semibold tracking-normal ${titleSize}`}
         >
           <span className={gold}>Indian</span>
           <span className={gold}>Trade</span>
           <span className={orange}>Mart</span>
         </div>
 
-        {/* Tagline hidden in compact mode (sidebar/header small height) */}
         {showTagline && !isCompact && (
           <span
-            className={`mt-1 hidden text-[9px] font-medium uppercase tracking-widest whitespace-nowrap sm:block sm:text-[10px] ${taglineColor}`}
+            className={`mt-1 whitespace-nowrap text-[8px] font-semibold uppercase tracking-normal sm:text-[9px] ${taglineColor}`}
           >
             Connect &amp; Grow
           </span>

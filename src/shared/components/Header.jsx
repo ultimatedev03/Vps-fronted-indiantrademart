@@ -130,8 +130,8 @@ const Header = () => {
   );
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-slate-900 border-b border-slate-800 shadow-md h-16">
-      <div className="w-[96vw] mx-auto h-full">
+    <header className="fixed top-0 z-50 h-16 w-full border-b border-white/10 bg-[#0b1f33] shadow-md">
+      <div className="mx-auto h-full w-[94vw] max-w-[1500px]">
         <div className="flex justify-between items-center h-full">
           
           {/* Logo & Desktop Nav */}
@@ -151,7 +151,7 @@ const Header = () => {
             </div>
 
             <div className="flex-shrink-0 flex items-center">
-               <Logo variant="light" className="h-9 w-auto sm:h-10" showTagline compact={false} />
+               <Logo variant="light" className="h-10 w-auto sm:h-11" showTagline compact={false} />
             </div>
             
             <nav className="hidden md:flex space-x-1">
@@ -254,7 +254,7 @@ const Header = () => {
           />
           <aside className="absolute inset-y-0 left-0 flex w-[min(320px,92vw)] flex-col overflow-y-auto bg-white p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between border-b pb-4">
-              <Logo className="h-12 w-auto" lockup />
+              <Logo className="h-11 w-auto" showTagline compact={false} />
               <Button variant="ghost" size="icon" onClick={closeMobileMenu} aria-label="Close navigation menu">
                 <span className="text-2xl leading-none">&times;</span>
               </Button>

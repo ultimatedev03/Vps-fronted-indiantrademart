@@ -31,7 +31,7 @@ const PremiumBrandsSection = () => {
   };
 
   return (
-    <section className="py-16 bg-gray-50 border-t border-gray-100 overflow-x-hidden min-h-[228px]">
+    <section className="min-h-[228px] overflow-x-hidden border-b border-slate-200 bg-[#f4f6f5] py-16">
       <style>{`
         @keyframes brand-marquee {
           0% { transform: translateX(0); }
@@ -56,10 +56,10 @@ const PremiumBrandsSection = () => {
         }
       `}</style>
 
-      <div className="w-[92vw] mx-auto overflow-x-hidden">
+      <div className="mx-auto w-[92vw] max-w-7xl overflow-x-hidden">
         <div className="text-center mb-10">
           <h2 className="text-2xl font-bold text-gray-900">
-            Explore products from <span className="text-[#4F46E5]">Premium Brands</span>
+            Explore products from <span className="text-orange-700">Premium Brands</span>
           </h2>
         </div>
 
