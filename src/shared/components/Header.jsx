@@ -151,7 +151,7 @@ const Header = () => {
             </div>
 
             <div className="flex-shrink-0 flex items-center">
-               <Logo variant="light" className="h-9 sm:h-10 w-auto" showTagline={false} compact /> 
+               <Logo variant="light" className="h-9 w-auto sm:h-10" showTagline compact={false} />
             </div>
             
             <nav className="hidden md:flex space-x-1">

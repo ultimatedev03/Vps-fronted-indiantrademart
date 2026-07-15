@@ -251,7 +251,6 @@ const StorySkeleton = () => (
 );
 
 const HomeDeferredSections = () => {
-  const reduceMotion = useReducedMotion();
   const [feed, setFeed] = useState(EMPTY_FEED);
   const [loading, setLoading] = useState(true);
   const [showPostRequirement, setShowPostRequirement] = useState(false);
@@ -344,15 +343,16 @@ const HomeDeferredSections = () => {
 
       {loading ? <StorySkeleton /> : null}
 
-      <section className="border-b border-slate-200 bg-[#f8f7f3] py-16 sm:py-20" aria-labelledby="popular-categories-heading">
+      <section className="border-b border-white/10 bg-[#071726] py-16 text-white sm:py-20" aria-labelledby="popular-categories-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
               eyebrow="Popular categories"
               title="Sourcing starts with the right market"
               description="Explore live business categories from the Indian Trade Mart catalogue and move directly into relevant supplier networks."
+              light
               action={(
-                <Link to="/directory" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-orange-700">
+                <Link to="/directory" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">
                   Browse all categories <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
@@ -367,18 +367,29 @@ const HomeDeferredSections = () => {
                 <Reveal key={category.id || category.slug} delay={Math.min(index * 0.04, 0.22)}>
                   <Link
                     to={`/directory/${category.slug}`}
-                    className="group relative flex min-h-44 flex-col overflow-hidden rounded-lg border border-[#ddd9d0] bg-white p-5 transition duration-300 hover:-translate-y-1 hover:border-slate-400 hover:shadow-[0_18px_40px_rgba(15,23,42,0.09)]"
+                    className="group relative flex min-h-60 flex-col overflow-hidden rounded-lg border border-white/15 bg-[#10283e] transition duration-500 hover:-translate-y-1 hover:border-orange-300/60 hover:shadow-[0_24px_55px_rgba(0,0,0,0.32)]"
                   >
+                    <MediaImage
+                      src={category.image_url || category.image}
+                      alt={`${category.name} sourcing category`}
+                      className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      fallbackIcon={Icon}
+                    />
+                    <div className="absolute inset-0 bg-slate-950/45 transition duration-500 group-hover:bg-slate-950/35" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.04)_10%,rgba(2,6,23,0.92)_100%)]" />
                     <span className={`absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 ${style.lineClass}`} />
-                    <div className="flex items-start justify-between gap-4">
-                      <span className={`flex h-11 w-11 items-center justify-center rounded-lg ${style.iconClass}`}>
+                    <div className="relative flex items-start justify-between gap-4 p-5">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-black/30 text-orange-200 backdrop-blur-sm">
                         <Icon className="h-5 w-5" />
                       </span>
-                      <ChevronRight className="h-5 w-5 text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-slate-700" />
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/25 backdrop-blur-sm">
+                        <ChevronRight className="h-5 w-5 text-white transition-transform group-hover:translate-x-1" />
+                      </span>
                     </div>
-                    <div className="mt-auto pt-7">
-                      <h3 className="text-base font-semibold text-slate-950 group-hover:text-[#003d82]">{category.name}</h3>
-                      <p className="mt-2 text-sm text-slate-500">
+                    <div className="relative mt-auto p-5 pt-8">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-orange-300">Live marketplace category</p>
+                      <h3 className="text-lg font-semibold leading-6 text-white">{category.name}</h3>
+                      <p className="mt-2 text-sm text-slate-300">
                         {Number(category.subcategory_count || category.subcategories?.length || 0) > 0
                           ? `${category.subcategory_count || category.subcategories.length} active sourcing segments`
                           : 'Explore products and suppliers'}
@@ -390,17 +401,17 @@ const HomeDeferredSections = () => {
             })}
           </div>
           {categories.length > 8 ? (
-            <div className="mt-8 flex flex-col items-center gap-3 border-t border-slate-200 pt-8">
+            <div className="mt-8 flex flex-col items-center gap-3 border-t border-white/15 pt-8">
               <button
                 type="button"
                 onClick={() => setShowAllCategories((value) => !value)}
                 aria-expanded={showAllCategories}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-900 transition hover:border-slate-500 hover:shadow-sm"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition hover:border-orange-300/70 hover:bg-white/15"
               >
                 {showAllCategories ? 'Show featured categories' : `Explore all ${categories.length} live categories`}
                 <ChevronDown className={`h-4 w-4 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
               </button>
-              <p className="text-center text-xs text-slate-500">
+              <p className="text-center text-xs text-slate-400">
                 Category names and sourcing segments are loaded directly from the active marketplace catalogue.
               </p>
             </div>
@@ -566,24 +577,10 @@ const HomeDeferredSections = () => {
         <img
           src="/media/itm-marketplace-story.webp"
           alt="Indian procurement and manufacturing partners connected through Indian Trade Mart"
-          className="absolute inset-0 -z-30 h-full w-full object-cover"
+          className="absolute inset-0 -z-20 h-full w-full scale-110 object-cover object-[70%_center]"
           loading="lazy"
           decoding="async"
         />
-        {!reduceMotion ? (
-          <video
-            className="absolute inset-0 -z-20 h-full w-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            poster="/media/itm-marketplace-story.webp"
-            aria-hidden="true"
-          >
-            <source src="/media/itm-marketplace-story.webm" type="video/webm" />
-          </video>
-        ) : null}
         <div className="absolute inset-0 -z-10 bg-[#06172b]/75" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(6,23,43,0.98)_0%,rgba(6,23,43,0.82)_48%,rgba(6,23,43,0.3)_100%)]" />
         <div className="relative mx-auto w-[92vw] max-w-7xl">

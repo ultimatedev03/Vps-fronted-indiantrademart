@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
+import { Handshake, MapPin, Search, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { dbClient } from '@/lib/dbClient';
@@ -150,6 +151,7 @@ const resolveLocationSlugs = async (locationText = '') => {
 
 const HeroSection = () => {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
 
@@ -201,42 +203,57 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="relative isolate overflow-hidden bg-[#0b3f7a] pt-8 pb-11 text-white sm:pt-10 sm:pb-14 lg:pt-12 lg:pb-20">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#0d4f91_0%,#0a3a72_42%,#082f66_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,transparent,rgba(2,6,23,0.16))]" />
+    <section className="relative isolate min-h-[650px] overflow-hidden bg-[#06172b] text-white sm:min-h-[690px] lg:min-h-[720px]">
+      <img
+        src="/media/itm-marketplace-story.webp"
+        alt="Indian buyer and manufacturer building a trusted trade partnership"
+        className="absolute inset-0 -z-30 h-full w-full object-cover object-[62%_center] sm:object-center"
+        width="1600"
+        height="900"
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+      />
+      {!reduceMotion ? (
+        <video
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[62%_center] sm:object-center"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="/media/itm-marketplace-story.webp"
+          aria-hidden="true"
+        >
+          <source src="/media/itm-marketplace-story.webm" type="video/webm" />
+        </video>
+      ) : null}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[#031326]/55" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,19,38,0.96)_0%,rgba(3,19,38,0.82)_45%,rgba(3,19,38,0.34)_76%,rgba(3,19,38,0.48)_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-40 bg-[linear-gradient(180deg,transparent,rgba(3,19,38,0.9))]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 text-center sm:px-6">
-        <div className="mb-4 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 shadow-sm sm:text-sm">
-          <span className="mr-2 flex h-2 w-2 rounded-full bg-[#2dd4bf]"></span>
-          India's Leading B2B Marketplace
+      <div className="relative z-10 mx-auto flex min-h-[650px] w-[92vw] max-w-7xl flex-col justify-center py-12 sm:min-h-[690px] sm:py-16 lg:min-h-[720px]">
+        <div className="max-w-3xl">
+          <div className="mb-5 inline-flex items-center border-l-2 border-orange-400 bg-black/25 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-orange-200 backdrop-blur-sm sm:text-sm">
+            India's marketplace for real business intent
+          </div>
+
+          <h1 className="max-w-3xl text-balance text-[2.55rem] font-extrabold leading-[1.02] tracking-normal sm:text-6xl lg:text-7xl">
+            Trusted Indian trade,
+            <span className="block text-orange-400">from search to handshake.</span>
+          </h1>
+
+          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg sm:leading-8">
+            Discover active manufacturers, suppliers, products, and service partners across India, then move from a clear requirement to a confident business conversation.
+          </p>
         </div>
 
-        <h1
-          className="mx-auto mb-4 max-w-4xl text-balance text-[2.25rem] font-extrabold leading-[1.05] tracking-normal sm:text-5xl lg:text-6xl"
-        >
-          Connect with Trusted <br className="hidden sm:block" />
-          <span className="text-cyan-200">
-            Manufacturers & Suppliers
-          </span>
-        </h1>
-
-        <p
-          className="mx-auto mb-6 max-w-2xl text-base leading-7 text-slate-100 sm:text-lg"
-        >
-          Discover verified business partners, source quality products, and grow your network with confidence on our
-          secure platform.
-        </p>
-
-        <div
-          className="mx-auto w-full max-w-4xl"
-        >
-          {/* Glassmorphism search form */}
-          <form onSubmit={handleSearch} className="flex flex-col gap-2 rounded-2xl border border-cyan-200/20 bg-[#07346b] p-2 shadow-lg md:flex-row">
-            {/* Location Input */}
-            <div className="flex items-center rounded-xl border border-cyan-100/10 bg-[#123d70] px-4 transition-colors focus-within:border-cyan-300/60 md:w-1/3">
-              <MapPin className="h-5 w-5 text-blue-200 mr-3 flex-shrink-0" />
+        <div className="mt-8 w-full max-w-5xl">
+          <form onSubmit={handleSearch} className="flex flex-col gap-2 border border-white/20 bg-[#06172b]/80 p-2 shadow-2xl backdrop-blur-md md:flex-row">
+            <div className="flex items-center border border-white/10 bg-white/[0.08] px-4 transition-colors focus-within:border-orange-300/70 md:w-1/3">
+              <MapPin className="mr-3 h-5 w-5 flex-shrink-0 text-orange-300" />
               <Input
-                className="!border-0 !bg-transparent !px-0 h-14 text-white caret-cyan-200 placeholder:text-blue-100/55 font-medium shadow-none outline-none focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!shadow-none"
+                className="h-14 !border-0 !bg-transparent !px-0 font-medium text-white caret-orange-300 shadow-none outline-none placeholder:text-slate-300/75 focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!shadow-none"
                 placeholder="Location (e.g. Mumbai)"
                 aria-label="Search location"
                 value={location}
@@ -244,11 +261,10 @@ const HeroSection = () => {
               />
             </div>
 
-            {/* Keyword Input */}
-            <div className="flex flex-1 items-center rounded-xl border border-cyan-100/10 bg-[#123d70] px-4 transition-colors focus-within:border-cyan-300/60">
-              <Search className="h-5 w-5 text-blue-200 mr-3 flex-shrink-0" />
+            <div className="flex flex-1 items-center border border-white/10 bg-white/[0.08] px-4 transition-colors focus-within:border-orange-300/70">
+              <Search className="mr-3 h-5 w-5 flex-shrink-0 text-orange-300" />
               <Input
-                className="!border-0 !bg-transparent !px-0 h-14 text-white caret-cyan-200 placeholder:text-blue-100/55 font-medium shadow-none outline-none focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!shadow-none"
+                className="h-14 !border-0 !bg-transparent !px-0 font-medium text-white caret-orange-300 shadow-none outline-none placeholder:text-slate-300/75 focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!shadow-none"
                 placeholder="Search products or suppliers"
                 aria-label="Search products services or companies"
                 value={query}
@@ -256,27 +272,25 @@ const HeroSection = () => {
               />
             </div>
 
-            {/* Search Button */}
             <Button
               type="submit"
-              className="h-14 w-full rounded-xl border border-white/10 bg-[#00a699] px-8 text-lg font-bold text-white shadow-sm transition-colors hover:bg-[#048f86] md:w-auto"
+              className="h-14 w-full rounded-none border border-orange-300 bg-orange-500 px-8 text-base font-bold text-slate-950 shadow-none transition-colors hover:bg-orange-400 md:w-auto"
             >
-              Search
+              Search marketplace
             </Button>
           </form>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-200 sm:gap-3">
-          <span className="font-semibold text-blue-200/80">Trending:</span>
-          {['Industrial Machinery', 'Textiles', 'Chemicals', 'Electronics'].map((trend) => (
-            <button
-              key={trend}
-              onClick={() => setQuery(trend)}
-              className="rounded-full border border-cyan-100/15 bg-[#123d70] px-3 py-2 text-blue-100 transition-colors hover:border-cyan-300/50 hover:text-white sm:px-4"
-            >
-              {trend}
-            </button>
-          ))}
+        <div className="mt-6 grid max-w-4xl gap-3 text-sm text-slate-200 sm:grid-cols-3">
+          <div className="flex items-center gap-2 border-t border-white/20 pt-3">
+            <ShieldCheck className="h-4 w-4 text-orange-300" /> Verified business signals
+          </div>
+          <div className="flex items-center gap-2 border-t border-white/20 pt-3">
+            <MapPin className="h-4 w-4 text-orange-300" /> Pan-India discovery
+          </div>
+          <div className="flex items-center gap-2 border-t border-white/20 pt-3">
+            <Handshake className="h-4 w-4 text-orange-300" /> Direct business enquiries
+          </div>
         </div>
       </div>
     </section>

@@ -34,9 +34,9 @@ const Logo = ({
   const autoCompact = /\bh-(6|7|8)\b/.test(className);
   const isCompact = typeof compact === 'boolean' ? compact : autoCompact;
 
-  const gold = variant === 'light' ? 'text-white' : 'text-[#8B6F47]';
-  const green = variant === 'light' ? 'text-green-300' : 'text-[#059669]';
-  const taglineColor = variant === 'light' ? 'text-gray-300' : 'text-gray-500';
+  const gold = variant === 'light' ? 'text-white' : 'text-[#76572f]';
+  const orange = variant === 'light' ? 'text-orange-400' : 'text-[#c65f12]';
+  const taglineColor = variant === 'light' ? 'text-slate-300' : 'text-slate-500';
 
   const titleSize = isCompact
     ? 'text-sm sm:text-base'
@@ -69,13 +69,13 @@ const Logo = ({
         >
           <span className={gold}>Indian</span>
           <span className={gold}>Trade</span>
-          <span className={green}>Mart</span>
+          <span className={orange}>Mart</span>
         </div>
 
         {/* Tagline hidden in compact mode (sidebar/header small height) */}
         {showTagline && !isCompact && (
           <span
-            className={`mt-1 text-[10px] sm:text-[11px] uppercase tracking-widest font-medium whitespace-nowrap ${taglineColor}`}
+            className={`mt-1 hidden text-[9px] font-medium uppercase tracking-widest whitespace-nowrap sm:block sm:text-[10px] ${taglineColor}`}
           >
             Connect &amp; Grow
           </span>
