@@ -580,7 +580,7 @@ const HomeDeferredSections = () => {
 
       <section className="relative isolate min-h-[720px] overflow-hidden bg-[#0b1f33] py-20 text-white sm:py-24" aria-labelledby="marketplace-story-heading">
         <img
-          src="/media/itm-marketplace-story.webp"
+          src="/media/itm-marketplace-story.webp?v=20260716-handshake"
           alt="Business partners completing a trusted marketplace introduction"
           className="absolute inset-0 -z-20 h-full w-full object-cover object-[70%_center]"
           loading="lazy"

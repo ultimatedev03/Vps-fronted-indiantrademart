@@ -205,7 +205,7 @@ const HeroSection = () => {
   return (
     <section className="relative isolate min-h-[650px] overflow-hidden bg-[#06172b] text-white sm:min-h-[690px] lg:min-h-[720px]">
       <img
-        src="/media/itm-marketplace-story.webp"
+        src="/media/itm-marketplace-story.webp?v=20260716-handshake"
         alt="Business representatives completing a trusted trade partnership"
         className="absolute inset-0 -z-30 h-full w-full object-cover object-[62%_center] sm:object-center"
         width="1600"
@@ -222,12 +222,12 @@ const HeroSection = () => {
           loop
           playsInline
           preload="auto"
-          poster="/media/itm-marketplace-story.webp"
+          poster="/media/itm-marketplace-story.webp?v=20260716-handshake"
           disablePictureInPicture
           controlsList="nodownload noplaybackrate noremoteplayback"
           aria-hidden="true"
         >
-          <source src="/media/itm-marketplace-story.webm" type="video/webm" />
+          <source src="/media/itm-marketplace-story.webm?v=20260716-handshake" type="video/webm" />
         </video>
       ) : null}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[#07192b]/45" />
