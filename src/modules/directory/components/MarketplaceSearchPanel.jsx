@@ -30,10 +30,12 @@ const resolveSuggestionPath = (item = {}) => {
   return item.slug ? `/directory/${item.slug}` : null;
 };
 
-const MarketplaceSearchPanel = ({ className = '', compact = false }) => {
+const MarketplaceSearchPanel = ({ className = '', compact = false, defaultMode = 'product' }) => {
   const navigate = useNavigate();
   const panelRef = useRef(null);
-  const [mode, setMode] = useState('product');
+  const [mode, setMode] = useState(() => (
+    MODES.some((item) => item.id === defaultMode) ? defaultMode : 'product'
+  ));
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
