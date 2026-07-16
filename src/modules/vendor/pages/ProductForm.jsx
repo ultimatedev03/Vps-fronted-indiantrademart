@@ -128,6 +128,7 @@ const ProductForm = () => {
     price_unit: '',
     description: '',
 
+    pricing_mode: 'quotation',
     price: '',
     original_price: '',
     discount_percent: '',
@@ -175,7 +176,7 @@ const ProductForm = () => {
   const score = useMemo(() => {
     let s = 0;
     if (formData.name?.length > 5) s += 15;
-    if (formData.price) s += 15;
+    if (formData.price || formData.pricing_mode === 'quotation') s += 15;
     if (formData.description?.length > 50) s += 20;
     if (formData.images?.length >= 3) s += 20;
     else if (formData.images?.length > 0) s += 10;
@@ -256,6 +257,13 @@ const ProductForm = () => {
         setFormData((p) => ({
           ...p,
           ...data,
+          pricing_mode:
+            productMetadata.pricing_mode === 'quotation' ||
+            data.price === null ||
+            data.price === undefined ||
+            String(data.price).trim() === ''
+              ? 'quotation'
+              : 'fixed',
           price_unit: data.price_unit || '',
           min_order_qty: data.min_order_qty || '',
           original_price: String(productMetadata.original_price ?? ''),
@@ -575,7 +583,7 @@ const ProductForm = () => {
       let url;
       if (isDataEntryMode) {
         url = await dataEntryApi.uploadProductMedia(file, uploadType);
-      } else if (categorySelectionVersionRef.current === selectionVersionAtRequest) {
+      } else {
         await dbClient.auth.getSession();
         url = await vendorApi.auth.uploadImage(file, 'product-media');
       }
@@ -644,6 +652,7 @@ const ProductForm = () => {
       delete payload.product_images;
       delete payload.original_price;
       delete payload.discount_percent;
+      delete payload.pricing_mode;
 
       if (needsProductSlugNormalization(payload.slug, formData.name)) {
         payload.slug = await generateUniqueSlug(formData.name, {
@@ -684,67 +693,78 @@ const ProductForm = () => {
         if (!payload.category_path) payload.category_path = derivedCategory;
       }
 
-      const normalizedOriginalPrice = toNonNegativeNumber(formData.original_price);
-      const normalizedSellingPrice = toNonNegativeNumber(formData.price);
-      let normalizedDiscountPercent = clampDiscountPercent(formData.discount_percent);
-      let resolvedOriginalPrice = normalizedOriginalPrice;
-      let resolvedSellingPrice = normalizedSellingPrice;
-
-      if (normalizedOriginalPrice !== null && normalizedDiscountPercent > 0 && resolvedSellingPrice === null) {
-        resolvedSellingPrice = calculateDiscountedPrice(normalizedOriginalPrice, normalizedDiscountPercent);
-      }
-
-      if (
-        resolvedOriginalPrice === null &&
-        resolvedSellingPrice !== null &&
-        normalizedDiscountPercent > 0 &&
-        normalizedDiscountPercent < 100
-      ) {
-        resolvedOriginalPrice = Number(
-          ((resolvedSellingPrice * 100) / (100 - normalizedDiscountPercent)).toFixed(2)
-        );
-      }
-
-      if (
-        resolvedOriginalPrice !== null &&
-        resolvedSellingPrice !== null &&
-        resolvedOriginalPrice > 0 &&
-        resolvedSellingPrice > resolvedOriginalPrice
-      ) {
-        throw new Error('Selling price cannot be greater than original price when discount is set.');
-      }
-
-      if (
-        resolvedOriginalPrice !== null &&
-        resolvedSellingPrice !== null &&
-        resolvedOriginalPrice > resolvedSellingPrice &&
-        normalizedDiscountPercent <= 0
-      ) {
-        normalizedDiscountPercent = Number(
-          (((resolvedOriginalPrice - resolvedSellingPrice) / resolvedOriginalPrice) * 100).toFixed(2)
-        );
-      }
-
-      if (resolvedSellingPrice !== null) {
-        payload.price = String(resolvedSellingPrice);
-      }
-
-      if (resolvedOriginalPrice !== null) {
-        productMetadata.original_price = resolvedOriginalPrice;
-      } else {
+      if (formData.pricing_mode === 'quotation') {
+        payload.price = null;
+        productMetadata.pricing_mode = 'quotation';
+        productMetadata.price_on_request = true;
         delete productMetadata.original_price;
-      }
-
-      if (normalizedDiscountPercent > 0) {
-        productMetadata.discount_percent = normalizedDiscountPercent;
-      } else {
         delete productMetadata.discount_percent;
-      }
-
-      if (resolvedOriginalPrice !== null && resolvedSellingPrice !== null && resolvedOriginalPrice > resolvedSellingPrice) {
-        productMetadata.discount_amount = Number((resolvedOriginalPrice - resolvedSellingPrice).toFixed(2));
-      } else {
         delete productMetadata.discount_amount;
+      } else {
+        const normalizedOriginalPrice = toNonNegativeNumber(formData.original_price);
+        const normalizedSellingPrice = toNonNegativeNumber(formData.price);
+        let normalizedDiscountPercent = clampDiscountPercent(formData.discount_percent);
+        let resolvedOriginalPrice = normalizedOriginalPrice;
+        let resolvedSellingPrice = normalizedSellingPrice;
+
+        if (normalizedOriginalPrice !== null && normalizedDiscountPercent > 0 && resolvedSellingPrice === null) {
+          resolvedSellingPrice = calculateDiscountedPrice(normalizedOriginalPrice, normalizedDiscountPercent);
+        }
+
+        if (
+          resolvedOriginalPrice === null &&
+          resolvedSellingPrice !== null &&
+          normalizedDiscountPercent > 0 &&
+          normalizedDiscountPercent < 100
+        ) {
+          resolvedOriginalPrice = Number(
+            ((resolvedSellingPrice * 100) / (100 - normalizedDiscountPercent)).toFixed(2)
+          );
+        }
+
+        if (resolvedSellingPrice === null) {
+          throw new Error('Enter a selling price or choose Ask for quotation.');
+        }
+
+        if (
+          resolvedOriginalPrice !== null &&
+          resolvedOriginalPrice > 0 &&
+          resolvedSellingPrice > resolvedOriginalPrice
+        ) {
+          throw new Error('Selling price cannot be greater than original price when discount is set.');
+        }
+
+        if (
+          resolvedOriginalPrice !== null &&
+          resolvedOriginalPrice > resolvedSellingPrice &&
+          normalizedDiscountPercent <= 0
+        ) {
+          normalizedDiscountPercent = Number(
+            (((resolvedOriginalPrice - resolvedSellingPrice) / resolvedOriginalPrice) * 100).toFixed(2)
+          );
+        }
+
+        payload.price = String(resolvedSellingPrice);
+        productMetadata.pricing_mode = 'fixed';
+        delete productMetadata.price_on_request;
+
+        if (resolvedOriginalPrice !== null) {
+          productMetadata.original_price = resolvedOriginalPrice;
+        } else {
+          delete productMetadata.original_price;
+        }
+
+        if (normalizedDiscountPercent > 0) {
+          productMetadata.discount_percent = normalizedDiscountPercent;
+        } else {
+          delete productMetadata.discount_percent;
+        }
+
+        if (resolvedOriginalPrice !== null && resolvedOriginalPrice > resolvedSellingPrice) {
+          productMetadata.discount_amount = Number((resolvedOriginalPrice - resolvedSellingPrice).toFixed(2));
+        } else {
+          delete productMetadata.discount_amount;
+        }
       }
 
       payload.metadata = productMetadata;
@@ -1168,9 +1188,11 @@ const ProductForm = () => {
                           setFormData((p) => ({ ...p, price_unit: v }))
                         }
                         placeholder="Select unit"
+                        allowCustom
+                        customPlaceholder="Enter your unit (e.g. pallet, project)"
                       />
                       <p className="text-[11px] text-slate-500">
-                        IndiaMART style: Piece / Nos / Kg / Litre / Meter etc.
+                        Choose a standard unit or select Other to enter your own.
                       </p>
                     </div>
                   </div>
@@ -1196,70 +1218,117 @@ const ProductForm = () => {
             {/* SPECS TAB */}
             <TabsContent value="specs" className="space-y-4 mt-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Pricing (Optional)</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Product pricing</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Selling Price (₹)</Label>
-                      <Input
-                        type="number"
-                        value={formData.price}
-                        onChange={(e) =>
-                          setFormData((p) => ({ ...p, price: e.target.value }))
-                        }
-                        placeholder="e.g. 500"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Per Unit</Label>
-                      <Input
-                        value={formData.price_unit || ''}
-                        readOnly
-                        className="bg-slate-50"
-                        placeholder="Select unit from Basic tab"
-                      />
-                    </div>
+                  <div className="grid grid-cols-2 gap-1 border border-slate-200 bg-slate-50 p-1">
+                    <button
+                      type="button"
+                      aria-pressed={formData.pricing_mode === 'quotation'}
+                      onClick={() =>
+                        setFormData((previous) => ({
+                          ...previous,
+                          pricing_mode: 'quotation',
+                          price: '',
+                          original_price: '',
+                          discount_percent: '',
+                        }))
+                      }
+                      className={cx(
+                        'min-h-10 px-3 text-sm font-semibold transition',
+                        formData.pricing_mode === 'quotation'
+                          ? 'bg-[#0b2747] text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-white'
+                      )}
+                    >
+                      Ask for quotation
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={formData.pricing_mode === 'fixed'}
+                      onClick={() =>
+                        setFormData((previous) => ({ ...previous, pricing_mode: 'fixed' }))
+                      }
+                      className={cx(
+                        'min-h-10 px-3 text-sm font-semibold transition',
+                        formData.pricing_mode === 'fixed'
+                          ? 'bg-[#0b2747] text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-white'
+                      )}
+                    >
+                      Show fixed price
+                    </button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Original Price / MRP (₹)</Label>
-                      <Input
-                        type="number"
-                        value={formData.original_price}
-                        onChange={(e) =>
-                          setFormData((p) => ({ ...p, original_price: e.target.value }))
-                        }
-                        placeholder="e.g. 650"
-                      />
+
+                  {formData.pricing_mode === 'quotation' ? (
+                    <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">
+                      Public listing: Ask for quotation
                     </div>
-                    <div className="space-y-2">
-                      <Label>Discount (%)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={formData.discount_percent}
-                        onChange={(e) =>
-                          setFormData((p) => ({ ...p, discount_percent: e.target.value }))
-                        }
-                        placeholder="e.g. 10"
-                      />
-                    </div>
-                  </div>
-                  {(discountPreviewPrice !== null || effectiveDiscountPercent > 0 || discountSavings !== null) && (
-                    <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                      {discountPreviewPrice !== null && !formData.price
-                        ? `Discounted selling price will be auto-filled as ₹${formatMoneyPreview(discountPreviewPrice)}.`
-                        : `Effective discount: ${formatMoneyPreview(effectiveDiscountPercent)}%`}
-                      {discountSavings !== null ? ` You save ₹${formatMoneyPreview(discountSavings)}.` : ''}
-                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Selling Price (₹)</Label>
+                          <Input
+                            type="number"
+                            value={formData.price}
+                            onChange={(e) =>
+                              setFormData((p) => ({ ...p, price: e.target.value }))
+                            }
+                            placeholder="e.g. 500"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Per Unit</Label>
+                          <Input
+                            value={formData.price_unit || ''}
+                            readOnly
+                            className="bg-slate-50"
+                            placeholder="Select unit from Basic tab"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Original Price / MRP (₹)</Label>
+                          <Input
+                            type="number"
+                            value={formData.original_price}
+                            onChange={(e) =>
+                              setFormData((p) => ({ ...p, original_price: e.target.value }))
+                            }
+                            placeholder="e.g. 650"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Discount (%)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={formData.discount_percent}
+                            onChange={(e) =>
+                              setFormData((p) => ({ ...p, discount_percent: e.target.value }))
+                            }
+                            placeholder="e.g. 10"
+                          />
+                        </div>
+                      </div>
+                      {(discountPreviewPrice !== null || effectiveDiscountPercent > 0 || discountSavings !== null) && (
+                        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                          {discountPreviewPrice !== null && !formData.price
+                            ? `Discounted selling price will be auto-filled as ₹${formatMoneyPreview(discountPreviewPrice)}.`
+                            : `Effective discount: ${formatMoneyPreview(effectiveDiscountPercent)}%`}
+                          {discountSavings !== null ? ` You save ₹${formatMoneyPreview(discountSavings)}.` : ''}
+                        </div>
+                      )}
+                      <p className="text-xs text-slate-500">
+                        MRP and discount can calculate the selling price automatically.
+                      </p>
+                    </>
                   )}
-                  <p className="text-xs text-slate-500">
-                    Selling price blank chhodoge aur MRP + discount bharoge to discounted selling price auto-calculate ho jayega.
-                  </p>
                 </CardContent>
               </Card>
 
@@ -1489,7 +1558,9 @@ const ProductForm = () => {
                 <div className={formData.name.length > 5 ? 'text-emerald-600' : ''}>
                   • Name Length ({formData.name.length}/5 chars)
                 </div>
-                <div className={formData.price ? 'text-emerald-600' : ''}>• Price Set (optional)</div>
+                <div className={formData.price || formData.pricing_mode === 'quotation' ? 'text-emerald-600' : ''}>
+                  • Pricing mode selected
+                </div>
                 <div className={formData.images.length >= 3 ? 'text-emerald-600' : ''}>
                   • 3+ Images ({formData.images.length})
                 </div>

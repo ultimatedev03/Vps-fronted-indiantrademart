@@ -106,7 +106,7 @@ const Products = () => {
         ) : (
           filteredProducts.map((p) => {
             const mainImage = p.images?.[0];
-            const priceLabel = p.price ? `₹ ${p.price}${p.price_unit ? ` / ${p.price_unit}` : ''}` : 'Price on request';
+            const priceLabel = p.price ? `₹ ${p.price}${p.price_unit ? ` / ${p.price_unit}` : ''}` : 'Ask for quotation';
             const categoryLabel = p.category_path ? p.category_path : (p.category_other || 'Uncategorized');
 
             return (

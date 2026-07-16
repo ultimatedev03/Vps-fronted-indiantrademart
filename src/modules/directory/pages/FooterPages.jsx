@@ -1235,7 +1235,7 @@ export const ProductsPage = () => {
 
   const formatPrice = (price, unit) => {
     const num = Number(price);
-    if (!Number.isFinite(num) || num <= 0) return 'Price on request';
+    if (!Number.isFinite(num) || num <= 0) return 'Ask for quotation';
     const formatted = new Intl.NumberFormat('en-IN').format(num);
     return `₹${formatted}${unit ? ` / ${unit}` : ''}`;
   };

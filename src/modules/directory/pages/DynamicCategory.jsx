@@ -265,10 +265,16 @@ const DynamicCategory = () => {
                           {product.vendors?.company_name}
                         </p>
                         <div className="flex justify-between items-center">
-                          <span className="font-bold text-lg text-blue-600">₹{product.price}</span>
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-700">
-                            {product.price_unit}
-                          </span>
+                          {Number(product.price) > 0 ? (
+                            <span className="font-bold text-lg text-blue-600">₹{product.price}</span>
+                          ) : (
+                            <span className="font-bold text-sm text-blue-600">Ask for quotation</span>
+                          )}
+                          {product.price_unit ? (
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-700">
+                              {product.price_unit}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </Link>

@@ -221,7 +221,7 @@ const SearchResultsList = ({ products, query, city, category }) => {
     if (priceNum === null) {
       return (
         <span className="text-[#00A699] font-bold">
-          Price on Request
+          Ask for quotation
           {unit ? <span className="text-xs font-semibold text-gray-500"> / {unit}</span> : null}
         </span>
       );

@@ -245,7 +245,7 @@ const ProductDetail = () => {
 
   const formatPrice = (value) => {
     const raw = String(value ?? '').trim();
-    if (!raw) return 'Price on request';
+    if (!raw) return 'Ask for quotation';
     const numeric = Number(raw);
     if (!Number.isFinite(numeric)) return `₹${raw}`;
     return new Intl.NumberFormat('en-IN', {
@@ -828,7 +828,7 @@ const ProductDetail = () => {
   const productName = data.name || 'Product';
   const productUnit = getProductUnit(data);
   const priceUnitLabel = data.price_unit || productUnit;
-  const priceLabel = data.price ? formatPrice(data.price) : 'Price on request';
+  const priceLabel = data.price ? formatPrice(data.price) : 'Ask for quotation';
   const moqLabel = data.min_order_qty ? `${data.min_order_qty} ${productUnit}` : 'Ask supplier';
   const vendorLocation = [vendor?.city, vendor?.state].filter(Boolean).join(', ') || 'India';
   const productSpecifications = normalizeSpecifications(data.specifications);

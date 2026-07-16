@@ -10,11 +10,11 @@ const HeroSection = () => {
   return (
     <section className="relative isolate min-h-[540px] overflow-hidden bg-[#122238] text-white sm:min-h-[565px] lg:min-h-[590px]">
       <img
-        src="/media/itm-marketplace-story.webp?v=20260716-handshake2"
-        alt="Business partners concluding a trusted supplier agreement"
-        className="absolute inset-0 -z-30 h-full w-full object-cover object-[66%_center] sm:object-center"
-        width="1600"
-        height="900"
+        src="/media/itm-marketplace-story.webp?v=20260716-marketplace3"
+        alt="Indian manufacturing teams turning production into trusted trade"
+        className="absolute inset-0 -z-30 h-full w-full object-cover object-center"
+        width="1280"
+        height="720"
         loading="eager"
         decoding="async"
         fetchpriority="high"
@@ -22,25 +22,25 @@ const HeroSection = () => {
 
       {!reduceMotion && (
         <video
-          className={`pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover object-[66%_center] transition-opacity duration-1000 sm:object-center ${videoReady ? 'opacity-100' : 'opacity-0'}`}
+          className={`pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover object-center transition-opacity duration-700 ${videoReady ? 'opacity-100' : 'opacity-0'}`}
           autoPlay
           muted
           loop
           playsInline
           preload="auto"
-          poster="/media/itm-marketplace-story.webp?v=20260716-handshake2"
+          poster="/media/itm-marketplace-story.webp?v=20260716-marketplace3"
           disablePictureInPicture
           controlsList="nodownload noplaybackrate noremoteplayback"
           onPlaying={() => setVideoReady(true)}
           onError={() => setVideoReady(false)}
           aria-hidden="true"
         >
-          <source src="/media/itm-marketplace-story.webm?v=20260716-handshake2" type="video/webm" />
+          <source src="/media/itm-marketplace-story.webm?v=20260716-marketplace3" type="video/webm" />
         </video>
       )}
 
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[#07182b]/20" />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(7,23,41,0.96)_0%,rgba(7,23,41,0.86)_42%,rgba(7,23,41,0.34)_70%,rgba(7,23,41,0.46)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[#07182b]/15" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(7,23,41,0.97)_0%,rgba(7,23,41,0.88)_40%,rgba(7,23,41,0.28)_72%,rgba(7,23,41,0.38)_100%)]" />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_72%_46%,rgba(251,146,60,0.12),transparent_28%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-44 bg-[linear-gradient(180deg,transparent,rgba(6,20,36,0.9))]" />
 

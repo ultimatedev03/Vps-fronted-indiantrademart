@@ -117,7 +117,7 @@ const ProductMiniCard = ({ product }) => {
         <div className="text-sm font-bold text-slate-900 line-clamp-2 group-hover:text-blue-700 transition-colors">
           {product?.name || 'Product'}
         </div>
-        <div className="mt-2 text-xs text-slate-600">{price || 'Get latest price'}</div>
+        <div className="mt-2 text-xs text-slate-600">{price || 'Ask for quotation'}</div>
       </div>
     </Link>
   );

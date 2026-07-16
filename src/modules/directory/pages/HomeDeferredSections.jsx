@@ -187,7 +187,7 @@ const isVerifiedVendor = (vendor) => {
 
 const formatPrice = (value) => {
   const amount = Number(String(value ?? '').replace(/[^0-9.]/g, ''));
-  if (!Number.isFinite(amount) || amount <= 0) return 'Price on request';
+  if (!Number.isFinite(amount) || amount <= 0) return 'Ask for quotation';
   return `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(amount)}`;
 };
 
@@ -601,7 +601,7 @@ const HomeDeferredSections = () => {
 
       <section className="relative isolate min-h-[720px] overflow-hidden bg-[#0b1f33] py-20 text-white sm:py-24" aria-labelledby="marketplace-story-heading">
         <img
-          src="/media/itm-marketplace-story.webp?v=20260716-handshake"
+          src="/media/itm-marketplace-story.webp?v=20260716-marketplace3"
           alt="Business partners completing a trusted marketplace introduction"
           className="absolute inset-0 -z-20 h-full w-full object-cover object-[70%_center]"
           loading="lazy"

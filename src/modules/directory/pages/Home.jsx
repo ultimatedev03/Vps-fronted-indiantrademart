@@ -6,6 +6,24 @@ import { HOME_FAQS } from '@/modules/directory/pages/homeStoryContent';
 
 const HomeDeferredSections = lazy(() => import('./HomeDeferredSections'));
 
+const HomeSectionsFallback = () => (
+  <div className="bg-[#fbfaf7] py-12 sm:py-16" aria-hidden="true">
+    <div className="mx-auto w-[92vw] max-w-[1400px] animate-pulse">
+      <div className="h-3 w-28 bg-orange-200" />
+      <div className="mt-4 h-8 w-full max-w-md bg-slate-200" />
+      <div className="mt-3 h-4 w-full max-w-xl bg-slate-100" />
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 8 }, (_, index) => (
+          <div
+            key={`home-section-placeholder-${index}`}
+            className="h-32 border border-slate-200 bg-white"
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 const HOME_SEO = {
   title: 'B2B Marketplace India | Indian Trade Mart',
   description:
@@ -113,7 +131,6 @@ const Home = () => {
 
     let timeoutId = null;
     let idleId = null;
-    let loadFallbackId = null;
     let enabled = false;
 
     const enable = () => {
@@ -122,39 +139,15 @@ const Home = () => {
       setLoadDeferredSections(true);
     };
 
-    const scheduleIdle = () => {
-      if (enabled) return;
-      timeoutId = window.setTimeout(() => {
-        if (typeof window.requestIdleCallback === 'function') {
-          idleId = window.requestIdleCallback(enable, { timeout: 9000 });
-          return;
-        }
-        enable();
-      }, 6500);
-    };
-
-    const schedule = () => {
-      scheduleIdle();
-    };
-
     const interactionEvents = ['scroll', 'pointerdown', 'keydown', 'touchstart'];
     interactionEvents.forEach((eventName) => {
       window.addEventListener(eventName, enable, { once: true, passive: true });
     });
 
-    if (document.readyState === 'complete') {
-      schedule();
+    if (typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(enable, { timeout: 1200 });
     } else {
-      const onLoad = () => {
-        window.removeEventListener('load', onLoad);
-        if (loadFallbackId) {
-          window.clearTimeout(loadFallbackId);
-          loadFallbackId = null;
-        }
-        schedule();
-      };
-      window.addEventListener('load', onLoad, { once: true });
-      loadFallbackId = window.setTimeout(onLoad, 4500);
+      timeoutId = window.setTimeout(enable, 180);
     }
 
     return () => {
@@ -162,7 +155,6 @@ const Home = () => {
         window.removeEventListener(eventName, enable);
       });
       if (timeoutId) window.clearTimeout(timeoutId);
-      if (loadFallbackId) window.clearTimeout(loadFallbackId);
       if (idleId && typeof window.cancelIdleCallback === 'function') {
         window.cancelIdleCallback(idleId);
       }
@@ -197,8 +189,8 @@ const Home = () => {
       </Helmet>
 
       <HeroSection />
-      <Suspense fallback={null}>
-        {loadDeferredSections ? <HomeDeferredSections /> : null}
+      <Suspense fallback={<HomeSectionsFallback />}>
+        {loadDeferredSections ? <HomeDeferredSections /> : <HomeSectionsFallback />}
       </Suspense>
     </div>
   );

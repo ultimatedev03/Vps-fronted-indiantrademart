@@ -172,7 +172,7 @@ export const getPremiumBrandFallbackOfferings = (brand = null) => {
         head_category_name: item?.category || brand.primaryBusinessType || 'Business Services',
         sub_category_name: brand.name || 'Premium Brand',
         micro_category_name: item?.subCategory || null,
-        price: item?.price || 'Price on request',
+        price: item?.price || 'Ask for quotation',
         image: item?.image || brand.logo_url || '/itm-logo.png',
         description: item?.description || brand.description || '',
         isBrandOffering: true,

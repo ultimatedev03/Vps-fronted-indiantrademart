@@ -13,7 +13,7 @@ import { getProductDetailPath } from '@/shared/utils/productRoutes';
 import { getVendorProfilePath } from '@/shared/utils/vendorRoutes';
 
 const formatPrice = (value) => {
-  if (value === null || value === undefined || value === '') return 'Price on request';
+  if (value === null || value === undefined || value === '') return 'Ask for quotation';
   if (typeof value === 'number' && Number.isFinite(value)) return `Rs ${value.toLocaleString()}`;
   const parsed = Number(String(value).replace(/[^0-9.]/g, '').trim());
   if (!Number.isFinite(parsed)) return String(value);
