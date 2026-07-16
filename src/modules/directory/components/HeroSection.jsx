@@ -8,10 +8,10 @@ const HeroSection = () => {
   const [videoReady, setVideoReady] = useState(false);
 
   return (
-    <section className="relative isolate min-h-[650px] overflow-hidden bg-[#122238] text-white sm:min-h-[690px] lg:min-h-[720px]">
+    <section className="relative isolate min-h-[540px] overflow-hidden bg-[#122238] text-white sm:min-h-[565px] lg:min-h-[590px]">
       <img
-        src="/media/itm-marketplace-story.webp?v=20260716-story"
-        alt="Indian business leaders building a trusted supplier partnership"
+        src="/media/itm-marketplace-story.webp?v=20260716-handshake2"
+        alt="Business partners concluding a trusted supplier agreement"
         className="absolute inset-0 -z-30 h-full w-full object-cover object-[66%_center] sm:object-center"
         width="1600"
         height="900"
@@ -22,50 +22,52 @@ const HeroSection = () => {
 
       {!reduceMotion && (
         <video
-          className={`pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover object-[66%_center] transition-opacity duration-700 sm:object-center ${videoReady ? 'opacity-100' : 'opacity-0'}`}
+          className={`pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover object-[66%_center] transition-opacity duration-1000 sm:object-center ${videoReady ? 'opacity-100' : 'opacity-0'}`}
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
-          poster="/media/itm-marketplace-story.webp?v=20260716-story"
+          preload="auto"
+          poster="/media/itm-marketplace-story.webp?v=20260716-handshake2"
           disablePictureInPicture
           controlsList="nodownload noplaybackrate noremoteplayback"
-          onCanPlay={() => setVideoReady(true)}
+          onPlaying={() => setVideoReady(true)}
+          onError={() => setVideoReady(false)}
           aria-hidden="true"
         >
-          <source src="/media/itm-marketplace-story.webm?v=20260716-story" type="video/webm" />
+          <source src="/media/itm-marketplace-story.webm?v=20260716-handshake2" type="video/webm" />
         </video>
       )}
 
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-black/15" />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(8,25,44,0.95)_0%,rgba(8,25,44,0.82)_43%,rgba(8,25,44,0.22)_78%,rgba(8,25,44,0.34)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-40 bg-[linear-gradient(180deg,transparent,rgba(8,25,44,0.82))]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[#07182b]/20" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(7,23,41,0.96)_0%,rgba(7,23,41,0.86)_42%,rgba(7,23,41,0.34)_70%,rgba(7,23,41,0.46)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_72%_46%,rgba(251,146,60,0.12),transparent_28%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-44 bg-[linear-gradient(180deg,transparent,rgba(6,20,36,0.9))]" />
 
-      <div className="relative z-10 mx-auto flex min-h-[650px] w-[92vw] max-w-[1460px] flex-col justify-center py-10 sm:min-h-[690px] sm:py-12 lg:min-h-[720px]">
-        <div className="max-w-[760px]">
-          <p className="mb-4 inline-flex border-l-2 border-orange-400 bg-black/25 px-3 py-2 text-xs font-extrabold uppercase text-orange-100 backdrop-blur-sm sm:text-sm">
+      <div className="relative z-10 mx-auto flex min-h-[540px] w-[92vw] max-w-[1400px] flex-col justify-center py-8 sm:min-h-[565px] lg:min-h-[590px]">
+        <div className="max-w-[620px]">
+          <p className="mb-2.5 inline-flex border-l-2 border-orange-400 bg-black/25 px-2.5 py-1 text-[10px] font-extrabold uppercase text-orange-100 backdrop-blur-sm sm:text-[11px]">
             India's marketplace for real business intent
           </p>
 
-          <h1 className="itm-display max-w-[760px] text-balance text-[2.6rem] leading-[0.98] text-white sm:text-6xl lg:text-[4.8rem]">
+          <h1 className="itm-display max-w-[620px] text-balance text-[2.1rem] leading-[1.04] text-white sm:text-[2.85rem] lg:text-[3.4rem]">
             Where Indian business finds its next
             <span className="block text-orange-400">trusted partner.</span>
           </h1>
 
-          <p className="mt-5 max-w-2xl text-base font-medium leading-7 text-slate-100 sm:text-lg sm:leading-8">
+          <p className="mt-3.5 max-w-[590px] text-sm font-medium leading-6 text-slate-100 sm:text-[15px] sm:leading-6">
             Discover active manufacturers, suppliers, products, and service partners across India, then turn business intent into a confident conversation.
           </p>
         </div>
 
-        <div className="mt-7 w-full max-w-[1020px] text-slate-900">
-          <MarketplaceSearchPanel />
+        <div className="mt-5 w-full max-w-[820px] text-slate-900">
+          <MarketplaceSearchPanel compact />
         </div>
 
-        <div className="mt-5 hidden max-w-[1020px] grid-cols-3 gap-3 text-sm font-semibold text-slate-100 lg:grid">
-          <div className="flex items-center gap-2 border-t border-white/25 pt-3"><ShieldCheck className="h-4 w-4 text-orange-300" /> Verified business signals</div>
-          <div className="flex items-center gap-2 border-t border-white/25 pt-3"><MapPin className="h-4 w-4 text-orange-300" /> Pan-India discovery</div>
-          <div className="flex items-center gap-2 border-t border-white/25 pt-3"><Handshake className="h-4 w-4 text-orange-300" /> Direct business enquiries</div>
+        <div className="mt-3.5 hidden max-w-[820px] grid-cols-3 gap-3 text-[11px] font-semibold text-slate-100 lg:grid">
+          <div className="flex items-center gap-2 border-t border-white/25 pt-2.5"><ShieldCheck className="h-3.5 w-3.5 text-orange-300" /> Verified business signals</div>
+          <div className="flex items-center gap-2 border-t border-white/25 pt-2.5"><MapPin className="h-3.5 w-3.5 text-orange-300" /> Pan-India discovery</div>
+          <div className="flex items-center gap-2 border-t border-white/25 pt-2.5"><Handshake className="h-3.5 w-3.5 text-orange-300" /> Direct business enquiries</div>
         </div>
       </div>
     </section>

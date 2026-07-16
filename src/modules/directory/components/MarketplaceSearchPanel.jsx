@@ -122,15 +122,15 @@ const MarketplaceSearchPanel = ({ className = '', compact = false }) => {
 
   return (
     <div ref={panelRef} className={`w-full ${className}`}>
-      <div className="border border-slate-200/90 bg-white p-2.5 shadow-[0_24px_65px_rgba(15,23,42,0.18)] sm:p-3">
-        <div className="mb-2 grid grid-cols-2 gap-1 sm:flex sm:flex-wrap" role="tablist" aria-label="Marketplace search mode">
+      <div className={`border border-slate-200/90 bg-white shadow-[0_20px_55px_rgba(15,23,42,0.16)] ${compact ? 'p-1.5 sm:p-2' : 'p-2 sm:p-2.5'}`}>
+        <div className={`${compact ? 'mb-1' : 'mb-1.5'} grid grid-cols-2 gap-1 sm:flex sm:flex-wrap`} role="tablist" aria-label="Marketplace search mode">
           {MODES.map((item) => (
             <button
               key={item.id}
               type="button"
               role="tab"
               aria-selected={mode === item.id}
-              className={`min-h-9 px-3 text-xs font-bold transition-colors sm:text-sm ${
+              className={`${compact ? 'min-h-7 px-2 text-[10px] sm:text-[11px]' : 'min-h-8 px-2.5 text-[11px] sm:text-xs'} font-bold transition-colors ${
                 mode === item.id
                   ? 'bg-[#0a2342] text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
@@ -146,9 +146,9 @@ const MarketplaceSearchPanel = ({ className = '', compact = false }) => {
           ))}
         </div>
 
-        <form className="relative flex flex-col gap-2 sm:flex-row" onSubmit={submitSearch}>
+        <form className={`relative flex flex-col ${compact ? 'gap-1' : 'gap-1.5'} sm:flex-row`} onSubmit={submitSearch}>
           <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            <Search className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-500 ${compact ? 'left-3 h-4 w-4' : 'left-4 h-5 w-5'}`} />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -157,7 +157,7 @@ const MarketplaceSearchPanel = ({ className = '', compact = false }) => {
               placeholder={activeMode.placeholder}
               aria-label={activeMode.label}
               autoComplete="off"
-              className={`${compact ? 'h-12' : 'h-14'} w-full border border-slate-200 bg-[#f6f7f7] pl-12 pr-12 text-sm font-semibold text-slate-950 outline-none transition focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-200 sm:text-base`}
+              className={`${compact ? 'h-10 pl-9 pr-9 text-[13px]' : 'h-[52px] pl-11 pr-11 text-sm'} w-full border border-slate-200 bg-[#f6f7f7] font-semibold text-slate-950 outline-none transition focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-200`}
             />
             {loading && <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-orange-500" />}
 
@@ -186,24 +186,24 @@ const MarketplaceSearchPanel = ({ className = '', compact = false }) => {
 
           <button
             type="submit"
-            className={`${compact ? 'h-12' : 'h-14'} inline-flex flex-shrink-0 items-center justify-center gap-3 bg-orange-500 px-6 text-sm font-extrabold text-slate-950 shadow-sm transition hover:bg-orange-400 sm:px-8 sm:text-base`}
+            className={`${compact ? 'h-10 gap-2 px-4 text-[13px] sm:px-5' : 'h-[52px] gap-2.5 px-5 text-sm sm:px-7'} inline-flex flex-shrink-0 items-center justify-center bg-orange-500 font-extrabold text-slate-950 shadow-sm transition hover:bg-orange-400`}
           >
             Get Free Quotes <ArrowRight className="h-4 w-4" />
           </button>
         </form>
       </div>
 
-      <div className="mt-4 hidden grid-cols-2 gap-2 text-xs font-bold text-slate-700 sm:grid sm:grid-cols-4 sm:text-sm">
-        <div className="flex min-h-12 items-center gap-2 border border-slate-200 bg-white/95 px-3"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Verified Suppliers</div>
-        <div className="flex min-h-12 items-center gap-2 border border-slate-200 bg-white/95 px-3"><UserRoundCheck className="h-4 w-4 text-emerald-600" /> Secure Enquiries</div>
-        <div className="flex min-h-12 items-center gap-2 border border-slate-200 bg-white/95 px-3"><Building2 className="h-4 w-4 text-emerald-600" /> Free Registration</div>
-        <div className="flex min-h-12 items-center gap-2 border border-slate-200 bg-white/95 px-3"><Zap className="h-4 w-4 text-emerald-600" /> Fast Response</div>
+      <div className={`${compact ? 'mt-2 gap-1 text-[10px]' : 'mt-3 gap-1.5 text-xs'} hidden grid-cols-2 font-bold text-slate-700 sm:grid sm:grid-cols-4`}>
+        <div className={`${compact ? 'min-h-8 gap-1.5 px-2' : 'min-h-10 gap-2 px-2.5'} flex items-center border border-slate-200 bg-white/95`}><ShieldCheck className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-emerald-600`} /> Verified Suppliers</div>
+        <div className={`${compact ? 'min-h-8 gap-1.5 px-2' : 'min-h-10 gap-2 px-2.5'} flex items-center border border-slate-200 bg-white/95`}><UserRoundCheck className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-emerald-600`} /> Secure Enquiries</div>
+        <div className={`${compact ? 'min-h-8 gap-1.5 px-2' : 'min-h-10 gap-2 px-2.5'} flex items-center border border-slate-200 bg-white/95`}><Building2 className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-emerald-600`} /> Free Registration</div>
+        <div className={`${compact ? 'min-h-8 gap-1.5 px-2' : 'min-h-10 gap-2 px-2.5'} flex items-center border border-slate-200 bg-white/95`}><Zap className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-emerald-600`} /> Fast Response</div>
       </div>
 
       <button
         type="button"
         onClick={() => navigate('/vendor/register')}
-        className="mt-4 min-h-10 border border-slate-300 bg-white px-5 text-sm font-extrabold text-slate-900 shadow-sm transition hover:border-orange-400 hover:text-orange-700"
+        className={`${compact ? 'mt-2 min-h-8 px-3 text-[11px]' : 'mt-3 min-h-9 px-4 text-xs'} border border-slate-300 bg-white font-extrabold text-slate-900 shadow-sm transition hover:border-orange-400 hover:text-orange-700`}
       >
         Register as a Supplier
       </button>
