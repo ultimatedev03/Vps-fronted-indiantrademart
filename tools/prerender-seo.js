@@ -2,6 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import { db, FRONTEND_DIR } from './mysqlToolClient.js';
+import {
+  buildPageSeoSchema,
+  mapPageSeoOverride,
+} from '../src/modules/directory/seo/pageSeoOverrides.js';
 
 const resolveFrontendDir = () => {
   const override = String(process.env.FRONTEND_DIR || '').trim();
@@ -106,11 +110,38 @@ const upsertMeta = (html, name, content) => {
   return html.replace('</head>', `  ${tag}\n</head>`);
 };
 
+const upsertPropertyMeta = (html, property, content) => {
+  if (!content) return html;
+  const safe = escapeHtml(content);
+  const tag = `<meta data-react-helmet="true" property="${property}" content="${safe}">`;
+  const re = new RegExp(`<meta\\s+property=["']${property}["'][^>]*>`, 'i');
+  if (re.test(html)) return html.replace(re, tag);
+  return html.replace('</head>', `  ${tag}\n</head>`);
+};
+
 const upsertCanonical = (html, href) => {
   if (!href) return html;
   const safe = escapeHtml(href);
   const tag = `<link data-react-helmet="true" rel="canonical" href="${safe}">`;
   const re = /<link\s+rel=["']canonical["'][^>]*>/i;
+  if (re.test(html)) return html.replace(re, tag);
+  return html.replace('</head>', `  ${tag}\n</head>`);
+};
+
+const upsertJsonLd = (html, schema) => {
+  if (!schema) return html;
+  const payload = JSON.stringify(schema).replace(/</g, '\\u003c');
+  const tag = `<script data-page-seo="true" type="application/ld+json">${payload}</script>`;
+  const re = /<script\s+data-page-seo=["']true["'][^>]*>[\s\S]*?<\/script>/i;
+  if (re.test(html)) return html.replace(re, tag);
+  return html.replace('</head>', `  ${tag}\n</head>`);
+};
+
+const upsertPageSeoRecord = (html, record) => {
+  const re = /<script\s+data-page-seo-record=["']true["'][^>]*>[\s\S]*?<\/script>/i;
+  if (!record) return html.replace(re, '');
+  const payload = JSON.stringify(record).replace(/</g, '\\u003c');
+  const tag = `<script data-page-seo-record="true" type="application/json">${payload}</script>`;
   if (re.test(html)) return html.replace(re, tag);
   return html.replace('</head>', `  ${tag}\n</head>`);
 };
@@ -121,6 +152,13 @@ const applyMeta = (html, meta = {}) => {
   out = upsertMeta(out, 'description', meta.description);
   out = upsertMeta(out, 'keywords', meta.keywords);
   out = upsertCanonical(out, meta.canonical);
+  out = upsertPropertyMeta(out, 'og:title', meta.title);
+  out = upsertPropertyMeta(out, 'og:description', meta.description);
+  out = upsertPropertyMeta(out, 'og:url', meta.canonical);
+  out = upsertMeta(out, 'twitter:title', meta.title);
+  out = upsertMeta(out, 'twitter:description', meta.description);
+  out = upsertJsonLd(out, meta.schema);
+  out = upsertPageSeoRecord(out, meta.seoRecord);
   return out;
 };
 
@@ -418,7 +456,13 @@ const writeRoute = (route, meta, { includePublicFallback = true } = {}) => {
   const outPath = path.join(targetDir, 'index.html');
   const withMeta = applyMeta(templateHtml, meta);
   const shouldInjectPublicFallback = includePublicFallback && !isRoot;
-  const finalHtml = shouldInjectPublicFallback ? injectPublicFallback(withMeta) : withMeta;
+  let finalHtml = shouldInjectPublicFallback ? injectPublicFallback(withMeta) : withMeta;
+  if (shouldInjectPublicFallback && meta?.h1) {
+    finalHtml = finalHtml.replace(
+      /(<section class="itm-public-fallback-hero">[\s\S]*?<h1>)[\s\S]*?(<\/h1>)/i,
+      `$1${escapeHtml(meta.h1)}$2`
+    );
+  }
   fs.writeFileSync(outPath, finalHtml);
 };
 
@@ -495,6 +539,21 @@ const fetchHeads = async () => {
   }
 
   return res.data || [];
+};
+
+const fetchPageSeoOverrides = async () => {
+  const res = await withDbRetry('page_seo_overrides', () =>
+    db
+      .from('page_seo_overrides')
+      .select(
+        'id, path, page_name, meta_title, meta_description, h1, canonical_url, meta_keywords, schema_kind, date_modified, updated_at'
+      )
+      .eq('is_active', 1)
+      .order('path')
+  );
+
+  if (res.error) throw res.error;
+  return (res.data || []).map(mapPageSeoOverride).filter(Boolean);
 };
 
 const fetchSubs = async () => {
@@ -652,7 +711,12 @@ const run = async () => {
     canonical: `${BASE_URL}/directory`,
   });
 
-  let [heads, subs, micros] = await Promise.all([fetchHeads(), fetchSubs(), fetchMicros()]);
+  let [heads, subs, micros, pageSeoOverrides] = await Promise.all([
+    fetchHeads(),
+    fetchSubs(),
+    fetchMicros(),
+    fetchPageSeoOverrides(),
+  ]);
   if ((!heads || heads.length === 0) && Array.isArray(subs) && subs.length > 0) {
     heads = deriveHeadsFromSubs(subs);
     console.warn(
@@ -707,7 +771,17 @@ const run = async () => {
     });
   });
 
-  console.log(`✅ SEO prerender complete. Generated ${heads.length} head, ${subs.length} sub, ${micros.length} micro pages.`);
+  pageSeoOverrides.forEach((override) => {
+    writeRoute(override.path, {
+      ...override,
+      schema: buildPageSeoSchema(override),
+      seoRecord: override,
+    });
+  });
+
+  console.log(
+    `✅ SEO prerender complete. Generated ${heads.length} head, ${subs.length} sub, ${micros.length} micro and ${pageSeoOverrides.length} DB-backed override pages.`
+  );
 };
 
 run()

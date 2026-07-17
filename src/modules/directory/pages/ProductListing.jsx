@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Home, Loader2 } from 'lucide-react';
 
 import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBar';
@@ -9,6 +9,11 @@ import SearchResultsList from '@/modules/directory/components/SearchResultsList'
 
 import { directoryApi } from '@/modules/directory/api/directoryApi';
 import { locationService } from '@/shared/services/locationService';
+import { buildPageSeoSchema } from '@/modules/directory/seo/pageSeoOverrides';
+import {
+  getInitialPageSeoOverride,
+  loadPageSeoOverride,
+} from '@/modules/directory/seo/pageSeoClient';
 
 const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
 const stripHtml = (s) => safeStr(s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -93,6 +98,7 @@ const buildPriceBounds = (items = []) => {
 };
 
 const ProductListing = () => {
+  const location = useLocation();
   const {
     headSlug,
     subSlug,
@@ -104,6 +110,9 @@ const ProductListing = () => {
 
   const [microInfo, setMicroInfo] = useState(null);
   const [seoLoading, setSeoLoading] = useState(false);
+  const [seoOverride, setSeoOverride] = useState(() =>
+    getInitialPageSeoOverride(location.pathname)
+  );
 
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState([]);
@@ -158,6 +167,16 @@ const ProductListing = () => {
     () => toTitleCase(citySlug || districtSlug || stateSlug),
     [citySlug, districtSlug, stateSlug]
   );
+  useEffect(() => {
+    let alive = true;
+    setSeoOverride(getInitialPageSeoOverride(location.pathname));
+    loadPageSeoOverride(location.pathname).then((record) => {
+      if (alive) setSeoOverride(record);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [location.pathname]);
 
   useEffect(() => {
     let alive = true;
@@ -183,20 +202,23 @@ const ProductListing = () => {
   }, [headSlug, subSlug, microSlug]);
 
   const pageTitle = useMemo(() => {
+    if (seoOverride?.title) return seoOverride.title;
     const metaTitle = safeStr(microInfo?.meta_tags);
     return buildSeoTitle(metaTitle || `${microName} Suppliers & Manufacturers`, seoLocationName);
-  }, [microInfo, microName, seoLocationName]);
+  }, [seoOverride, microInfo, microName, seoLocationName]);
 
   const pageDescription = useMemo(() => {
+    if (seoOverride?.description) return seoOverride.description;
     const metaDesc = safeStr(microInfo?.meta_description);
     if (metaDesc && locationName) {
       return truncate(`Find ${microName} suppliers and manufacturers in ${locationName}. ${metaDesc}`);
     }
     if (metaDesc) return truncate(metaDesc);
     return truncate(`Browse ${microName} products and verified suppliers${locationName ? ` in ${locationName}` : ''} on IndianTradeMart.`);
-  }, [microInfo, microName, locationName]);
+  }, [seoOverride, microInfo, microName, locationName]);
 
   const pageKeywords = useMemo(() => {
+    if (seoOverride?.keywords) return seoOverride.keywords;
     const metaKw = safeStr(microInfo?.meta_keywords);
     return buildKeywords(
       metaKw,
@@ -211,9 +233,10 @@ const ProductListing = () => {
       'manufacturers',
       'IndianTradeMart'
     );
-  }, [microInfo, microName, subName, headName, locationName]);
+  }, [seoOverride, microInfo, microName, subName, headName, locationName]);
 
   const canonicalUrl = useMemo(() => {
+    if (seoOverride?.canonical) return seoOverride.canonical;
     try {
       const origin = window.location?.origin || '';
       if (!origin) return '';
@@ -225,7 +248,12 @@ const ProductListing = () => {
     } catch {
       return '';
     }
-  }, [headSlug, subSlug, microSlug, stateSlug, districtSlug, citySlug]);
+  }, [seoOverride, headSlug, subSlug, microSlug, stateSlug, districtSlug, citySlug]);
+
+  const pageHeading =
+    seoOverride?.h1 ||
+    `${microName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`;
+  const pageSchema = seoOverride ? buildPageSeoSchema(seoOverride) : null;
 
   const resolveLocationIds = async () => {
     const key = `${stateSlug || ''}::${districtSlug || ''}::${citySlug || ''}`;
@@ -336,6 +364,12 @@ const ProductListing = () => {
         <meta name="description" content={pageDescription} />
         <meta name="keywords" content={pageKeywords} />
         {canonicalUrl ? <link rel="canonical" href={canonicalUrl} /> : null}
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        {canonicalUrl ? <meta property="og:url" content={canonicalUrl} /> : null}
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDescription} />
+        {pageSchema ? <script type="application/ld+json">{JSON.stringify(pageSchema)}</script> : null}
       </Helmet>
 
       <div className="bg-white border-b">
@@ -373,7 +407,7 @@ const ProductListing = () => {
           {/* Title row */}
           <div className="mt-6 flex items-center justify-between gap-4 flex-wrap">
             <h1 className="text-xl md:text-2xl font-extrabold text-slate-900">
-              {microName} Suppliers &amp; Manufacturers{locationName ? ` in ${locationName}` : ''}
+              {pageHeading}
             </h1>
             <div className="text-sm text-slate-500">{loading ? '' : `${filtered.length} found`}</div>
           </div>

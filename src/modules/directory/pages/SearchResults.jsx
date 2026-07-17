@@ -15,6 +15,11 @@ import { dbClient } from '@/lib/dbClient';
 import { toAbsoluteSiteUrl } from '@/lib/siteUrl';
 import { locationService } from '@/shared/services/locationService';
 import { toast } from '@/components/ui/use-toast';
+import { buildPageSeoSchema } from '@/modules/directory/seo/pageSeoOverrides';
+import {
+  getInitialPageSeoOverride,
+  loadPageSeoOverride,
+} from '@/modules/directory/seo/pageSeoClient';
 
 const normalizeText = (t) =>
   String(t || '')
@@ -498,6 +503,9 @@ const SearchResults = () => {
   const [loading, setLoading] = useState(true);
   const [searchNotice, setSearchNotice] = useState(null);
   const [seoMeta, setSeoMeta] = useState(null);
+  const [seoOverride, setSeoOverride] = useState(() =>
+    getInitialPageSeoOverride(location.pathname)
+  );
 
   const [filters, setFilters] = useState({
     priceRange: [0, 100000],
@@ -516,6 +524,17 @@ const SearchResults = () => {
   const locationQuerySlug = rawLocationQuery ? slugify(rawLocationQuery) : '';
 
   const autoCorrectedRef = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    setSeoOverride(getInitialPageSeoOverride(location.pathname));
+    loadPageSeoOverride(location.pathname).then((record) => {
+      if (alive) setSeoOverride(record);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [location.pathname]);
 
   useEffect(() => {
     setFilters((prev) => {
@@ -1202,34 +1221,41 @@ const SearchResults = () => {
   const stateName = formatName(parsedParams.stateSlug);
   const locationName = [cityName, districtName, stateName].filter(Boolean).join(', ');
   const seoLocationName = cityName || districtName || stateName;
-
   const metaTitle = cleanMetaText(seoMeta?.title || seoMeta?.seo_title);
-  const pageHeading = serviceName
-    ? `${metaTitle || seoMeta?.name || serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
-    : 'Search Results';
-  const pageTitle = serviceName
-    ? buildLocationSeoTitle(metaTitle || seoMeta?.name || serviceName, seoLocationName)
-    : 'Search Results | IndianTradeMart';
+  const pageHeading =
+    seoOverride?.h1 ||
+    (serviceName
+      ? `${metaTitle || seoMeta?.name || serviceName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`
+      : 'Search Results');
+  const pageTitle =
+    seoOverride?.title ||
+    (serviceName
+      ? buildLocationSeoTitle(metaTitle || seoMeta?.name || serviceName, seoLocationName)
+      : 'Search Results | IndianTradeMart');
 
   const metaDescription = cleanMetaText(seoMeta?.meta_description || seoMeta?.description);
-  const pageDescription = truncateMeta(
-    metaDescription && locationName
-      ? `Find ${serviceName} suppliers and manufacturers in ${locationName}. ${metaDescription}`
-      : metaDescription ||
-      `Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers on IndianTradeMart.`
-  );
+  const pageDescription =
+    seoOverride?.description ||
+    truncateMeta(
+      metaDescription && locationName
+        ? `Find ${serviceName} suppliers and manufacturers in ${locationName}. ${metaDescription}`
+        : metaDescription ||
+          `Find best ${serviceName} suppliers in ${locationName || 'India'}. Get quotes, compare prices and buy from verified manufacturers on IndianTradeMart.`
+    );
 
-  const pageKeywords = buildSeoKeywords(
-    seoMeta?.meta_keywords,
-    seoMeta?.keywords,
-    seoMeta?.meta_tags,
-    serviceName,
-    serviceName ? `${serviceName} suppliers` : '',
-    serviceName ? `${serviceName} manufacturers` : '',
-    locationName,
-    locationName && serviceName ? `${serviceName} in ${locationName}` : '',
-    'IndianTradeMart'
-  );
+  const pageKeywords =
+    seoOverride?.keywords ||
+    buildSeoKeywords(
+      seoMeta?.meta_keywords,
+      seoMeta?.keywords,
+      seoMeta?.meta_tags,
+      serviceName,
+      serviceName ? `${serviceName} suppliers` : '',
+      serviceName ? `${serviceName} manufacturers` : '',
+      locationName,
+      locationName && serviceName ? `${serviceName} in ${locationName}` : '',
+      'IndianTradeMart'
+    );
 
   const canonicalPath = buildSearchUrl(
     parsedParams.serviceSlug,
@@ -1238,8 +1264,8 @@ const SearchResults = () => {
     parsedParams.districtSlug
   );
 
-  const canonicalUrl = toAbsoluteSiteUrl(canonicalPath);
-  const searchSchema = {
+  const canonicalUrl = seoOverride?.canonical || toAbsoluteSiteUrl(canonicalPath);
+  const defaultSearchSchema = {
     '@context': 'https://schema.org',
     '@graph': [
       {
@@ -1290,6 +1316,7 @@ const SearchResults = () => {
       },
     ],
   };
+  const searchSchema = seoOverride ? buildPageSeoSchema(seoOverride) : defaultSearchSchema;
 
   return (
     <>

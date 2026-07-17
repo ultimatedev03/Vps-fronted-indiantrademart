@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --config vite.config.js --host :: --port 3000",
     "build": "node ./tools/generate-llms.js && vite build --config vite.config.js && node ./tools/prerender-seo.js",
+    "seo:audit:page-meta": "node ./tools/audit-page-seo.js",
+    "seo:seed:page-meta": "node ./tools/seed-page-seo.js",
     "preview": "vite preview --config vite.config.js --host :: --port 3000"
   },
   "dependencies": {
