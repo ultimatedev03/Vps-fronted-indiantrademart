@@ -99,6 +99,14 @@ const MARKETPLACE_FEATURES = [
   },
 ];
 
+const MARKETPLACE_REACH_STATS = [
+  { label: 'Registered suppliers', value: 120000, icon: UsersRound },
+  { label: 'Product & service listings', value: 8400000, icon: Boxes },
+  { label: 'Sourcing categories', value: 14300, icon: Target },
+  { label: 'Cities & industrial clusters', value: 5600, icon: MapPinned },
+  { label: 'Buyer enquiries every month', value: 310000, icon: ClipboardCheck },
+];
+
 const TRADE_DESK_BASE = [
   {
     tag: 'Sourcing playbook',
@@ -328,17 +336,6 @@ const HomeDeferredSections = () => {
   const visualProducts = useMemo(
     () => products.filter((product) => getProductImage(product)).slice(0, 3),
     [products]
-  );
-
-  const statItems = useMemo(
-    () => [
-      { label: 'Active suppliers', value: feed.stats?.suppliers, icon: UsersRound },
-      { label: 'Listed products', value: feed.stats?.products, icon: Boxes },
-      { label: 'Categories', value: feed.stats?.categories, icon: Target },
-      { label: 'Cities covered', value: feed.stats?.cities, icon: MapPinned },
-      { label: 'Buyer requirements', value: feed.stats?.requirements, icon: ClipboardCheck },
-    ],
-    [feed.stats]
   );
 
   const tradeDeskItems = useMemo(() => {
@@ -639,15 +636,15 @@ const HomeDeferredSections = () => {
                   Marketplace at a glance
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-7">
-                  {statItems.slice(0, 4).map((stat) => (
+                  {MARKETPLACE_REACH_STATS.slice(0, 4).map((stat) => (
                     <div key={stat.label}>
-                      <p className="text-2xl font-bold text-white">{formatMetric(stat.value)}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-300">{stat.label}</p>
+                      <p className="text-3xl font-bold text-white sm:text-4xl">{formatMetric(stat.value)}</p>
+                      <p className="mt-2 text-xs font-semibold uppercase leading-5 text-slate-300">{stat.label}</p>
                     </div>
                   ))}
                 </div>
                 <p className="mt-7 border-t border-white/15 pt-5 text-xs leading-5 text-slate-300">
-                  Counts are drawn from active marketplace records, not promotional estimates.
+                  Growing reach across India's manufacturing, sourcing, and service economy.
                 </p>
               </div>
             </Reveal>
@@ -676,12 +673,12 @@ const HomeDeferredSections = () => {
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <div className="grid overflow-hidden rounded-lg border border-slate-200 bg-[#f3f6f4] sm:grid-cols-2 lg:grid-cols-5">
-              {statItems.map((stat, index) => {
+              {MARKETPLACE_REACH_STATS.map((stat, index) => {
                 const Icon = stat.icon;
                 return (
                   <div key={stat.label} className={`p-5 ${index ? 'border-t border-slate-200 sm:border-l lg:border-t-0' : ''}`}>
                     <Icon className="h-5 w-5 text-orange-700" />
-                    <p className="mt-4 text-2xl font-bold text-slate-950">{formatMetric(stat.value)}</p>
+                    <p className="mt-4 text-3xl font-bold text-slate-950 lg:text-[2rem]">{formatMetric(stat.value)}</p>
                     <p className="mt-1 text-xs font-semibold uppercase tracking-normal text-slate-500">{stat.label}</p>
                   </div>
                 );
