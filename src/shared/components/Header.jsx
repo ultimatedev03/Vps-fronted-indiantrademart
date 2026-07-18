@@ -9,6 +9,7 @@ import { Search, Menu, X, LayoutDashboard, LogIn, LogOut, ChevronDown } from 'lu
 import Logo from '@/shared/components/Logo';
 
 const NotificationBell = lazy(() => import('@/shared/components/NotificationBell'));
+const BLOG_URL = 'https://blog.indiantrademart.com/';
 
 const DASHBOARD_PATHS = {
   VENDOR: '/vendor/dashboard',
@@ -134,8 +135,18 @@ const Header = () => {
     </Link>
 
     <a
-      href="https://blog.indiantrademart.com"
-      onClick={onClick}
+      href={BLOG_URL}
+      rel="external"
+      onClick={(event) => {
+        onClick();
+
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+
+        event.preventDefault();
+        window.location.assign(BLOG_URL);
+      }}
       className={`${mobile ? 'flex items-center p-3 hover:bg-slate-100 rounded-md text-slate-800' : 'text-gray-300 hover:text-white hover:bg-slate-800 px-3 py-2 rounded-md text-sm font-medium transition-colors'}`}
     >
       Blog

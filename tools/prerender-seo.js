@@ -355,7 +355,7 @@ const PUBLIC_FALLBACK_ROOT_HTML = `
     <nav class="itm-public-fallback-nav-links" aria-label="Primary">
       <a href="/directory">Directory</a>
       <a href="/directory/vendor">Suppliers</a>
-      <a href="https://blog.indiantrademart.com">Blog</a>
+      <a href="https://blog.indiantrademart.com/">Blog</a>
       <a href="/about-us">About Us</a>
       <a href="/contact">Contact</a>
     </nav>
@@ -402,7 +402,7 @@ const PUBLIC_FALLBACK_ROOT_HTML = `
           <a href="/terms">Terms of Use</a>
           <a href="/about-us">About Us</a>
           <a href="/contact">Contact</a>
-          <a href="https://blog.indiantrademart.com">Blog &amp; Insights</a>
+          <a href="https://blog.indiantrademart.com/">Blog &amp; Insights</a>
         </div>
       </article>
       <article class="itm-public-fallback-card">

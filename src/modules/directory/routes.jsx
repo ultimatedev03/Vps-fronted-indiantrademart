@@ -66,12 +66,12 @@ const DirectorySingleSegmentRoute = () => {
   return <SubCategoryPage />;
 };
 
-const BLOG_URL = 'https://blog.indiantrademart.com';
+const BLOG_URL = 'https://blog.indiantrademart.com/';
 
 const ExternalBlogRedirect = () => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.location.replace(BLOG_URL);
+      window.location.assign(BLOG_URL);
     }
   }, []);
 
