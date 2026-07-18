@@ -1,10 +1,11 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useEmployeeAuth } from '@/modules/employee/context/EmployeeAuthContext';
 import { useInternalAuth } from '@/modules/admin/context/InternalAuthContext';
 import { Button } from '@/components/ui/button';
-import { Search, Menu, LayoutDashboard, LogIn, LogOut, ChevronDown } from 'lucide-react';
+import { Search, Menu, X, LayoutDashboard, LogIn, LogOut, ChevronDown } from 'lucide-react';
 import Logo from '@/shared/components/Logo';
 
 const NotificationBell = lazy(() => import('@/shared/components/NotificationBell'));
@@ -33,6 +34,7 @@ const Header = () => {
   const internalAuth = useInternalAuth();
   const navigate = useNavigate();
   const joinMenuRef = useRef(null);
+  const mobileCloseButtonRef = useRef(null);
   const user = employeeAuth.user || internalAuth.user || publicAuth.user;
   const logout =
     (employeeAuth.user && employeeAuth.logout) ||
@@ -62,10 +64,23 @@ const Header = () => {
 
   useEffect(() => {
     if (!mobileMenuOpen || typeof document === 'undefined') return undefined;
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousRootOverflow = document.documentElement.style.overflow;
+    const previouslyFocused = document.activeElement;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
+
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKeyDown);
+    mobileCloseButtonRef.current?.focus();
+
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousRootOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus?.();
     };
   }, [mobileMenuOpen]);
 
@@ -144,6 +159,7 @@ const Header = () => {
                 className="text-gray-300 hover:text-white"
                 aria-label="Open navigation menu"
                 aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-navigation"
                 onClick={() => setMobileMenuOpen(true)}
               >
                 <Menu className="h-6 w-6" />
@@ -244,22 +260,34 @@ const Header = () => {
           </div>
         </div>
       </div>
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[60] md:hidden">
+      {mobileMenuOpen && typeof document !== 'undefined' ? createPortal(
+        <div className="fixed inset-0 z-[100] overscroll-contain md:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/55"
             aria-label="Close navigation menu"
             onClick={closeMobileMenu}
           />
-          <aside className="absolute inset-y-0 left-0 flex w-[min(320px,92vw)] flex-col overflow-y-auto bg-white p-4 shadow-2xl">
+          <aside
+            id="mobile-navigation"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="absolute inset-y-0 left-0 flex h-[100dvh] w-[min(320px,92vw)] max-w-full flex-col overflow-x-hidden overflow-y-auto bg-white p-4 shadow-2xl [overscroll-behavior:contain]"
+          >
             <div className="mb-4 flex items-center justify-between border-b pb-4">
               <Logo lockup className="h-16 w-auto" />
-              <Button variant="ghost" size="icon" onClick={closeMobileMenu} aria-label="Close navigation menu">
-                <span className="text-2xl leading-none">&times;</span>
+              <Button
+                ref={mobileCloseButtonRef}
+                variant="ghost"
+                size="icon"
+                onClick={closeMobileMenu}
+                aria-label="Close navigation menu"
+              >
+                <X className="h-5 w-5" />
               </Button>
             </div>
-            <nav className="flex flex-col gap-2">
+            <nav className="flex min-h-0 flex-1 flex-col gap-2">
               <NavLinks mobile onClick={closeMobileMenu} />
               <div className="my-4 border-t pt-4">
                 {user ? (
@@ -309,8 +337,9 @@ const Header = () => {
               </div>
             </nav>
           </aside>
-        </div>
-      )}
+        </div>,
+        document.body
+      ) : null}
     </header>
   );
 };
