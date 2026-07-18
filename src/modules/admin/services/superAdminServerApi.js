@@ -242,6 +242,35 @@ export const superAdminServerApi = {
       }),
   },
 
+  campaigns: {
+    list: () => request('/vendor-campaigns'),
+    targets: ({ query = '', limit = 50 } = {}) => {
+      const qs = new URLSearchParams();
+      if (query) qs.set('q', query);
+      qs.set('limit', String(limit));
+      return request(`/vendor-campaigns/targets?${qs.toString()}`);
+    },
+    create: (payload) =>
+      request('/vendor-campaigns', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    update: (campaignId, payload) =>
+      request(`/vendor-campaigns/${campaignId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+    setStatus: (campaignId, is_active) =>
+      request(`/vendor-campaigns/${campaignId}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ is_active }),
+      }),
+    delete: (campaignId) =>
+      request(`/vendor-campaigns/${campaignId}`, {
+        method: 'DELETE',
+      }),
+  },
+
   // GOD MODE only — manage SUPERADMIN accounts
   godmode: {
     listSuperadmins: () => request('/godmode/superadmins'),

@@ -15,6 +15,7 @@ import NotificationBell from '@/shared/components/NotificationBell';
 import { useGlobalInputSanitizer } from '@/shared/hooks/useGlobalInputSanitizer';
 import { getPublicSiteUrl } from '@/shared/lib/publicSite';
 import { getPortalUrl, switchToBuyer } from '@/shared/services/roleSwitchApi';
+import VendorCampaignPopup from '@/modules/vendor/components/VendorCampaignPopup';
 
 import {
   DropdownMenu,
@@ -571,6 +572,10 @@ const PortalLayout = () => {
         </AnimatePresence>
       </div>
       {/* ===== BLUR WRAPPER END ===== */}
+
+      <VendorCampaignPopup
+        enabled={Boolean(user?.id) && !isAssistedSession && !showOverlay}
+      />
 
       {/* ✅ Suspended Overlay (will NOT disappear now) */}
       {showOverlay && (

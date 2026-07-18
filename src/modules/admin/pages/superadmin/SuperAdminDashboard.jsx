@@ -7,6 +7,7 @@ import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
 import Search360Workspace from '@/shared/components/Search360Workspace';
 import CategoryDemandAnalytics from './CategoryDemandAnalytics';
+import VendorCampaignsPanel from './VendorCampaignsPanel';
 import {
   DEFAULT_PLAN_CURRENCY,
   PLAN_MARKET_REGION_OPTIONS,
@@ -77,6 +78,7 @@ import {
   ExternalLink,
   Info,
   Pencil,
+  Megaphone,
 } from 'lucide-react';
 
 // SUPERADMIN (ITM Owner) can only create ADMIN employees.
@@ -110,6 +112,21 @@ const VENDOR_FILTERS = [
   { value: 'month', label: 'This month' },
   { value: 'active', label: 'Active' },
 ];
+const SUPERADMIN_TAB_VALUES = new Set([
+  'system',
+  'employees',
+  'vendors',
+  'campaigns',
+  'plans',
+  'finance',
+  'monitoring',
+  'category-demand',
+  'behavioral',
+  'search360',
+  'audit',
+  'settings',
+  'godmode',
+]);
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -762,9 +779,8 @@ export default function SuperAdminDashboard() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window === 'undefined') return 'system';
-    return new URLSearchParams(window.location.search).get('tab') === 'category-demand'
-      ? 'category-demand'
-      : 'system';
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    return SUPERADMIN_TAB_VALUES.has(requested) ? requested : 'system';
   });
 
   const handleError = (error, fallback) => {
@@ -2262,6 +2278,7 @@ export default function SuperAdminDashboard() {
         label: 'Business Ops',
         items: [
           { value: 'vendors', label: 'Vendors', icon: Building2 },
+          { value: 'campaigns', label: 'Campaigns', icon: Megaphone },
           { value: 'plans', label: 'Plans', icon: Package },
           { value: 'finance', label: 'Finance', icon: IndianRupee },
         ],
@@ -3016,6 +3033,10 @@ export default function SuperAdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="campaigns" className="space-y-4">
+            <VendorCampaignsPanel plans={plans} />
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-4">
