@@ -107,7 +107,7 @@ const copyText = async (value) => {
   input.remove();
 };
 
-const VendorCampaignPopup = ({ enabled = true }) => {
+const VendorCampaignPopup = ({ enabled = true, previewMode = false, audienceKey = '' }) => {
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [campaignIndex, setCampaignIndex] = useState(0);
@@ -117,7 +117,7 @@ const VendorCampaignPopup = ({ enabled = true }) => {
   const campaign = campaigns[campaignIndex] || null;
 
   const track = useCallback((item, eventType, metadata = {}) => {
-    if (!item?.id) return;
+    if (!item?.id || previewMode) return;
     vendorCampaignApi.track(item.id, {
       event_type: eventType,
       session_key: sessionKey,
@@ -126,7 +126,7 @@ const VendorCampaignPopup = ({ enabled = true }) => {
         ...metadata,
       },
     }).catch(() => undefined);
-  }, [sessionKey]);
+  }, [previewMode, sessionKey]);
 
   useEffect(() => {
     if (!enabled) {
@@ -136,23 +136,34 @@ const VendorCampaignPopup = ({ enabled = true }) => {
     }
 
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
+    let retryTimer = null;
+    trackedImpressions.current.clear();
+
+    const loadCampaigns = async (attempt = 0) => {
       try {
-        const payload = await vendorCampaignApi.active();
+        const payload = await vendorCampaignApi.active({ preview: previewMode });
         if (!cancelled) {
           setCampaigns(Array.isArray(payload?.campaigns) ? payload.campaigns : []);
           setCampaignIndex(0);
         }
       } catch {
-        if (!cancelled) setCampaigns([]);
+        if (cancelled) return;
+        if (attempt < 2) {
+          retryTimer = window.setTimeout(() => loadCampaigns(attempt + 1), 1200 * (attempt + 1));
+          return;
+        }
+        setCampaigns([]);
       }
-    }, 500);
+    };
+
+    const timer = window.setTimeout(() => loadCampaigns(), 350);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      if (retryTimer) window.clearTimeout(retryTimer);
     };
-  }, [enabled]);
+  }, [audienceKey, enabled, previewMode]);
 
   useEffect(() => {
     if (!campaign?.id || trackedImpressions.current.has(campaign.id)) return;
@@ -228,7 +239,9 @@ const VendorCampaignPopup = ({ enabled = true }) => {
               <CampaignIcon className="h-5 w-5" aria-hidden="true" />
             </span>
             <DialogHeader className="space-y-2 text-left">
-              <p className="text-xs font-semibold uppercase text-orange-300">{style.eyebrow}</p>
+              <p className="text-xs font-semibold uppercase text-orange-300">
+                {previewMode ? 'Superadmin preview' : style.eyebrow}
+              </p>
               <DialogTitle className="text-xl font-semibold leading-tight text-white sm:text-2xl">
                 {campaign.title}
               </DialogTitle>

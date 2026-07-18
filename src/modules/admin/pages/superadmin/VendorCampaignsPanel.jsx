@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertCircle,
   CalendarClock,
   CheckCircle2,
   Clock3,
@@ -122,6 +123,62 @@ const remainingLabel = (endsAt) => {
   return `${Math.ceil(hours / 24)} days remaining`;
 };
 
+const FieldError = ({ message }) => (
+  message ? <p className="text-xs font-medium text-red-400">{message}</p> : null
+);
+
+const validateCampaignForm = (form) => {
+  const errors = {};
+  const title = String(form.title || '').trim();
+  const message = String(form.message || '').trim();
+  const ctaLabel = String(form.cta_label || '').trim();
+  const ctaUrl = String(form.cta_url || '').trim();
+  const startsAt = new Date(form.starts_at);
+  const endsAt = new Date(form.ends_at);
+
+  if (!title) errors.title = 'Enter the popup title.';
+  if (!message) errors.message = 'Enter the vendor-facing message.';
+  if (Boolean(ctaLabel) !== Boolean(ctaUrl)) {
+    errors.cta_label = 'CTA label and destination must be provided together.';
+    errors.cta_url = 'CTA label and destination must be provided together.';
+  }
+  if (ctaUrl && !(/^\/(?!\/)/.test(ctaUrl) || /^https:\/\//i.test(ctaUrl))) {
+    errors.cta_url = 'Use an internal path such as /vendor/subscriptions or a valid HTTPS URL.';
+  }
+  if (!form.dismissible && !ctaUrl) {
+    errors.cta_url = 'A non-dismissible popup must include an action button.';
+  }
+  if (form.target_type === 'SELECTED' && !form.target_vendor_ids.length) {
+    errors.target_vendor_ids = 'Select at least one vendor.';
+  }
+  if (Number.isNaN(startsAt.getTime())) errors.starts_at = 'Choose a valid start date and time.';
+  if (Number.isNaN(endsAt.getTime())) errors.ends_at = 'Choose a valid end date and time.';
+  if (!errors.starts_at && !errors.ends_at && endsAt <= startsAt) {
+    errors.ends_at = 'End time must be later than start time.';
+  }
+  if (!errors.ends_at && endsAt.getTime() <= Date.now()) {
+    errors.ends_at = 'End time must be in the future.';
+  }
+  if (!errors.starts_at && !errors.ends_at && endsAt.getTime() - startsAt.getTime() > 400 * 24 * 60 * 60 * 1000) {
+    errors.ends_at = 'Campaign duration cannot exceed 400 days.';
+  }
+
+  if (form.campaign_type !== 'ANNOUNCEMENT') {
+    const couponCode = String(form.coupon_code || '').trim();
+    const discountValue = Number(form.discount_value);
+    if (!/^[A-Z0-9_-]{3,40}$/.test(couponCode)) {
+      errors.coupon_code = 'Use 3-40 uppercase letters, numbers, hyphens, or underscores.';
+    }
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+      errors.discount_value = 'Discount must be greater than zero.';
+    } else if (form.discount_type === 'PERCENT' && discountValue > 100) {
+      errors.discount_value = 'Percentage discount cannot exceed 100%.';
+    }
+  }
+
+  return errors;
+};
+
 export default function VendorCampaignsPanel({ plans = [] }) {
   const [campaigns, setCampaigns] = useState([]);
   const [summary, setSummary] = useState({});
@@ -135,6 +192,9 @@ export default function VendorCampaignsPanel({ plans = [] }) {
   const [vendorOptions, setVendorOptions] = useState([]);
   const [vendorsLoading, setVendorsLoading] = useState(false);
   const [selectedVendorNames, setSelectedVendorNames] = useState({});
+  const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const formRef = useRef(null);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -187,6 +247,8 @@ export default function VendorCampaignsPanel({ plans = [] }) {
     setForm(initialForm());
     setSelectedVendorNames({});
     setVendorQuery('');
+    setFormError('');
+    setFieldErrors({});
     setDialogOpen(true);
   };
 
@@ -202,10 +264,21 @@ export default function VendorCampaignsPanel({ plans = [] }) {
       )
     );
     setVendorQuery('');
+    setFormError('');
+    setFieldErrors({});
     setDialogOpen(true);
   };
 
-  const updateForm = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const updateForm = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setFormError('');
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
 
   const applyDuration = (amount, unit = 'hours') => {
     const start = form.starts_at ? new Date(form.starts_at) : new Date();
@@ -242,6 +315,21 @@ export default function VendorCampaignsPanel({ plans = [] }) {
 
   const submitCampaign = async (event) => {
     event.preventDefault();
+    const errors = validateCampaignForm(form);
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setFormError('Please fix the highlighted campaign settings before launching.');
+      const firstField = Object.keys(errors)[0];
+      window.requestAnimationFrame(() => {
+        const input = formRef.current?.querySelector(`[name="${firstField}"]`);
+        input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input?.focus?.();
+      });
+      return;
+    }
+
+    setFormError('');
+    setFieldErrors({});
     setSaving(true);
     try {
       const payload = {
@@ -257,6 +345,7 @@ export default function VendorCampaignsPanel({ plans = [] }) {
       setDialogOpen(false);
       await fetchCampaigns();
     } catch (error) {
+      setFormError(error.message || 'Campaign could not be saved.');
       toast({ title: 'Campaign was not saved', description: error.message, variant: 'destructive' });
     } finally {
       setSaving(false);
@@ -395,8 +484,17 @@ export default function VendorCampaignsPanel({ plans = [] }) {
             <DialogDescription className="text-neutral-400">Configure audience, delivery window, popup behavior, and optional checkout discount.</DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={submitCampaign} className="grid gap-7 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.75fr)]">
+          <form ref={formRef} noValidate onSubmit={submitCampaign} className="grid gap-7 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.75fr)]">
             <div className="space-y-7">
+              {formError ? (
+                <div role="alert" className="flex items-start gap-3 rounded-md border border-red-800 bg-red-950/70 px-4 py-3 text-sm text-red-200">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+                  <div>
+                    <p className="font-semibold">Campaign is not ready</p>
+                    <p className="mt-1 text-xs leading-5 text-red-300">{formError}</p>
+                  </div>
+                </div>
+              ) : null}
               <section className="space-y-4 border-t border-neutral-800 pt-5">
                 <div className="grid grid-cols-3 gap-2">
                   {CAMPAIGN_TYPES.map(({ value, label, icon: Icon }) => (
@@ -419,11 +517,11 @@ export default function VendorCampaignsPanel({ plans = [] }) {
                   <div className="space-y-2"><Label>Internal campaign name</Label><Input value={form.name} onChange={(e) => updateForm('name', e.target.value)} placeholder="July renewal offer" className="border-neutral-700 bg-neutral-900" /></div>
                   <div className="space-y-2"><Label>Visual style</Label><Select value={form.style_variant} onValueChange={(value) => updateForm('style_variant', value)}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent>{STYLE_OPTIONS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></div>
                 </div>
-                <div className="space-y-2"><Label>Popup title</Label><Input required maxLength={191} value={form.title} onChange={(e) => updateForm('title', e.target.value)} placeholder="Upgrade today and save 20%" className="border-neutral-700 bg-neutral-900" /></div>
-                <div className="space-y-2"><Label>Message</Label><Textarea required maxLength={4000} rows={4} value={form.message} onChange={(e) => updateForm('message', e.target.value)} placeholder="Explain the benefit, validity, and next step clearly." className="border-neutral-700 bg-neutral-900" /></div>
+                <div className="space-y-2"><Label htmlFor="campaign-title">Popup title <span className="text-red-400">*</span></Label><Input id="campaign-title" name="title" aria-invalid={Boolean(fieldErrors.title)} maxLength={191} value={form.title} onChange={(e) => updateForm('title', e.target.value)} placeholder="Upgrade today and save 20%" className="border-neutral-700 bg-neutral-900 aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.title} /></div>
+                <div className="space-y-2"><Label htmlFor="campaign-message">Message <span className="text-red-400">*</span></Label><Textarea id="campaign-message" name="message" aria-invalid={Boolean(fieldErrors.message)} maxLength={4000} rows={4} value={form.message} onChange={(e) => updateForm('message', e.target.value)} placeholder="Explain the benefit, validity, and next step clearly." className="border-neutral-700 bg-neutral-900 aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.message} /></div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label>CTA label</Label><Input value={form.cta_label} onChange={(e) => updateForm('cta_label', e.target.value)} placeholder="View plans" className="border-neutral-700 bg-neutral-900" /></div>
-                  <div className="space-y-2"><Label>CTA destination</Label><Input value={form.cta_url} onChange={(e) => updateForm('cta_url', e.target.value)} placeholder="/vendor/subscriptions" className="border-neutral-700 bg-neutral-900" /></div>
+                  <div className="space-y-2"><Label htmlFor="campaign-cta-label">CTA label</Label><Input id="campaign-cta-label" name="cta_label" aria-invalid={Boolean(fieldErrors.cta_label)} value={form.cta_label} onChange={(e) => updateForm('cta_label', e.target.value)} placeholder="View plans" className="border-neutral-700 bg-neutral-900 aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.cta_label} /></div>
+                  <div className="space-y-2"><Label htmlFor="campaign-cta-url">CTA destination</Label><Input id="campaign-cta-url" name="cta_url" aria-invalid={Boolean(fieldErrors.cta_url)} value={form.cta_url} onChange={(e) => updateForm('cta_url', e.target.value)} placeholder="/vendor/subscriptions" className="border-neutral-700 bg-neutral-900 aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.cta_url} /></div>
                 </div>
               </section>
 
@@ -434,7 +532,9 @@ export default function VendorCampaignsPanel({ plans = [] }) {
                 </div>
                 {form.target_type === 'SELECTED' ? (
                   <div className="space-y-3">
+                    <input name="target_vendor_ids" value={form.target_vendor_ids.join(',')} readOnly className="sr-only" tabIndex={-1} />
                     <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-neutral-500" /><Input value={vendorQuery} onChange={(e) => setVendorQuery(e.target.value)} placeholder="Search company, owner, email, or phone" className="border-neutral-700 bg-neutral-900 pl-9" /></div>
+                    <FieldError message={fieldErrors.target_vendor_ids} />
                     {form.target_vendor_ids.length ? <div className="flex flex-wrap gap-2">{form.target_vendor_ids.map((id) => <span key={id} className="flex items-center gap-1 rounded-md border border-cyan-900 bg-cyan-950 px-2 py-1 text-xs text-cyan-200">{selectedVendorNames[id] || id}<button type="button" onClick={() => removeVendor(id)} title="Remove vendor"><X className="h-3 w-3" /></button></span>)}</div> : null}
                     <div className="max-h-48 overflow-y-auto rounded-md border border-neutral-800 bg-neutral-900">
                       {vendorsLoading ? <p className="p-4 text-center text-xs text-neutral-500">Searching vendors...</p> : vendorOptions.map((vendor) => {
@@ -449,14 +549,14 @@ export default function VendorCampaignsPanel({ plans = [] }) {
               <section className="space-y-4 border-t border-neutral-800 pt-5">
                 <div><h3 className="text-sm font-semibold text-white">Schedule</h3><p className="mt-1 text-xs text-neutral-500">Times are entered in your current browser timezone.</p></div>
                 <div className="flex flex-wrap gap-2">{[[24, 'hours', '24 hours'], [7, 'days', '7 days'], [30, 'days', '30 days'], [365, 'days', '1 year']].map(([amount, unit, label]) => <Button key={label} type="button" size="sm" variant="outline" onClick={() => applyDuration(amount, unit)} className="border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800">{label}</Button>)}</div>
-                <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Starts</Label><Input required type="datetime-local" value={form.starts_at} onChange={(e) => updateForm('starts_at', e.target.value)} className="border-neutral-700 bg-neutral-900 [color-scheme:dark]" /></div><div className="space-y-2"><Label>Ends</Label><Input required type="datetime-local" value={form.ends_at} onChange={(e) => updateForm('ends_at', e.target.value)} className="border-neutral-700 bg-neutral-900 [color-scheme:dark]" /></div></div>
+                <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="campaign-start">Starts <span className="text-red-400">*</span></Label><Input id="campaign-start" name="starts_at" aria-invalid={Boolean(fieldErrors.starts_at)} type="datetime-local" value={form.starts_at} onChange={(e) => updateForm('starts_at', e.target.value)} className="border-neutral-700 bg-neutral-900 [color-scheme:dark] aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.starts_at} /></div><div className="space-y-2"><Label htmlFor="campaign-end">Ends <span className="text-red-400">*</span></Label><Input id="campaign-end" name="ends_at" aria-invalid={Boolean(fieldErrors.ends_at)} type="datetime-local" value={form.ends_at} onChange={(e) => updateForm('ends_at', e.target.value)} className="border-neutral-700 bg-neutral-900 [color-scheme:dark] aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.ends_at} /></div></div>
               </section>
 
               {isPromotion ? (
                 <section className="space-y-4 border-t border-neutral-800 pt-5">
                   <div><h3 className="text-sm font-semibold text-white">Checkout discount</h3><p className="mt-1 text-xs text-neutral-500">This creates an approved coupon and limits redemption to the selected audience.</p></div>
-                  <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Coupon code</Label><Input required value={form.coupon_code} onChange={(e) => updateForm('coupon_code', e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder="GROW20" className="border-neutral-700 bg-neutral-900 font-mono" /></div><div className="space-y-2"><Label>Applicable plan</Label><Select value={form.plan_id || 'ALL'} onValueChange={(value) => updateForm('plan_id', value)}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All plans</SelectItem>{plans.map((plan) => <SelectItem key={plan.id} value={String(plan.id)}>{plan.name}</SelectItem>)}</SelectContent></Select></div></div>
-                  <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2"><Label>Discount type</Label><Select value={form.discount_type} onValueChange={(value) => updateForm('discount_type', value)}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PERCENT">Percentage</SelectItem><SelectItem value="FLAT">Flat INR</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Discount value</Label><Input required type="number" min="1" max={form.discount_type === 'PERCENT' ? 100 : undefined} value={form.discount_value} onChange={(e) => updateForm('discount_value', e.target.value)} className="border-neutral-700 bg-neutral-900" /></div><div className="space-y-2"><Label>Maximum uses</Label><Input type="number" min="0" value={form.max_uses} onChange={(e) => updateForm('max_uses', e.target.value)} className="border-neutral-700 bg-neutral-900" /><p className="text-[11px] text-neutral-600">0 means unlimited within validity.</p></div></div>
+                  <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="campaign-coupon">Coupon code <span className="text-red-400">*</span></Label><Input id="campaign-coupon" name="coupon_code" aria-invalid={Boolean(fieldErrors.coupon_code)} value={form.coupon_code} onChange={(e) => updateForm('coupon_code', e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder="GROW20" className="border-neutral-700 bg-neutral-900 font-mono aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.coupon_code} /></div><div className="space-y-2"><Label>Applicable plan</Label><Select value={form.plan_id || 'ALL'} onValueChange={(value) => updateForm('plan_id', value)}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All plans</SelectItem>{plans.map((plan) => <SelectItem key={plan.id} value={String(plan.id)}>{plan.name}</SelectItem>)}</SelectContent></Select></div></div>
+                  <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2"><Label>Discount type</Label><Select value={form.discount_type} onValueChange={(value) => updateForm('discount_type', value)}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PERCENT">Percentage</SelectItem><SelectItem value="FLAT">Flat INR</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label htmlFor="campaign-discount">Discount value <span className="text-red-400">*</span></Label><Input id="campaign-discount" name="discount_value" aria-invalid={Boolean(fieldErrors.discount_value)} type="number" min="1" max={form.discount_type === 'PERCENT' ? 100 : undefined} value={form.discount_value} onChange={(e) => updateForm('discount_value', e.target.value)} className="border-neutral-700 bg-neutral-900 aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.discount_value} /></div><div className="space-y-2"><Label>Maximum uses</Label><Input type="number" min="0" value={form.max_uses} onChange={(e) => updateForm('max_uses', e.target.value)} className="border-neutral-700 bg-neutral-900" /><p className="text-[11px] text-neutral-600">0 means unlimited within validity.</p></div></div>
                 </section>
               ) : null}
 
@@ -482,7 +582,7 @@ export default function VendorCampaignsPanel({ plans = [] }) {
                 Audience: <span className="text-neutral-300">{form.target_type === 'ALL' ? 'All vendors' : `${form.target_vendor_ids.length} selected vendors`}</span><br />
                 Delivery: <span className="text-neutral-300">{form.max_impressions_per_vendor === 0 ? 'Unlimited' : `${form.max_impressions_per_vendor} impression(s) per vendor`}</span>
               </div>
-              <div className="mt-5 flex gap-2"><Button type="button" variant="outline" disabled={saving} onClick={() => setDialogOpen(false)} className="flex-1 border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800">Cancel</Button><Button type="submit" disabled={saving} className="flex-1 bg-orange-600 text-white hover:bg-orange-500">{saving ? 'Saving...' : editingId ? 'Save changes' : 'Launch campaign'}</Button></div>
+              <div className="sticky bottom-0 z-10 mt-5 flex gap-2 border-t border-neutral-800 bg-neutral-950 py-4 lg:static lg:border-0 lg:py-0"><Button type="button" variant="outline" disabled={saving} onClick={() => setDialogOpen(false)} className="flex-1 border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800">Cancel</Button><Button type="submit" disabled={saving} className="flex-1 bg-orange-600 text-white hover:bg-orange-500">{saving ? 'Saving...' : editingId ? 'Save changes' : 'Launch campaign'}</Button></div>
             </aside>
           </form>
         </DialogContent>

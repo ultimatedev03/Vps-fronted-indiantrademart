@@ -574,7 +574,9 @@ const PortalLayout = () => {
       {/* ===== BLUR WRAPPER END ===== */}
 
       <VendorCampaignPopup
-        enabled={Boolean(user?.id) && !isAssistedSession && !showOverlay}
+        enabled={Boolean(me?.id || me?.vendor_id || user?.id || user?.user_id || user?.email) && !showOverlay}
+        previewMode={isAssistedSession}
+        audienceKey={String(me?.id || me?.vendor_id || user?.id || user?.user_id || user?.email || '')}
       />
 
       {/* ✅ Suspended Overlay (will NOT disappear now) */}

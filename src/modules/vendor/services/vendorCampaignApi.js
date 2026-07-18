@@ -20,7 +20,8 @@ async function request(path, options = {}) {
 }
 
 export const vendorCampaignApi = {
-  active: () => request('/api/vendor-campaigns/active'),
+  active: ({ preview = false } = {}) =>
+    request(`/api/vendor-campaigns/active${preview ? '?preview=1' : ''}`),
   track: (campaignId, payload) =>
     request(`/api/vendor-campaigns/${campaignId}/events`, {
       method: 'POST',
