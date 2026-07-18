@@ -749,7 +749,7 @@ const HomeDeferredSections = () => {
         </div>
       </section>
 
-      <section className="bg-white py-16 sm:py-20" aria-labelledby="trade-desk-heading">
+      <section id="trade-desk" className="scroll-mt-24 bg-white py-16 sm:py-20" aria-labelledby="trade-desk-heading">
         <div className="mx-auto w-[92vw] max-w-7xl">
           <Reveal>
             <SectionHeading
