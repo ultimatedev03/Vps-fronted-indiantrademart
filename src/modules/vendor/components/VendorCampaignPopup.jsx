@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 import { vendorCampaignApi } from '@/modules/vendor/services/vendorCampaignApi';
+import { setGlobalModalOpen, suppressQuotePopup } from '@/shared/utils/popupCoordinator';
 
 const STYLE_MAP = {
   INFO: {
@@ -54,16 +55,31 @@ const STYLE_MAP = {
   },
 };
 
-const getSessionKey = () => {
+const createBrowserId = () => (
+  typeof window.crypto?.randomUUID === 'function'
+    ? window.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+);
+
+const getSessionKey = (surface) => {
   if (typeof window === 'undefined') return 'server-session';
-  const storageKey = 'itm-vendor-campaign-session';
+  const storageKey = `itm-${surface}-campaign-session`;
   const existing = window.sessionStorage.getItem(storageKey);
   if (existing) return existing;
 
-  const generated = typeof window.crypto?.randomUUID === 'function'
-    ? window.crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const generated = createBrowserId();
   window.sessionStorage.setItem(storageKey, generated);
+  return generated;
+};
+
+const getHomepageVisitorId = () => {
+  if (typeof window === 'undefined') return 'server-homepage-visitor';
+  const storageKey = 'itm-homepage-campaign-visitor';
+  const existing = window.localStorage.getItem(storageKey);
+  if (existing) return existing;
+
+  const generated = createBrowserId();
+  window.localStorage.setItem(storageKey, generated);
   return generated;
 };
 
@@ -107,26 +123,37 @@ const copyText = async (value) => {
   input.remove();
 };
 
-const VendorCampaignPopup = ({ enabled = true, previewMode = false, audienceKey = '' }) => {
+const VendorCampaignPopup = ({
+  enabled = true,
+  previewMode = false,
+  audienceKey = '',
+  surface = 'vendor',
+}) => {
   const navigate = useNavigate();
+  const isHomepage = surface === 'homepage';
   const [campaigns, setCampaigns] = useState([]);
   const [campaignIndex, setCampaignIndex] = useState(0);
   const [nowMs, setNowMs] = useState(Date.now());
   const trackedImpressions = useRef(new Set());
-  const sessionKey = useMemo(getSessionKey, []);
+  const sessionKey = useMemo(() => getSessionKey(surface), [surface]);
+  const visitorId = useMemo(() => (isHomepage ? getHomepageVisitorId() : ''), [isHomepage]);
   const campaign = campaigns[campaignIndex] || null;
 
   const track = useCallback((item, eventType, metadata = {}) => {
     if (!item?.id || previewMode) return;
-    vendorCampaignApi.track(item.id, {
+    const payload = {
       event_type: eventType,
       session_key: sessionKey,
       metadata: {
         path: window.location.pathname,
         ...metadata,
       },
-    }).catch(() => undefined);
-  }, [previewMode, sessionKey]);
+    };
+    const request = isHomepage
+      ? vendorCampaignApi.homepageTrack(item.id, { ...payload, visitor_id: visitorId })
+      : vendorCampaignApi.track(item.id, payload);
+    request.catch(() => undefined);
+  }, [isHomepage, previewMode, sessionKey, visitorId]);
 
   useEffect(() => {
     if (!enabled) {
@@ -141,7 +168,9 @@ const VendorCampaignPopup = ({ enabled = true, previewMode = false, audienceKey 
 
     const loadCampaigns = async (attempt = 0) => {
       try {
-        const payload = await vendorCampaignApi.active({ preview: previewMode });
+        const payload = isHomepage
+          ? await vendorCampaignApi.homepageActive({ visitorId })
+          : await vendorCampaignApi.active({ preview: previewMode });
         if (!cancelled) {
           setCampaigns(Array.isArray(payload?.campaigns) ? payload.campaigns : []);
           setCampaignIndex(0);
@@ -163,13 +192,20 @@ const VendorCampaignPopup = ({ enabled = true, previewMode = false, audienceKey 
       window.clearTimeout(timer);
       if (retryTimer) window.clearTimeout(retryTimer);
     };
-  }, [audienceKey, enabled, previewMode]);
+  }, [audienceKey, enabled, isHomepage, previewMode, visitorId]);
 
   useEffect(() => {
     if (!campaign?.id || trackedImpressions.current.has(campaign.id)) return;
     trackedImpressions.current.add(campaign.id);
     track(campaign, 'IMPRESSION');
   }, [campaign, track]);
+
+  useEffect(() => {
+    if (!isHomepage || !campaign?.id) return undefined;
+    setGlobalModalOpen(true);
+    suppressQuotePopup(120_000);
+    return () => setGlobalModalOpen(false);
+  }, [campaign?.id, isHomepage]);
 
   useEffect(() => {
     if (!campaign?.ends_at) return undefined;
@@ -196,7 +232,9 @@ const VendorCampaignPopup = ({ enabled = true, previewMode = false, audienceKey 
       track(campaign, 'COPY_CODE');
       toast({
         title: 'Coupon copied',
-        description: `${campaign.coupon_code} is ready to use at checkout.`,
+        description: isHomepage
+          ? `${campaign.coupon_code} is ready. Sign in as a vendor to use it at checkout.`
+          : `${campaign.coupon_code} is ready to use at checkout.`,
       });
     } catch {
       toast({ title: 'Could not copy coupon', variant: 'destructive' });
@@ -216,7 +254,10 @@ const VendorCampaignPopup = ({ enabled = true, previewMode = false, audienceKey 
 
   if (!campaign) return null;
 
-  const style = STYLE_MAP[campaign.style_variant] || STYLE_MAP.INFO;
+  const baseStyle = STYLE_MAP[campaign.style_variant] || STYLE_MAP.INFO;
+  const style = campaign.style_variant === 'PREMIUM' && isHomepage
+    ? { ...baseStyle, eyebrow: 'Marketplace exclusive' }
+    : baseStyle;
   const CampaignIcon = campaign.campaign_type === 'ANNOUNCEMENT'
     ? Megaphone
     : campaign.campaign_type === 'COUPON'

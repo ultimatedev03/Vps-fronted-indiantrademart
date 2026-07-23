@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Building2,
   CalendarClock,
   CheckCircle2,
   Clock3,
   Eye,
+  Globe2,
   Megaphone,
   MousePointerClick,
   Pause,
@@ -33,6 +35,21 @@ const CAMPAIGN_TYPES = [
   { value: 'ANNOUNCEMENT', label: 'Announcement', icon: Megaphone },
   { value: 'DISCOUNT', label: 'Discount', icon: TicketPercent },
   { value: 'COUPON', label: 'Coupon', icon: TicketPercent },
+];
+
+const PLACEMENT_OPTIONS = [
+  {
+    value: 'VENDOR_PORTAL',
+    label: 'Vendor portal',
+    description: 'Show after an authenticated vendor enters the portal.',
+    icon: Building2,
+  },
+  {
+    value: 'HOMEPAGE',
+    label: 'Homepage',
+    description: 'Show to public visitors on the main marketplace homepage.',
+    icon: Globe2,
+  },
 ];
 
 const STYLE_OPTIONS = [
@@ -77,6 +94,7 @@ const initialForm = () => {
   return {
     name: '',
     campaign_type: 'ANNOUNCEMENT',
+    placement: 'VENDOR_PORTAL',
     title: '',
     message: '',
     style_variant: 'INFO',
@@ -137,18 +155,22 @@ const validateCampaignForm = (form) => {
   const endsAt = new Date(form.ends_at);
 
   if (!title) errors.title = 'Enter the popup title.';
-  if (!message) errors.message = 'Enter the vendor-facing message.';
+  if (!message) errors.message = 'Enter the campaign message.';
   if (Boolean(ctaLabel) !== Boolean(ctaUrl)) {
     errors.cta_label = 'CTA label and destination must be provided together.';
     errors.cta_url = 'CTA label and destination must be provided together.';
   }
   if (ctaUrl && !(/^\/(?!\/)/.test(ctaUrl) || /^https:\/\//i.test(ctaUrl))) {
-    errors.cta_url = 'Use an internal path such as /vendor/subscriptions or a valid HTTPS URL.';
+    errors.cta_url = 'Use an internal path such as /pricing or a valid HTTPS URL.';
   }
   if (!form.dismissible && !ctaUrl) {
     errors.cta_url = 'A non-dismissible popup must include an action button.';
   }
-  if (form.target_type === 'SELECTED' && !form.target_vendor_ids.length) {
+  if (
+    form.placement === 'VENDOR_PORTAL' &&
+    form.target_type === 'SELECTED' &&
+    !form.target_vendor_ids.length
+  ) {
     errors.target_vendor_ids = 'Select at least one vendor.';
   }
   if (Number.isNaN(startsAt.getTime())) errors.starts_at = 'Choose a valid start date and time.';
@@ -214,7 +236,11 @@ export default function VendorCampaignsPanel({ plans = [] }) {
   }, [fetchCampaigns]);
 
   useEffect(() => {
-    if (!dialogOpen || form.target_type !== 'SELECTED') return undefined;
+    if (
+      !dialogOpen ||
+      form.placement !== 'VENDOR_PORTAL' ||
+      form.target_type !== 'SELECTED'
+    ) return undefined;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       setVendorsLoading(true);
@@ -233,12 +259,12 @@ export default function VendorCampaignsPanel({ plans = [] }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [dialogOpen, form.target_type, vendorQuery]);
+  }, [dialogOpen, form.placement, form.target_type, vendorQuery]);
 
   const metrics = useMemo(() => [
     { label: 'Active', value: summary.active || 0, icon: CheckCircle2, color: 'text-emerald-400' },
     { label: 'Scheduled', value: summary.scheduled || 0, icon: CalendarClock, color: 'text-cyan-400' },
-    { label: 'Vendors reached', value: summary.total_reach || 0, icon: Eye, color: 'text-violet-400' },
+    { label: 'People reached', value: summary.total_reach || 0, icon: Eye, color: 'text-violet-400' },
     { label: 'CTA clicks', value: summary.total_clicks || 0, icon: MousePointerClick, color: 'text-orange-400' },
   ], [summary]);
 
@@ -278,6 +304,34 @@ export default function VendorCampaignsPanel({ plans = [] }) {
       delete next[key];
       return next;
     });
+  };
+
+  const selectPlacement = (placement) => {
+    setForm((current) => {
+      const homepage = placement === 'HOMEPAGE';
+      const announcement = current.campaign_type === 'ANNOUNCEMENT';
+      return {
+        ...current,
+        placement,
+        target_type: 'ALL',
+        target_vendor_ids: [],
+        cta_label: announcement
+          ? (homepage ? 'Explore marketplace' : 'View details')
+          : 'View plans',
+        cta_url: announcement
+          ? (homepage ? '/directory' : '/vendor/dashboard')
+          : (homepage ? '/pricing' : '/vendor/subscriptions'),
+      };
+    });
+    setSelectedVendorNames({});
+    setVendorQuery('');
+    setFieldErrors((current) => {
+      if (!current.target_vendor_ids) return current;
+      const next = { ...current };
+      delete next.target_vendor_ids;
+      return next;
+    });
+    setFormError('');
   };
 
   const applyDuration = (amount, unit = 'hours') => {
@@ -336,7 +390,10 @@ export default function VendorCampaignsPanel({ plans = [] }) {
         ...form,
         starts_at: new Date(form.starts_at).toISOString(),
         ends_at: new Date(form.ends_at).toISOString(),
-        target_vendor_ids: form.target_type === 'SELECTED' ? form.target_vendor_ids : [],
+        target_vendor_ids:
+          form.placement === 'VENDOR_PORTAL' && form.target_type === 'SELECTED'
+            ? form.target_vendor_ids
+            : [],
         plan_id: form.plan_id === 'ALL' ? null : form.plan_id,
       };
       if (editingId) await superAdminServerApi.campaigns.update(editingId, payload);
@@ -381,6 +438,7 @@ export default function VendorCampaignsPanel({ plans = [] }) {
   };
 
   const isPromotion = form.campaign_type !== 'ANNOUNCEMENT';
+  const isHomepage = form.placement === 'HOMEPAGE';
 
   return (
     <div className="space-y-5">
@@ -388,11 +446,11 @@ export default function VendorCampaignsPanel({ plans = [] }) {
         <div>
           <div className="mb-2 flex items-center gap-2 text-orange-400">
             <Megaphone className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-wide">Vendor engagement</span>
+            <span className="text-xs font-semibold uppercase tracking-wide">Marketplace engagement</span>
           </div>
           <h2 className="text-2xl font-semibold text-white">Campaigns and announcements</h2>
           <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-            Deliver scheduled notices and redeemable offers to all vendors or a selected audience.
+            Deliver scheduled notices and offers on the public homepage or inside the vendor portal.
           </p>
         </div>
         <div className="flex gap-2">
@@ -423,7 +481,7 @@ export default function VendorCampaignsPanel({ plans = [] }) {
 
       <section className="overflow-x-auto rounded-md border border-neutral-800 bg-neutral-950">
         <div className="grid grid-cols-[minmax(260px,1.6fr)_minmax(150px,.7fr)_minmax(170px,.8fr)_minmax(130px,.6fr)_150px] gap-4 border-b border-neutral-800 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-          <span>Campaign</span><span>Audience</span><span>Schedule</span><span>Results</span><span className="text-right">Actions</span>
+          <span>Campaign</span><span>Placement / audience</span><span>Schedule</span><span>Results</span><span className="text-right">Actions</span>
         </div>
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-14 text-sm text-neutral-400">
@@ -443,6 +501,9 @@ export default function VendorCampaignsPanel({ plans = [] }) {
                 <Badge variant="outline" className={STATUS_STYLES[campaign.effective_status] || STATUS_STYLES.PAUSED}>
                   {campaign.effective_status}
                 </Badge>
+                <Badge variant="outline" className="border-neutral-700 bg-neutral-900 text-neutral-300">
+                  {campaign.placement === 'HOMEPAGE' ? 'Homepage' : 'Vendor portal'}
+                </Badge>
               </div>
               <p className="mt-1 line-clamp-1 text-xs text-neutral-400">{campaign.title}</p>
               {campaign.coupon_code ? (
@@ -452,8 +513,17 @@ export default function VendorCampaignsPanel({ plans = [] }) {
               ) : null}
             </div>
             <div className="text-xs text-neutral-300">
-              <div className="flex items-center gap-2"><Users className="h-4 w-4 text-neutral-500" />{campaign.target_type === 'ALL' ? 'All vendors' : `${campaign.target_vendor_ids.length} selected`}</div>
-              {campaign.target_type === 'SELECTED' ? <p className="mt-2 line-clamp-2 text-neutral-500">{campaign.target_vendor_names?.slice(0, 3).join(', ')}</p> : null}
+              {campaign.placement === 'HOMEPAGE' ? (
+                <div className="flex items-center gap-2">
+                  <Globe2 className="h-4 w-4 text-neutral-500" />
+                  All homepage visitors
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2"><Users className="h-4 w-4 text-neutral-500" />{campaign.target_type === 'ALL' ? 'All vendors' : `${campaign.target_vendor_ids.length} selected`}</div>
+                  {campaign.target_type === 'SELECTED' ? <p className="mt-2 line-clamp-2 text-neutral-500">{campaign.target_vendor_names?.slice(0, 3).join(', ')}</p> : null}
+                </>
+              )}
             </div>
             <div className="text-xs text-neutral-400">
               <p>{formatDate(campaign.starts_at)}</p>
@@ -480,8 +550,8 @@ export default function VendorCampaignsPanel({ plans = [] }) {
       <Dialog open={dialogOpen} onOpenChange={(open) => !saving && setDialogOpen(open)}>
         <DialogContent className="max-h-[92vh] overflow-y-auto border-neutral-800 bg-neutral-950 text-neutral-100 sm:!w-[94vw] sm:!max-w-6xl">
           <DialogHeader>
-            <DialogTitle className="text-white">{editingId ? 'Edit vendor campaign' : 'Create vendor campaign'}</DialogTitle>
-            <DialogDescription className="text-neutral-400">Configure audience, delivery window, popup behavior, and optional checkout discount.</DialogDescription>
+            <DialogTitle className="text-white">{editingId ? 'Edit campaign' : 'Create campaign'}</DialogTitle>
+            <DialogDescription className="text-neutral-400">Choose where the campaign appears, then configure delivery, popup behavior, and an optional checkout discount.</DialogDescription>
           </DialogHeader>
 
           <form ref={formRef} noValidate onSubmit={submitCampaign} className="grid gap-7 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.75fr)]">
@@ -496,6 +566,30 @@ export default function VendorCampaignsPanel({ plans = [] }) {
                 </div>
               ) : null}
               <section className="space-y-4 border-t border-neutral-800 pt-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Placement</h3>
+                  <p className="mt-1 text-xs text-neutral-500">Choose the experience where this popup should run.</p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {PLACEMENT_OPTIONS.map(({ value, label, description, icon: Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => selectPlacement(value)}
+                      className={`flex min-h-20 items-start gap-3 rounded-md border p-3 text-left transition ${
+                        form.placement === value
+                          ? 'border-cyan-600 bg-cyan-950 text-cyan-200'
+                          : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <Icon className="mt-0.5 h-5 w-5 shrink-0" />
+                      <span>
+                        <span className="block text-sm font-semibold">{label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-neutral-500">{description}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   {CAMPAIGN_TYPES.map(({ value, label, icon: Icon }) => (
                     <button
@@ -504,8 +598,12 @@ export default function VendorCampaignsPanel({ plans = [] }) {
                       onClick={() => setForm((current) => ({
                         ...current,
                         campaign_type: value,
-                        cta_label: value === 'ANNOUNCEMENT' ? 'View details' : 'View plans',
-                        cta_url: value === 'ANNOUNCEMENT' ? '/vendor/dashboard' : '/vendor/subscriptions',
+                        cta_label: value === 'ANNOUNCEMENT'
+                          ? (current.placement === 'HOMEPAGE' ? 'Explore marketplace' : 'View details')
+                          : 'View plans',
+                        cta_url: value === 'ANNOUNCEMENT'
+                          ? (current.placement === 'HOMEPAGE' ? '/directory' : '/vendor/dashboard')
+                          : (current.placement === 'HOMEPAGE' ? '/pricing' : '/vendor/subscriptions'),
                       }))}
                       className={`flex h-11 items-center justify-center gap-2 rounded-md border text-sm font-medium transition ${form.campaign_type === value ? 'border-orange-500 bg-orange-950 text-orange-300' : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'}`}
                     >
@@ -526,11 +624,28 @@ export default function VendorCampaignsPanel({ plans = [] }) {
               </section>
 
               <section className="space-y-4 border-t border-neutral-800 pt-5">
-                <div><h3 className="text-sm font-semibold text-white">Audience</h3><p className="mt-1 text-xs text-neutral-500">Only authenticated vendor accounts in this audience can receive or redeem the offer.</p></div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[['ALL', 'All vendors'], ['SELECTED', 'Selected vendors']].map(([value, label]) => <button key={value} type="button" onClick={() => updateForm('target_type', value)} className={`h-10 rounded-md border text-sm ${form.target_type === value ? 'border-cyan-600 bg-cyan-950 text-cyan-300' : 'border-neutral-800 bg-neutral-900 text-neutral-400'}`}>{label}</button>)}
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Audience</h3>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    {isHomepage
+                      ? 'Every eligible public visitor to the homepage can receive this campaign.'
+                      : 'Only authenticated vendor accounts in this audience can receive or redeem the offer.'}
+                  </p>
                 </div>
-                {form.target_type === 'SELECTED' ? (
+                {isHomepage ? (
+                  <div className="flex items-center gap-3 rounded-md border border-cyan-900 bg-cyan-950/50 px-4 py-3">
+                    <Globe2 className="h-5 w-5 shrink-0 text-cyan-400" />
+                    <div>
+                      <p className="text-sm font-medium text-cyan-200">All homepage visitors</p>
+                      <p className="mt-1 text-xs text-neutral-500">Frequency is controlled per anonymous browser visitor.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[['ALL', 'All vendors'], ['SELECTED', 'Selected vendors']].map(([value, label]) => <button key={value} type="button" onClick={() => updateForm('target_type', value)} className={`h-10 rounded-md border text-sm ${form.target_type === value ? 'border-cyan-600 bg-cyan-950 text-cyan-300' : 'border-neutral-800 bg-neutral-900 text-neutral-400'}`}>{label}</button>)}
+                  </div>
+                )}
+                {!isHomepage && form.target_type === 'SELECTED' ? (
                   <div className="space-y-3">
                     <input name="target_vendor_ids" value={form.target_vendor_ids.join(',')} readOnly className="sr-only" tabIndex={-1} />
                     <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-neutral-500" /><Input value={vendorQuery} onChange={(e) => setVendorQuery(e.target.value)} placeholder="Search company, owner, email, or phone" className="border-neutral-700 bg-neutral-900 pl-9" /></div>
@@ -554,7 +669,14 @@ export default function VendorCampaignsPanel({ plans = [] }) {
 
               {isPromotion ? (
                 <section className="space-y-4 border-t border-neutral-800 pt-5">
-                  <div><h3 className="text-sm font-semibold text-white">Checkout discount</h3><p className="mt-1 text-xs text-neutral-500">This creates an approved coupon and limits redemption to the selected audience.</p></div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Checkout discount</h3>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      {isHomepage
+                        ? 'The code is shown publicly; signed-in vendor checkout still validates plan, validity, and usage limits.'
+                        : 'This creates an approved coupon and limits redemption to the selected audience.'}
+                    </p>
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="campaign-coupon">Coupon code <span className="text-red-400">*</span></Label><Input id="campaign-coupon" name="coupon_code" aria-invalid={Boolean(fieldErrors.coupon_code)} value={form.coupon_code} onChange={(e) => updateForm('coupon_code', e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder="GROW20" className="border-neutral-700 bg-neutral-900 font-mono aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.coupon_code} /></div><div className="space-y-2"><Label>Applicable plan</Label><Select value={form.plan_id || 'ALL'} onValueChange={(value) => updateForm('plan_id', value)}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All plans</SelectItem>{plans.map((plan) => <SelectItem key={plan.id} value={String(plan.id)}>{plan.name}</SelectItem>)}</SelectContent></Select></div></div>
                   <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2"><Label>Discount type</Label><Select value={form.discount_type} onValueChange={(value) => updateForm('discount_type', value)}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PERCENT">Percentage</SelectItem><SelectItem value="FLAT">Flat INR</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label htmlFor="campaign-discount">Discount value <span className="text-red-400">*</span></Label><Input id="campaign-discount" name="discount_value" aria-invalid={Boolean(fieldErrors.discount_value)} type="number" min="1" max={form.discount_type === 'PERCENT' ? 100 : undefined} value={form.discount_value} onChange={(e) => updateForm('discount_value', e.target.value)} className="border-neutral-700 bg-neutral-900 aria-[invalid=true]:border-red-600" /><FieldError message={fieldErrors.discount_value} /></div><div className="space-y-2"><Label>Maximum uses</Label><Input type="number" min="0" value={form.max_uses} onChange={(e) => updateForm('max_uses', e.target.value)} className="border-neutral-700 bg-neutral-900" /><p className="text-[11px] text-neutral-600">0 means unlimited within validity.</p></div></div>
                 </section>
@@ -562,25 +684,26 @@ export default function VendorCampaignsPanel({ plans = [] }) {
 
               <section className="grid gap-4 border-t border-neutral-800 pt-5 sm:grid-cols-3">
                 <div className="space-y-2"><Label>Priority</Label><Input type="number" min="0" max="1000" value={form.priority} onChange={(e) => updateForm('priority', e.target.value)} className="border-neutral-700 bg-neutral-900" /></div>
-                <div className="space-y-2"><Label>Impressions per vendor</Label><Select value={String(form.max_impressions_per_vendor)} onValueChange={(value) => updateForm('max_impressions_per_vendor', Number(value))}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Once</SelectItem><SelectItem value="3">Up to 3 times</SelectItem><SelectItem value="5">Up to 5 times</SelectItem><SelectItem value="0">Unlimited</SelectItem></SelectContent></Select></div>
-                <div className="flex items-center justify-between rounded-md border border-neutral-800 bg-neutral-900 px-3"><div><Label>Dismissible</Label><p className="text-[11px] text-neutral-600">Allow vendor to close</p></div><Switch checked={form.dismissible} onCheckedChange={(value) => updateForm('dismissible', value)} /></div>
+                <div className="space-y-2"><Label>{isHomepage ? 'Impressions per visitor' : 'Impressions per vendor'}</Label><Select value={String(form.max_impressions_per_vendor)} onValueChange={(value) => updateForm('max_impressions_per_vendor', Number(value))}><SelectTrigger className="border-neutral-700 bg-neutral-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Once</SelectItem><SelectItem value="3">Up to 3 times</SelectItem><SelectItem value="5">Up to 5 times</SelectItem><SelectItem value="0">Unlimited</SelectItem></SelectContent></Select></div>
+                <div className="flex items-center justify-between rounded-md border border-neutral-800 bg-neutral-900 px-3"><div><Label>Dismissible</Label><p className="text-[11px] text-neutral-600">Allow {isHomepage ? 'visitor' : 'vendor'} to close</p></div><Switch checked={form.dismissible} onCheckedChange={(value) => updateForm('dismissible', value)} /></div>
               </section>
             </div>
 
             <aside className="lg:sticky lg:top-0 lg:self-start">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">Vendor preview</p>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">{isHomepage ? 'Homepage preview' : 'Vendor preview'}</p>
               <div className={`overflow-hidden rounded-md border ${PREVIEW_STYLES[form.style_variant] || PREVIEW_STYLES.INFO}`}>
                 <div className="border-b border-white/10 px-5 py-4">
                   <div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-orange-300">{form.campaign_type}</span>{form.dismissible ? <X className="h-4 w-4 text-neutral-500" /> : null}</div>
                   <h3 className="mt-4 text-xl font-semibold text-white">{form.title || 'Campaign title preview'}</h3>
-                  <p className="mt-2 text-sm leading-6 text-neutral-300">{form.message || 'The vendor-facing message will appear here.'}</p>
+                  <p className="mt-2 text-sm leading-6 text-neutral-300">{form.message || 'The campaign message will appear here.'}</p>
                 </div>
                 {isPromotion ? <div className="mx-5 mt-5 rounded-md border border-dashed border-orange-500 bg-black/30 p-4"><p className="text-[11px] uppercase tracking-wide text-neutral-500">Coupon code</p><p className="mt-1 font-mono text-xl font-semibold text-orange-300">{form.coupon_code || 'GROW20'}</p><p className="mt-1 text-xs text-neutral-400">{form.discount_type === 'PERCENT' ? `${form.discount_value || 0}% off` : `INR ${form.discount_value || 0} off`}</p></div> : null}
                 <div className="space-y-3 p-5"><div className="flex items-center gap-2 text-xs text-neutral-400"><Clock3 className="h-4 w-4" />{remainingLabel(form.ends_at)}</div>{form.cta_label ? <Button type="button" className="w-full bg-orange-600 text-white hover:bg-orange-500">{form.cta_label}</Button> : null}</div>
               </div>
               <div className="mt-4 rounded-md border border-neutral-800 bg-neutral-900 p-4 text-xs leading-5 text-neutral-500">
-                Audience: <span className="text-neutral-300">{form.target_type === 'ALL' ? 'All vendors' : `${form.target_vendor_ids.length} selected vendors`}</span><br />
-                Delivery: <span className="text-neutral-300">{form.max_impressions_per_vendor === 0 ? 'Unlimited' : `${form.max_impressions_per_vendor} impression(s) per vendor`}</span>
+                Placement: <span className="text-neutral-300">{isHomepage ? 'Public homepage' : 'Vendor portal'}</span><br />
+                Audience: <span className="text-neutral-300">{isHomepage ? 'All homepage visitors' : form.target_type === 'ALL' ? 'All vendors' : `${form.target_vendor_ids.length} selected vendors`}</span><br />
+                Delivery: <span className="text-neutral-300">{form.max_impressions_per_vendor === 0 ? 'Unlimited' : `${form.max_impressions_per_vendor} impression(s) per ${isHomepage ? 'visitor' : 'vendor'}`}</span>
               </div>
               <div className="sticky bottom-0 z-10 mt-5 flex gap-2 border-t border-neutral-800 bg-neutral-950 py-4 lg:static lg:border-0 lg:py-0"><Button type="button" variant="outline" disabled={saving} onClick={() => setDialogOpen(false)} className="flex-1 border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-800">Cancel</Button><Button type="submit" disabled={saving} className="flex-1 bg-orange-600 text-white hover:bg-orange-500">{saving ? 'Saving...' : editingId ? 'Save changes' : 'Launch campaign'}</Button></div>
             </aside>

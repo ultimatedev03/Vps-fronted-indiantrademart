@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet';
 import HeroSection from '@/modules/directory/components/HeroSection';
 import { toAbsoluteSiteUrl } from '@/lib/siteUrl';
 import { HOME_FAQS } from '@/modules/directory/pages/homeStoryContent';
+import VendorCampaignPopup from '@/modules/vendor/components/VendorCampaignPopup';
 
 const HomeDeferredSections = lazy(() => import('./HomeDeferredSections'));
 
@@ -188,6 +189,7 @@ const Home = () => {
         <script type="application/ld+json">{JSON.stringify(STRUCTURED_DATA)}</script>
       </Helmet>
 
+      <VendorCampaignPopup surface="homepage" audienceKey="public-homepage" />
       <HeroSection />
       <Suspense fallback={<HomeSectionsFallback />}>
         {loadDeferredSections ? <HomeDeferredSections /> : <HomeSectionsFallback />}
