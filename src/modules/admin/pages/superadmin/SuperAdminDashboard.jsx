@@ -6,6 +6,7 @@ import { toast } from '@/components/ui/use-toast';
 import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
 import Search360Workspace from '@/shared/components/Search360Workspace';
+import SuperAdminPlanActivationDialog from '@/modules/admin/components/SuperAdminPlanActivationDialog';
 import CategoryDemandAnalytics from './CategoryDemandAnalytics';
 import VendorCampaignsPanel from './VendorCampaignsPanel';
 import {
@@ -669,6 +670,9 @@ export default function SuperAdminDashboard() {
   const [vendorFilter, setVendorFilter] = useState('all');
   const [vendorDeletingId, setVendorDeletingId] = useState(null);
   const [vendorAllIndiaSavingId, setVendorAllIndiaSavingId] = useState(null);
+  const [planActivationVendor, setPlanActivationVendor] = useState(null);
+  const [planActivationOpen, setPlanActivationOpen] = useState(false);
+  const [search360RefreshToken, setSearch360RefreshToken] = useState(0);
 
   // Plans
   const [plans, setPlans] = useState([]);
@@ -982,7 +986,7 @@ export default function SuperAdminDashboard() {
     setPlansLoading(true);
     try {
       const { plans: list } = await superAdminServerApi.plans.list({
-        include_inactive: false,
+        include_inactive: true,
         limit: 500,
       });
       const next = list || [];
@@ -2225,6 +2229,59 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const openVendorPlanActivation = (vendor) => {
+    if (!vendor?.id) {
+      toast({
+        title: 'Vendor unavailable',
+        description: 'A valid vendor record is required to manage a plan.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const normalizedVendor = vendor.profile
+      ? {
+          ...vendor.profile,
+          id: vendor.id,
+          vendor_id: vendor.profile.vendor_id || vendor.vendor_id,
+          current_plan: vendor.plan || vendor.current_plan || null,
+        }
+      : vendor;
+
+    setPlanActivationVendor(normalizedVendor);
+    setPlanActivationOpen(true);
+  };
+
+  const activateVendorPlan = async (payload) => {
+    const vendorId = planActivationVendor?.id;
+    if (!vendorId) throw new Error('Vendor is no longer available.');
+
+    const response = await superAdminServerApi.vendors.activatePlan(vendorId, payload);
+    const activatedPlan = response?.current_plan || response?.subscription || null;
+
+    setVendors((current) =>
+      current.map((vendor) =>
+        vendor.id === vendorId ? { ...vendor, current_plan: activatedPlan } : vendor
+      )
+    );
+    setPlanActivationVendor((current) =>
+      current?.id === vendorId ? { ...current, current_plan: activatedPlan } : current
+    );
+    setSearch360RefreshToken((current) => current + 1);
+
+    toast({
+      title: 'Vendor plan activated',
+      description: `${activatedPlan?.plan_name || activatedPlan?.name || 'Subscription'} is now active for ${
+        planActivationVendor.company_name ||
+        planActivationVendor.owner_name ||
+        planActivationVendor.email ||
+        'the vendor'
+      }.`,
+    });
+    await fetchAuditLogs();
+    return response;
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (!passwordForm.current || !passwordForm.new) {
@@ -2876,9 +2933,9 @@ export default function SuperAdminDashboard() {
             <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-white">Vendor Deletion</CardTitle>
+                  <CardTitle className="text-white">Vendor Management</CardTitle>
                   <CardDescription className="text-neutral-400">
-                    Permanently delete vendor accounts and related data.
+                    Review vendor access, lead activity, and manually assign subscription plans.
                   </CardDescription>
                 </div>
                 <Button
@@ -2904,6 +2961,7 @@ export default function SuperAdminDashboard() {
                         <TableHead className="text-neutral-300">Vendor</TableHead>
                         <TableHead className="text-neutral-300">KYC</TableHead>
                         <TableHead className="text-neutral-300">Active</TableHead>
+                        <TableHead className="text-neutral-300">Subscription</TableHead>
                         <TableHead className="text-neutral-300">All India</TableHead>
                         <TableHead className="text-neutral-300">Location</TableHead>
                         <TableHead className="text-neutral-300">Direct Leads</TableHead>
@@ -2916,7 +2974,7 @@ export default function SuperAdminDashboard() {
                     <TableBody>
                       {filteredVendors.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={10} className="text-center text-neutral-500 py-10">
+                          <TableCell colSpan={11} className="text-center text-neutral-500 py-10">
                             {vendorsLoading ? 'Loading vendors...' : 'No vendors found'}
                           </TableCell>
                         </TableRow>
@@ -2931,6 +2989,7 @@ export default function SuperAdminDashboard() {
                             vendor.all_india_visibility === 1 ||
                             String(vendor.all_india_visibility || '').toLowerCase() === 'true';
                           const stats = vendor.lead_stats || {};
+                          const currentPlan = vendor.current_plan || null;
                           return (
                             <TableRow key={vendor.id} className="hover:bg-neutral-800/50">
                               <TableCell>
@@ -2962,6 +3021,37 @@ export default function SuperAdminDashboard() {
                                 >
                                   {active ? 'ACTIVE' : 'INACTIVE'}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="min-w-40 space-y-2">
+                                  <div>
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        currentPlan
+                                          ? 'border-emerald-800 bg-emerald-950/40 text-emerald-300'
+                                          : 'border-neutral-700 bg-neutral-900 text-neutral-400'
+                                      }
+                                    >
+                                      {currentPlan?.plan_name || currentPlan?.name || 'No active plan'}
+                                    </Badge>
+                                    {currentPlan?.end_date ? (
+                                      <div className="mt-1 text-[11px] text-neutral-500">
+                                        Ends {formatDateTime(currentPlan.end_date)}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 border-emerald-900 bg-emerald-950/30 text-xs text-emerald-300 hover:bg-emerald-900/50"
+                                    onClick={() => openVendorPlanActivation(vendor)}
+                                  >
+                                    <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                                    {currentPlan ? 'Change plan' : 'Activate plan'}
+                                  </Button>
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-3">
@@ -4611,6 +4701,8 @@ export default function SuperAdminDashboard() {
             <Search360Workspace
               api={superAdminServerApi.search360}
               impersonationApi={superAdminServerApi.impersonation}
+              onManagePlan={openVendorPlanActivation}
+              refreshToken={search360RefreshToken}
               title="Search 360"
               description="Super Admin view for vendor profile, products, plan, account status, support cases, and cross-team escalation."
               roleLabel={isGodMode ? 'GODMODE' : 'SUPERADMIN'}
@@ -4937,6 +5029,8 @@ export default function SuperAdminDashboard() {
               <Search360Workspace
                 api={superAdminServerApi.search360}
                 impersonationApi={superAdminServerApi.impersonation}
+                onManagePlan={openVendorPlanActivation}
+                refreshToken={search360RefreshToken}
                 title="Developer Search 360"
                 description="GOD MODE view for all-region vendor intelligence, escalations, and operational diagnostics."
                 roleLabel="GODMODE"
@@ -5492,6 +5586,15 @@ export default function SuperAdminDashboard() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <SuperAdminPlanActivationDialog
+        open={planActivationOpen}
+        onOpenChange={setPlanActivationOpen}
+        vendor={planActivationVendor}
+        plans={plans}
+        onActivate={activateVendorPlan}
+        dark
+      />
     </div>
   );
 }

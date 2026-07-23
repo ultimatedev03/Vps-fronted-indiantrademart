@@ -79,6 +79,11 @@ export const superAdminServerApi = {
         method: 'PUT',
         body: JSON.stringify({ enabled }),
       }),
+    activatePlan: (vendorId, payload) =>
+      request(`/vendors/${vendorId}/plan-activation`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
   },
 
   plans: {

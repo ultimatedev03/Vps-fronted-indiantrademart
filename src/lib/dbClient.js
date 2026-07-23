@@ -94,15 +94,16 @@ const broadcastAuthSync = (event) => {
 };
 
 const fetchJson = async (path, options = {}) => {
-  const method = String(options.method || 'GET').toUpperCase();
+  const { useBackendAuth = true, ...fetchOptions } = options;
+  const method = String(fetchOptions.method || 'GET').toUpperCase();
   const headers = {
     Accept: 'application/json',
-    ...options.headers,
+    ...fetchOptions.headers,
   };
 
   if (
-    options.body !== undefined &&
-    options.body !== null &&
+    fetchOptions.body !== undefined &&
+    fetchOptions.body !== null &&
     !headers['Content-Type'] &&
     !headers['content-type']
   ) {
@@ -114,8 +115,17 @@ const fetchJson = async (path, options = {}) => {
     if (csrf && !headers['X-CSRF-Token']) headers['X-CSRF-Token'] = csrf;
   }
 
+  if (
+    useBackendAuth &&
+    cachedBackendAccessToken &&
+    !headers.Authorization &&
+    !headers.authorization
+  ) {
+    headers.Authorization = `Bearer ${cachedBackendAccessToken}`;
+  }
+
   const res = await fetch(apiUrl(path), {
-    ...options,
+    ...fetchOptions,
     headers,
     credentials: 'include',
   });
@@ -161,7 +171,7 @@ const refreshSession = async (force = false) => {
   refreshPromise = (async () => {
     const hadUser = !!cachedUser;
     try {
-      const data = await fetchJson('/api/auth/me');
+      const data = await fetchJson('/api/auth/me', { useBackendAuth: false });
       setCachedBackendAccessToken(data?.user?.access_token);
       cachedUser = sanitizeAuthUser(data?.user || null);
       lastRefreshAt = Date.now();
@@ -335,24 +345,41 @@ class MysqlBrowserQuery {
 
   async execute() {
     try {
-      const data = await fetchJson('/api/db/query', {
-        method: 'POST',
-        body: JSON.stringify({
-          table: this.table,
-          operation: this.operation,
-          payload: this.payload,
-          selectColumns: this.selectColumns,
-          selectOptions: this.selectOptions,
-          filters: this.filters,
-          orGroups: this.orGroups,
-          orders: this.orders,
-          limitValue: this.limitValue,
-          offsetValue: this.offsetValue,
-          singleMode: this.singleMode,
-          maybeSingleMode: this.maybeSingleMode,
-          upsertOptions: this.upsertOptions,
-        }),
+      if (!cachedBackendAccessToken && shouldProbeAuthWithoutHint()) {
+        await refreshSession();
+      }
+
+      const queryBody = JSON.stringify({
+        table: this.table,
+        operation: this.operation,
+        payload: this.payload,
+        selectColumns: this.selectColumns,
+        selectOptions: this.selectOptions,
+        filters: this.filters,
+        orGroups: this.orGroups,
+        orders: this.orders,
+        limitValue: this.limitValue,
+        offsetValue: this.offsetValue,
+        singleMode: this.singleMode,
+        maybeSingleMode: this.maybeSingleMode,
+        upsertOptions: this.upsertOptions,
       });
+      const runQuery = () =>
+        fetchJson('/api/db/query', {
+          method: 'POST',
+          body: queryBody,
+        });
+
+      let data;
+      try {
+        data = await runQuery();
+      } catch (error) {
+        if (error?.status !== 401 || !shouldProbeAuthWithoutHint()) throw error;
+        await refreshSession(true);
+        if (!cachedBackendAccessToken) throw error;
+        data = await runQuery();
+      }
+
       return { data: data?.data ?? null, error: null, count: data?.count ?? null };
     } catch (error) {
       if (this.shouldThrow) throw error;
@@ -428,6 +455,7 @@ const auth = {
 
       const data = await fetchJson('/api/auth/login', {
         method: 'POST',
+        useBackendAuth: false,
         body: JSON.stringify({
           email: normalizedEmail,
           password,
@@ -443,7 +471,7 @@ const auth = {
       );
 
       if (requestedRole && requestedRole !== returnedRole) {
-        await fetchJson('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        await fetchJson('/api/auth/logout', { method: 'POST', useBackendAuth: false }).catch(() => {});
         resetCachedAuth();
         const error = new Error(getRoleMismatchMessage(requestedRole));
         error.status = 403;
@@ -468,6 +496,7 @@ const auth = {
       const captchaAction = getCaptchaField(meta, 'captcha_action', 'captchaAction');
       const data = await fetchJson('/api/auth/register', {
         method: 'POST',
+        useBackendAuth: false,
         body: JSON.stringify({
           email,
           password,
@@ -492,7 +521,7 @@ const auth = {
     }
   },
   signOut: async () => {
-    await fetchJson('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    await fetchJson('/api/auth/logout', { method: 'POST', useBackendAuth: false }).catch(() => {});
     resetCachedAuth();
     emit('SIGNED_OUT', null);
     broadcastAuthSync('SIGNED_OUT');

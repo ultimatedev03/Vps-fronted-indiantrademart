@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Tags,
   Users,
 } from 'lucide-react';
@@ -93,6 +94,8 @@ const Search360Workspace = ({
   dark = false,
   roleLabel = '',
   impersonationApi = null,
+  onManagePlan = null,
+  refreshToken = 0,
 }) => {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState({ vendors: [], actor: {}, scope: {} });
@@ -115,8 +118,10 @@ const Search360Workspace = ({
   );
   const permissions = result?.actor?.permissions || {};
   const actorRole = String(result?.actor?.role || '').toUpperCase();
+  const canManagePlan = !!selected && typeof onManagePlan === 'function';
   const allowedTargets = permissions.allowed_targets || [];
   const targetOptions = TEAM_OPTIONS.filter((team) => allowedTargets.includes(team.value));
+  const refreshTokenRef = useRef(refreshToken);
 
   const shellClass = dark
     ? 'text-neutral-100'
@@ -151,6 +156,13 @@ const Search360Workspace = ({
     load('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (refreshTokenRef.current === refreshToken) return;
+    refreshTokenRef.current = refreshToken;
+    load(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   useEffect(() => {
     if (!draft.target_team && targetOptions.length) {
@@ -489,6 +501,17 @@ const Search360Workspace = ({
                   ) : (
                     <p className={`text-xs ${mutedClass}`}>No active plan history found.</p>
                   )}
+                  {canManagePlan ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-3 w-full bg-emerald-700 text-white hover:bg-emerald-600"
+                      onClick={() => onManagePlan(selected)}
+                    >
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      {selected.plan ? 'Change active plan' : 'Activate a plan'}
+                    </Button>
+                  ) : null}
                 </Section>
 
                 <Section title="Escalate" icon={ArrowRight} dark={dark}>

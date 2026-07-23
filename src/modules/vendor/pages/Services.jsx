@@ -32,6 +32,7 @@ import {
   BadgeCheck,
   Award,
   Download,
+  RefreshCw,
 } from 'lucide-react';
 
 // ✅ shadcn dialog (if you have it)
@@ -589,6 +590,7 @@ const Services = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setFatalError(null);
     try {
       // Force fresh data from MySQL (no cache)
       const { data: plansData, error: plansErr } = await dbClient
@@ -644,7 +646,7 @@ const Services = () => {
         .select('*, plan:vendor_plans(*)')
         .eq('vendor_id', vendorId)
         .eq('status', 'ACTIVE')
-        .order('created_at', { ascending: false })
+        .order('start_date', { ascending: false })
         .limit(1);
 
       if (subsErr) throw subsErr;
@@ -1062,15 +1064,6 @@ const Services = () => {
     return { meta, groups, keyBenefits };
   };
 
-  useEffect(() => {
-    const handler = (event) => {
-      setFatalError(event?.error?.message || event?.message || 'Unexpected error');
-      setLoading(false);
-    };
-    window.addEventListener('error', handler);
-    return () => window.removeEventListener('error', handler);
-  }, []);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[420px]">
@@ -1101,6 +1094,16 @@ const Services = () => {
         <div className="text-center text-red-600">
           <p className="text-lg font-semibold">Error loading subscriptions</p>
           <p className="text-sm mt-1">{fatalError}</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4"
+            disabled={!vendorId}
+            onClick={loadData}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry
+          </Button>
         </div>
       </div>
     );

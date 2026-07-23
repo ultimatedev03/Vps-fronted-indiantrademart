@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
 import {
   clearSuperAdminSession,
@@ -10,6 +11,7 @@ import { superAdminServerApi } from '@/modules/admin/services/superAdminServerAp
 const SuperAdminContext = createContext(null);
 
 export const SuperAdminProvider = ({ children }) => {
+  const { pathname } = useLocation();
   const [superAdmin, setSuperAdmin] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -36,29 +38,51 @@ export const SuperAdminProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    const isSuperAdminRoute =
+      pathname === '/superadmin' ||
+      pathname.startsWith('/superadmin/') ||
+      pathname === '/admin/superadmin' ||
+      pathname.startsWith('/admin/superadmin/');
+
+    if (!isSuperAdminRoute) {
+      setSuperAdmin(null);
+      setIsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const token = getSuperAdminToken();
 
     if (!token) {
+      setSuperAdmin(null);
       setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
     // Validate token in background so stale sessions get cleaned up.
     (async () => {
       try {
         const { superadmin } = await superAdminServerApi.auth.me();
-        if (superadmin) {
+        if (!cancelled && superadmin) {
           setSuperAdmin(superadmin);
         }
       } catch (error) {
+        if (cancelled) return;
         console.warn('[SuperAdminAuth] Session validation failed:', error?.message || error);
         clearSuperAdminSession();
         setSuperAdmin(null);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   const login = async (email, password, captcha = {}) => {
     try {
