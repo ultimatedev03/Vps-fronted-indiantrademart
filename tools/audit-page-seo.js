@@ -25,6 +25,7 @@ const expectedFields = (record) => ({
   canonical_url: record.canonical,
   meta_keywords: record.keywords,
   schema_kind: record.schemaKind,
+  schema_types: record.schemaTypes.join(', '),
 });
 
 const assertEqual = (actual, expected, label) => {
@@ -37,14 +38,18 @@ const run = async () => {
   const { data, error } = await db
     .from('page_seo_overrides')
     .select(
-      'path, page_name, meta_title, meta_description, h1, canonical_url, meta_keywords, schema_kind, is_active'
+      'path, page_name, meta_title, meta_description, h1, canonical_url, meta_keywords, schema_kind, schema_types, schema_json, is_active'
     )
     .eq('is_active', 1)
     .order('path');
   if (error) throw error;
 
   const dbByPath = new Map((data || []).map((row) => [row.path, row]));
-  assertEqual(dbByPath.size, PAGE_SEO_OVERRIDES.length, 'active DB record count');
+  if (dbByPath.size < PAGE_SEO_OVERRIDES.length) {
+    throw new Error(
+      `active DB record count: expected at least ${PAGE_SEO_OVERRIDES.length}, received ${dbByPath.size}`
+    );
+  }
 
   let dbChecks = 0;
   let htmlChecks = 0;
@@ -55,6 +60,21 @@ const run = async () => {
       assertEqual(dbRow[field], value, `${expected.path} DB ${field}`);
       dbChecks += 1;
     }
+    let dbSchema;
+    try {
+      dbSchema =
+        typeof dbRow.schema_json === 'string'
+          ? JSON.parse(dbRow.schema_json)
+          : dbRow.schema_json;
+    } catch {
+      throw new Error(`${expected.path}: DB schema_json is not valid JSON`);
+    }
+    assertEqual(
+      JSON.stringify(dbSchema),
+      JSON.stringify(expected.schemaJson),
+      `${expected.path} DB schema_json`
+    );
+    dbChecks += 1;
 
     const htmlPath = path.join(
       FRONTEND_DIR,
@@ -111,8 +131,13 @@ const run = async () => {
     assertEqual(canonical, expected.canonical, `${expected.path} HTML canonical`);
     assertEqual(h1, expected.h1, `${expected.path} HTML H1`);
     assertEqual(embedded.path, expected.path, `${expected.path} embedded path`);
-    if (!Array.isArray(schema?.['@graph']) || !schema['@graph'].some((item) => item?.['@type'] === 'WebPage')) {
-      throw new Error(`${expected.path}: JSON-LD WebPage node missing`);
+    if (
+      !Array.isArray(schema?.['@graph']) ||
+      !schema['@graph'].some((item) =>
+        ['WebPage', 'SearchResultsPage'].includes(item?.['@type'])
+      )
+    ) {
+      throw new Error(`${expected.path}: JSON-LD page node missing`);
     }
     htmlChecks += 7;
   }

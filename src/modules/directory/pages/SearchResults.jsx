@@ -5,6 +5,7 @@ import { useSearchParams, useParams, useLocation, useNavigate } from 'react-rout
 import { motion } from 'framer-motion';
 import SearchFilters from '@/modules/directory/components/SearchFilters';
 import SearchResultsList from '@/modules/directory/components/SearchResultsList';
+import PageSeoFaq from '@/modules/directory/components/PageSeoFaq';
 import PillBreadcrumbs from '@/shared/components/PillBreadcrumbs';
 import NearbyLocationNav from '@/modules/directory/components/NearbyLocationNav';
 import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBar';
@@ -20,6 +21,7 @@ import {
   getInitialPageSeoOverride,
   loadPageSeoOverride,
 } from '@/modules/directory/seo/pageSeoClient';
+import { getProductDetailPath } from '@/shared/utils/productRoutes';
 
 const normalizeText = (t) =>
   String(t || '')
@@ -1316,7 +1318,14 @@ const SearchResults = () => {
       },
     ],
   };
-  const searchSchema = seoOverride ? buildPageSeoSchema(seoOverride) : defaultSearchSchema;
+  const searchSchema = seoOverride
+    ? buildPageSeoSchema(seoOverride, {
+        items: filteredResults.map((product) => ({
+          name: product?.name || product?.product_name || product?.title,
+          path: getProductDetailPath(product),
+        })),
+      })
+    : defaultSearchSchema;
 
   return (
     <>
@@ -1402,6 +1411,7 @@ const SearchResults = () => {
             </main>
           </div>
         </div>
+        <PageSeoFaq schema={searchSchema} />
       </div>
     </>
   );

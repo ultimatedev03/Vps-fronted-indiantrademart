@@ -1,7 +1,11 @@
-import { PAGE_SEO_OVERRIDES } from './pageSeoSeedData.js';
+import {
+  PAGE_SEO_DATE_MODIFIED,
+  PAGE_SEO_DUPLICATE_ROW_COUNT,
+  PAGE_SEO_OVERRIDES,
+  PAGE_SEO_SOURCE_ROW_COUNT,
+} from './pageSeoSeedData.js';
 import { db } from './mysqlToolClient.js';
 
-const DATE_MODIFIED = '2026-07-16';
 const CHUNK_SIZE = 100;
 
 const rows = PAGE_SEO_OVERRIDES.map((record) => ({
@@ -13,7 +17,9 @@ const rows = PAGE_SEO_OVERRIDES.map((record) => ({
   canonical_url: record.canonical,
   meta_keywords: record.keywords,
   schema_kind: record.schemaKind,
-  date_modified: DATE_MODIFIED,
+  schema_types: record.schemaTypes.join(', '),
+  schema_json: JSON.stringify(record.schemaJson),
+  date_modified: PAGE_SEO_DATE_MODIFIED,
   is_active: 1,
 }));
 
@@ -28,7 +34,7 @@ const run = async () => {
 
   const { data, error } = await db
     .from('page_seo_overrides')
-    .select('path, meta_title, canonical_url, is_active')
+    .select('path, meta_title, canonical_url, schema_types, schema_json, is_active')
     .eq('is_active', 1)
     .order('path');
   if (error) throw error;
@@ -37,7 +43,10 @@ const run = async () => {
   const missing = rows.filter((row) => !seededPaths.has(row.path));
   if (missing.length) throw new Error(`SEO seed verification failed for ${missing.length} paths`);
 
-  console.log(`Page SEO seed complete: ${rows.length} records upserted and verified.`);
+  console.log(
+    `Page SEO seed complete: ${PAGE_SEO_SOURCE_ROW_COUNT} source rows, ` +
+      `${PAGE_SEO_DUPLICATE_ROW_COUNT} duplicate rows, ${rows.length} unique records upserted and verified.`
+  );
 };
 
 run()

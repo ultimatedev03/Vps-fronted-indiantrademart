@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { Home, Loader2 } from 'lucide-react';
 
 import DirectorySearchBar from '@/modules/directory/components/DirectorySearchBar';
+import PageSeoFaq from '@/modules/directory/components/PageSeoFaq';
 import SearchFilters from '@/modules/directory/components/SearchFilters';
 import SearchResultsList from '@/modules/directory/components/SearchResultsList';
 
@@ -14,6 +15,7 @@ import {
   getInitialPageSeoOverride,
   loadPageSeoOverride,
 } from '@/modules/directory/seo/pageSeoClient';
+import { getProductDetailPath } from '@/shared/utils/productRoutes';
 
 const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
 const stripHtml = (s) => safeStr(s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -253,7 +255,6 @@ const ProductListing = () => {
   const pageHeading =
     seoOverride?.h1 ||
     `${microName} Suppliers & Manufacturers${locationName ? ` in ${locationName}` : ''}`;
-  const pageSchema = seoOverride ? buildPageSeoSchema(seoOverride) : null;
 
   const resolveLocationIds = async () => {
     const key = `${stateSlug || ''}::${districtSlug || ''}::${citySlug || ''}`;
@@ -353,6 +354,19 @@ const ProductListing = () => {
     return out;
   }, [results, filters, priceBounds.min, priceBounds.max]);
 
+  const pageSchema = useMemo(
+    () =>
+      seoOverride
+        ? buildPageSeoSchema(seoOverride, {
+            items: filtered.map((product) => ({
+              name: product?.name || product?.product_name || product?.title,
+              path: getProductDetailPath(product),
+            })),
+          })
+        : null,
+    [seoOverride, filtered]
+  );
+
   const chipBase = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition';
   const chip = `${chipBase} bg-white text-slate-700 border-slate-200 hover:border-slate-300`;
   const chipActive = `${chipBase} bg-[#003D82] text-white border-[#003D82]`;
@@ -430,6 +444,7 @@ const ProductListing = () => {
           </div>
         )}
       </div>
+      <PageSeoFaq schema={pageSchema} />
     </div>
   );
 };

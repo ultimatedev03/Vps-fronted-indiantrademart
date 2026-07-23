@@ -542,15 +542,27 @@ const fetchHeads = async () => {
 };
 
 const fetchPageSeoOverrides = async () => {
-  const res = await withDbRetry('page_seo_overrides', () =>
+  let res = await withDbRetry('page_seo_overrides/full', () =>
     db
       .from('page_seo_overrides')
       .select(
-        'id, path, page_name, meta_title, meta_description, h1, canonical_url, meta_keywords, schema_kind, date_modified, updated_at'
+        'id, path, page_name, meta_title, meta_description, h1, canonical_url, meta_keywords, schema_kind, schema_types, schema_json, date_modified, updated_at'
       )
       .eq('is_active', 1)
       .order('path')
   );
+
+  if (res.error && isMissingColumnError(res.error)) {
+    res = await withDbRetry('page_seo_overrides/legacy', () =>
+      db
+        .from('page_seo_overrides')
+        .select(
+          'id, path, page_name, meta_title, meta_description, h1, canonical_url, meta_keywords, schema_kind, date_modified, updated_at'
+        )
+        .eq('is_active', 1)
+        .order('path')
+    );
+  }
 
   if (res.error) throw res.error;
   return (res.data || []).map(mapPageSeoOverride).filter(Boolean);
