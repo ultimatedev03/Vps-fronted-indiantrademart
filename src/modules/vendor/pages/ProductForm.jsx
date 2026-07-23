@@ -67,6 +67,10 @@ const toNonNegativeNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
+const hasValidPricePrecision = (value) => {
+  if (value === null || value === undefined || String(value).trim() === '') return true;
+  return /^\d+(?:\.\d{1,2})?$/.test(String(value).trim());
+};
 const clampDiscountPercent = (value) => {
   const parsed = toNonNegativeNumber(value);
   if (parsed === null) return 0;
@@ -701,6 +705,13 @@ const ProductForm = () => {
         delete productMetadata.discount_percent;
         delete productMetadata.discount_amount;
       } else {
+        if (!hasValidPricePrecision(formData.price)) {
+          throw new Error('Selling price must have no more than 2 decimal places.');
+        }
+        if (!hasValidPricePrecision(formData.original_price)) {
+          throw new Error('Original price must have no more than 2 decimal places.');
+        }
+
         const normalizedOriginalPrice = toNonNegativeNumber(formData.original_price);
         const normalizedSellingPrice = toNonNegativeNumber(formData.price);
         let normalizedDiscountPercent = clampDiscountPercent(formData.discount_percent);
@@ -1272,11 +1283,14 @@ const ProductForm = () => {
                           <Label>Selling Price (₹)</Label>
                           <Input
                             type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
                             value={formData.price}
                             onChange={(e) =>
                               setFormData((p) => ({ ...p, price: e.target.value }))
                             }
-                            placeholder="e.g. 500"
+                            placeholder="e.g. 14.05"
                           />
                         </div>
                         <div className="space-y-2">
@@ -1294,6 +1308,9 @@ const ProductForm = () => {
                           <Label>Original Price / MRP (₹)</Label>
                           <Input
                             type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
                             value={formData.original_price}
                             onChange={(e) =>
                               setFormData((p) => ({ ...p, original_price: e.target.value }))

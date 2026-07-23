@@ -248,12 +248,16 @@ export default function VendorProducts() {
       const safeSpecs = normalizeList(editProduct.specifications);
       const safeKeywords = normalizeList(editProduct.extra_micro_categories);
       const minOrderQty = editProduct.min_order_qty ?? editProduct.moq;
+      const productPrice = String(editProduct.price ?? "").trim();
+      if (productPrice && !/^\d+(?:\.\d{1,2})?$/.test(productPrice)) {
+        throw new Error("Price must have no more than 2 decimal places.");
+      }
       const res = await fetchWithCsrf(`${ADMIN_API_BASE}/products/${editProduct.id}`, {
         method: "PUT",
         body: JSON.stringify({
           name: editProduct.name,
           description: editProduct.description,
-          price: editProduct.price === "" ? null : Number(editProduct.price || 0),
+          price: productPrice || null,
           price_unit: editProduct.price_unit || null,
           qty_unit: editProduct.qty_unit || null,
           status: editProduct.status,
@@ -713,6 +717,9 @@ export default function VendorProducts() {
                   <label className="text-sm text-gray-600">Price</label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
                     value={editProduct.price}
                     onChange={(e) => setEditProduct((s) => ({ ...s, price: e.target.value }))}
                   />
