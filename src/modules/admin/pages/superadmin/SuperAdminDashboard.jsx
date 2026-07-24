@@ -7,6 +7,7 @@ import { filterRecordsBySearch } from '@/modules/admin/lib/search';
 import WebsiteVisitorActivityCard from '@/shared/components/WebsiteVisitorActivityCard';
 import Search360Workspace from '@/shared/components/Search360Workspace';
 import SuperAdminPlanActivationDialog from '@/modules/admin/components/SuperAdminPlanActivationDialog';
+import SuperAdminBulkPlanActivation from '@/modules/admin/components/SuperAdminBulkPlanActivation';
 import CategoryDemandAnalytics from './CategoryDemandAnalytics';
 import VendorCampaignsPanel from './VendorCampaignsPanel';
 import {
@@ -2282,6 +2283,11 @@ export default function SuperAdminDashboard() {
     return response;
   };
 
+  const handleBulkPlanApplied = async () => {
+    setSearch360RefreshToken((current) => current + 1);
+    await Promise.all([fetchVendors(), fetchAuditLogs()]);
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (!passwordForm.current || !passwordForm.new) {
@@ -3130,6 +3136,8 @@ export default function SuperAdminDashboard() {
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-4">
+            <SuperAdminBulkPlanActivation plans={plans} onApplied={handleBulkPlanApplied} />
+
             <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader className="space-y-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

@@ -109,6 +109,16 @@ export const superAdminServerApi = {
       request(`/plans/${planId}`, {
         method: 'DELETE',
       }),
+    previewBulkActivation: (payload) =>
+      request('/plans/bulk-activation/preview', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    applyBulkActivation: (payload) =>
+      request('/plans/bulk-activation/apply', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
   },
 
   finance: {
