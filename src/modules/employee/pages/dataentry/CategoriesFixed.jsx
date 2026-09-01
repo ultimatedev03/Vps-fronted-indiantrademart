@@ -16,6 +16,15 @@ const isMissingColumnError = (error) => {
   return error.code === '42703' || /column .* does not exist/i.test(error.message || '');
 };
 
+const sanitizeMetaText = (value = '', { allowCommas = false } = {}) => {
+  const text = String(value);
+  const clean = allowCommas
+    ? text.replace(/[^\p{L}\p{M}\p{N} ,]/gu, '')
+    : text.replace(/[^\p{L}\p{M}\p{N} ]/gu, '');
+
+  return clean.replace(/ {2,}/g, ' ').replace(/^ +/, '');
+};
+
 const toImageUrlList = (value) => {
   const urls = [];
   const append = (entry) => {
@@ -415,9 +424,9 @@ const CategoriesFixed = () => {
     setSelectedMicroCategory(microCategory);
     const meta = microMeta[microCategory.id];
     setMetaData({
-      meta_tags: meta?.meta_tags || '',
-      description: meta?.description || '',
-      keywords: meta?.keywords || '',
+      meta_tags: sanitizeMetaText(meta?.meta_tags || ''),
+      description: sanitizeMetaText(meta?.description || ''),
+      keywords: sanitizeMetaText(meta?.keywords || '', { allowCommas: true }),
     });
     setShowMetaDialog(true);
   };
@@ -426,16 +435,19 @@ const CategoriesFixed = () => {
   const saveMeta = async () => {
     try {
       const existing = microMeta[selectedMicroCategory.id];
+      const cleanMetaTitle = sanitizeMetaText(metaData.meta_tags).trim();
+      const cleanDescription = sanitizeMetaText(metaData.description).trim();
+      const cleanKeywords = sanitizeMetaText(metaData.keywords, { allowCommas: true }).trim();
       const payload = {
-        meta_tags: metaData.meta_tags,
-        keywords: metaData.keywords,
-        description: metaData.description,
+        meta_tags: cleanMetaTitle,
+        keywords: cleanKeywords,
+        description: cleanDescription,
         updated_at: new Date().toISOString(),
       };
       const insertPayload = {
-        meta_tags: metaData.meta_tags,
-        keywords: metaData.keywords,
-        description: metaData.description,
+        meta_tags: cleanMetaTitle,
+        keywords: cleanKeywords,
+        description: cleanDescription,
         created_at: new Date().toISOString(),
       };
 
@@ -899,14 +911,20 @@ const CategoriesFixed = () => {
                                       </div>
 
                                       <div>
-                                        <Label>Base Meta Tags (comma separated)</Label>
+                                        <Label>Base Meta Title</Label>
                                         <Input
                                           value={metaData.meta_tags}
-                                          onChange={(e) => setMetaData((prev) => ({ ...prev, meta_tags: e.target.value }))}
-                                          placeholder="e.g. electronics, phones, mobile"
+                                          onChange={(e) =>
+                                            setMetaData((prev) => ({
+                                              ...prev,
+                                              meta_tags: sanitizeMetaText(e.target.value),
+                                            }))
+                                          }
+                                          placeholder="e.g. Mobile Phone Suppliers and Manufacturers"
+                                          disableAutoSanitize
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                          Only the base keywords - location will be added automatically
+                                          Letters, numbers and spaces only - location will be added automatically
                                         </p>
                                       </div>
 
@@ -914,11 +932,17 @@ const CategoriesFixed = () => {
                                         <Label>Keywords (comma separated)</Label>
                                         <Input
                                           value={metaData.keywords}
-                                          onChange={(e) => setMetaData((prev) => ({ ...prev, keywords: e.target.value }))}
+                                          onChange={(e) =>
+                                            setMetaData((prev) => ({
+                                              ...prev,
+                                              keywords: sanitizeMetaText(e.target.value, { allowCommas: true }),
+                                            }))
+                                          }
                                           placeholder="e.g. buy, sell, cheap, best quality, wholesale"
+                                          disableAutoSanitize
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                          Add search-related keywords for SEO optimization
+                                          Letters, numbers, spaces and commas only
                                         </p>
                                       </div>
 
@@ -927,13 +951,17 @@ const CategoriesFixed = () => {
                                         <Textarea
                                           value={metaData.description}
                                           onChange={(e) =>
-                                            setMetaData((prev) => ({ ...prev, description: e.target.value }))
+                                            setMetaData((prev) => ({
+                                              ...prev,
+                                              description: sanitizeMetaText(e.target.value),
+                                            }))
                                           }
-                                          placeholder="e.g. High-quality mobile phones with latest features and competitive prices"
+                                          placeholder="e.g. High quality mobile phones with latest features and competitive prices"
                                           rows={4}
+                                          data-disable-auto-sanitize="true"
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                          Keep under 150 characters - " in [City], [State]" will be appended
+                                          Letters, numbers and spaces only; keep under 150 characters
                                         </p>
                                       </div>
 
